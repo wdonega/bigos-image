@@ -287,6 +287,7 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 - **Prompts em português:** 3 pares PT × EN com a mesma seed deram qualidade equivalente (inclusive texto "Café do Zé" renderizado no PT). Não é preciso tradução.
 - **Alfa ponta a ponta (t2i):** `SaveImageAdvanced` + `/view` preservam o alfa. Com o embrulho, 59–73% dos pixels ficam com alfa < 16 e o recorte é limpo. **Sem o embrulho a saída também é RGBA**, com alfa entre 204 e 255 em 10–40% dos pixels (ruído) → decisão v0.4 de remover o alfa quando o checkbox está desligado (§8.2) e critério de aceite ajustado (§13).
 - **Embrulho em inglês + prompt em português:** mesma fração de transparência que o prompt em inglês (59% vs 60%; 72,5% vs 73%). Sem impacto.
+- **Qualidade (Marco 2):** 1 MP, mesma seed: Normal (25 passos) 17,9 s; Alta (40 passos) 26,6 s (+49%).
 - **Saída no `/history`:** `outputs["<id do @save>"].images[0] = { filename, subfolder, type: "output" }`.
 
 **A definir**
