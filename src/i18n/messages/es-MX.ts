@@ -109,6 +109,8 @@ export const esMX: Messages = {
     failedTitle: "No funcionó",
   },
   service: {
+    connecting: "Conectando con el generador de imágenes…",
+    connectingHint: "Puede tardar hasta {seconds} segundos en encender. Ya puedes llenar los campos.",
     retryHint: "Puedes llenar los campos ahora e intentarlo de nuevo en un momento.",
   },
   stylePicker: {

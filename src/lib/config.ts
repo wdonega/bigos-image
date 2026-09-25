@@ -18,6 +18,8 @@ const envSchema = z.object({
   JOB_TIMEOUT_MINUTES: positiveInt,
   STEPS_NORMAL: positiveInt,
   STEPS_HIGH: positiveInt,
+  // The ComfyUI machine wakes on LAN: how long to wait for it before calling it unavailable.
+  COMFY_WAKE_SECONDS: positiveInt.default(30),
   // Optional: "Improve text" is hidden when the LLM is not configured.
   LLM_URL: z.preprocess((v) => (v === "" ? undefined : v), z.url().optional()),
   LLM_API_KEY: z.string().optional(),
@@ -29,6 +31,8 @@ export type LlmConfig = { url: string; apiKey: string; model: string };
 
 export type Config = {
   comfyUrl: string;
+  /** How long to wait for the ComfyUI machine to wake up (Wake-on-LAN). */
+  comfyWakeMs: number;
   redisUrl: string;
   storageDir: string;
   maxRefs: number;
@@ -56,6 +60,7 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
   }
   return {
     comfyUrl: e.COMFY_URL.replace(/\/+$/, ""),
+    comfyWakeMs: e.COMFY_WAKE_SECONDS * 1000,
     redisUrl: e.REDIS_URL,
     storageDir: e.STORAGE_DIR,
     maxRefs: e.MAX_REFS,

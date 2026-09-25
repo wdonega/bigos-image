@@ -16,4 +16,5 @@ export const testConfig: Config = {
   jobTimeoutMs: 15 * 60_000,
   steps: { normal: 25, high: 40 },
   llm: null,
+  comfyWakeMs: 30_000,
 };

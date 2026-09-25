@@ -108,6 +108,8 @@ export const enUS = {
     failedTitle: "That didn't work",
   },
   service: {
+    connecting: "Connecting to the image generator…",
+    connectingHint: "It may take up to {seconds} seconds to start. You can fill in the fields in the meantime.",
     retryHint: "You can fill in the fields now and try again in a moment.",
   },
   stylePicker: {

@@ -62,3 +62,33 @@ describe("ComfyClient", () => {
     expect(client.wsUrl()).toBe("wss://comfy.test/ws?clientId=c1");
   });
 });
+
+describe("waitUntilAwake (Wake-on-LAN)", () => {
+  // Fake clock: sleeping advances time instantly.
+  function clock() {
+    let t = 0;
+    return { now: () => t, sleep: async (ms: number) => void (t += ms) };
+  }
+
+  it("retries until the machine answers", async () => {
+    let calls = 0;
+    const fetchMock = vi.fn(async () => {
+      calls++;
+      if (calls < 4) throw new TypeError("connect ECONNREFUSED");
+      return Response.json({ system: {} });
+    });
+    const client = new ComfyClient({ baseUrl: "http://comfy", clientId: "t", fetch: fetchMock as typeof fetch });
+    expect(await client.waitUntilAwake(30_000, clock())).toBe(true);
+    expect(calls).toBe(4);
+  });
+
+  it("gives up after the wait time", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("connect ECONNREFUSED");
+    });
+    const client = new ComfyClient({ baseUrl: "http://comfy", clientId: "t", fetch: fetchMock as typeof fetch });
+    expect(await client.waitUntilAwake(30_000, clock())).toBe(false);
+    // One try every 2 s over 30 s.
+    expect(fetchMock).toHaveBeenCalledTimes(15);
+  });
+});

@@ -109,6 +109,8 @@ export const ptBR: Messages = {
     failedTitle: "Não deu certo",
   },
   service: {
+    connecting: "Conectando ao gerador de imagens…",
+    connectingHint: "Ele pode levar até {seconds} segundos para ligar. Você já pode preencher os campos.",
     retryHint: "Você pode preencher os campos agora e tentar de novo daqui a pouco.",
   },
   stylePicker: {

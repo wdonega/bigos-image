@@ -108,6 +108,8 @@ export const zhCN: Messages = {
     failedTitle: "出错了",
   },
   service: {
+    connecting: "正在连接图片生成器…",
+    connectingHint: "启动可能需要最多 {seconds} 秒。你可以先填写内容。",
     retryHint: "你可以先填写内容，稍后再试。",
   },
   stylePicker: {

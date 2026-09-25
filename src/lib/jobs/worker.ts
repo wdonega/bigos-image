@@ -136,6 +136,10 @@ async function processJob(
 
   try {
     if (await isCancelled()) throw new ComfyError("interrupted", "cancelled before start");
+    // The machine may be asleep (Wake-on-LAN): give it time before the first real call.
+    if (!(await client.waitUntilAwake(config.comfyWakeMs))) {
+      throw new ComfyError("unavailable", `ComfyUI did not wake up within ${config.comfyWakeMs / 1000}s`);
+    }
     const warnings: Detail[] = [];
     if (job.data.finalPrompt === undefined) {
       const finalPrompt = await resolvePrompt(job.data, config.llm);

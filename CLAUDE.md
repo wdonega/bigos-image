@@ -42,7 +42,7 @@ Código em `src/lib/` usa imports relativos com extensão `.ts` (para rodar dire
 
 ## Configuração (`.env`, ver `.env.example`)
 
-`COMFY_URL`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`, e opcionais `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL` (Melhorar texto; a chave só no `.env`). Nunca deixe limites fixos no código: leia da configuração.
+`COMFY_URL`, `COMFY_WAKE_SECONDS`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`, e opcionais `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL` (Melhorar texto; a chave só no `.env`). Nunca deixe limites fixos no código: leia da configuração.
 
 ## Arquitetura (resumo; detalhes na spec)
 

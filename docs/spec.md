@@ -300,6 +300,9 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
     - Roda na fase "Preparando o gerador…" (~1–2 s). O prompt final fica salvo no job, para uma nova tentativa mandar o mesmo texto.
     - **Sem LLM, texto acima de 1000 caracteres, LLM fora ou resposta inválida (após 1 nova tentativa):** a geração segue com o caminho antigo (menções convertidas e frase do estilo no fim) e registra no log.
     - Depois dela vem o fundo transparente (§8.2), igual a antes.
+25. **Máquina do ComfyUI com Wake-on-LAN** (2026-09-25): a máquina fica desligada e liga com a primeira requisição ao endpoint, levando ~10 s para responder. Antes, a checagem de saúde desistia em 5 s e o aviso "gerador fora do ar" aparecia mesmo com ele funcionando. Medido também: durante uma geração pesada, `/system_stats` levou até ~4,8 s, no limite dos 5 s.
+    - `COMFY_WAKE_SECONDS` (padrão 30): `/api/health` e o worker (antes de cada job) tentam `/system_stats` a cada 2 s, com até 10 s por tentativa, até esse limite.
+    - Na tela, se a checagem demora mais de 1 s, aparece "Conectando ao gerador de imagens… pode levar até 30 segundos"; o erro só aparece depois do limite.
 
 **Descobertas (v0.4)**
 - **Exports de API corrigidos à mão (2026-09-25):** os JSONs em `workflows/api/` vieram sem os títulos `@…` e, no edit, com `ResolutionSelector`, `ImageCompare` e um 2º `LoadImage`. Com autorização do dono, os títulos foram adicionados e esses nós removidos direto no JSON (sem reexportar); `width`/`height` do edit ficaram como valores (1024 × 1024). `check-workflows.mjs` passa.

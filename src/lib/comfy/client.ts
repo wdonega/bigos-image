@@ -34,6 +34,10 @@ export type ComfyClientOptions = {
 
 type QueueItem = [number, string, ...unknown[]];
 
+/** Per-try limit while waiting for ComfyUI to wake, and pause between tries. */
+const WAKE_ATTEMPT_MS = 10_000;
+const WAKE_RETRY_MS = 2_000;
+
 /** HTTP side of the ComfyUI API. Only the backend talks to ComfyUI (spec §12). */
 export class ComfyClient {
   readonly baseUrl: string;
@@ -48,19 +52,19 @@ export class ComfyClient {
     this.#timeoutMs = options.timeoutMs ?? 60_000;
   }
 
-  async #request(path: string, init?: RequestInit): Promise<Response> {
+  async #request(path: string, init?: RequestInit, timeoutMs = this.#timeoutMs): Promise<Response> {
     try {
       return await this.#fetch(`${this.baseUrl}${path}`, {
         ...init,
-        signal: AbortSignal.timeout(this.#timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
       throw new ComfyError("unavailable", `ComfyUI unreachable (${path}): ${String(err)}`);
     }
   }
 
-  async #json<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await this.#request(path, init);
+  async #json<T>(path: string, init?: RequestInit, timeoutMs?: number): Promise<T> {
+    const res = await this.#request(path, init, timeoutMs);
     if (!res.ok) {
       const kind = res.status >= 500 ? "unavailable" : "rejected";
       throw new ComfyError(kind, `ComfyUI ${path} → HTTP ${res.status}`, await res.text());
@@ -68,8 +72,31 @@ export class ComfyClient {
     return (await res.json()) as T;
   }
 
-  systemStats(): Promise<Record<string, unknown>> {
-    return this.#json("/system_stats");
+  systemStats(timeoutMs?: number): Promise<Record<string, unknown>> {
+    return this.#json("/system_stats", undefined, timeoutMs);
+  }
+
+  /**
+   * The ComfyUI machine sleeps and is woken on LAN by the first request, taking ~10 s to answer
+   * (spec §14, decision 25). Retries /system_stats until it answers or `waitMs` runs out.
+   */
+  async waitUntilAwake(
+    waitMs: number,
+    { now = Date.now, sleep = (ms: number) => new Promise((r) => setTimeout(r, ms)) } = {},
+  ): Promise<boolean> {
+    const deadline = now() + waitMs;
+    for (;;) {
+      const left = deadline - now();
+      if (left <= 0) return false;
+      try {
+        await this.systemStats(Math.min(WAKE_ATTEMPT_MS, left));
+        return true;
+      } catch {
+        const pause = Math.min(WAKE_RETRY_MS, deadline - now());
+        if (pause <= 0) return false;
+        await sleep(pause);
+      }
+    }
   }
 
   objectInfo(nodeClass: string): Promise<Record<string, unknown>> {
