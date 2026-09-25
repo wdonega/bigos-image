@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.local
+storage/
+tmp/
+*.log
+.DS_Store
+coverage/
+playwright-report/
+test-results/
