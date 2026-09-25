@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/gerar", label: "Gerar" },
-  { href: "/editar", label: "Editar" },
+  { href: "/generate", label: "Gerar" },
+  { href: "/edit", label: "Editar" },
 ];
 
 export function AppHeader() {
@@ -14,7 +14,7 @@ export function AppHeader() {
   return (
     <header className="border-b bg-background pt-[env(safe-area-inset-top)]">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-[max(1rem,env(safe-area-inset-left))]">
-        <Link href="/gerar" className="flex h-10 items-center gap-2 font-semibold">
+        <Link href="/generate" className="flex h-10 items-center gap-2 font-semibold">
           {/* eslint-disable-next-line @next/next/no-img-element -- tiny static icon */}
           <img src="/icons/icon-192.png" alt="" width={28} height={28} className="rounded-md" />
           Bigos Image

@@ -1,4 +1,4 @@
-// Marco 1 spikes (spec §14): 2048 limit, VRAM at 4 MP, PT vs EN prompts, alpha end to end.
+// Milestone 1 spikes (spec §14): 2048 limit, VRAM at 4 MP, PT vs EN prompts, alpha end to end.
 // Usage: node --env-file=.env scripts/spikes/m1.ts [name-filter]
 // Writes PNGs and report.json to storage/spikes/m1/.
 import { mkdirSync, writeFileSync } from "node:fs";

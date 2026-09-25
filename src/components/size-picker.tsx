@@ -43,7 +43,7 @@ export function SizePicker({
   value: SizeSelection;
   onChange: (next: SizeSelection) => void;
   limits: SizeLimits;
-  /** Size of the image the "Original" option follows (Editar screen). */
+  /** Size of the image the "Original" option follows (Edit screen). */
   original?: Size | null;
   allowOriginal?: boolean;
   disabled?: boolean;

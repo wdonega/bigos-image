@@ -1,4 +1,4 @@
-// Marco 4 spike (spec §14 "Transparência na edição"): does the RGBA wrap work in the edit
+// Milestone 4 spike (spec §14, transparency on the edit workflow): does the RGBA wrap work in the edit
 // workflow, with and without references? Needs `pnpm dev` and the M1 spike images.
 // Usage: node scripts/spikes/m4.ts [name-filter] [base-url]
 import { mkdirSync, writeFileSync } from "node:fs";

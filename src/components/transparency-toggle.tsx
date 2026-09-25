@@ -2,7 +2,7 @@
 
 import { Checkbox } from "@/components/ui/checkbox";
 
-/** "Fundo transparente" (spec §8.2): the backend wraps the prompt; output stays PNG. */
+/** Transparent background (spec §8.2): the backend wraps the prompt; output stays PNG. */
 export function TransparencyToggle({
   checked,
   onChange,

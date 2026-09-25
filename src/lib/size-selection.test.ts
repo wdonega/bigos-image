@@ -28,7 +28,7 @@ describe("size selection", () => {
     expect(toRequestSize(manual)).toEqual({ ratio: "manual", width: 1920, height: 1088 });
   });
 
-  it("pre-fills Manual with the original image size on Editar", () => {
+  it("pre-fills Manual with the original image size on Edit", () => {
     const original = changeRatio(DEFAULT_GENERATE_SELECTION, "original", limits);
     const manual = changeRatio(original, "manual", limits, { width: 1216, height: 800 });
     expect(manual).toMatchObject({ width: 1216, height: 800 });

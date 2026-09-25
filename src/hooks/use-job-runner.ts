@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useJob } from "@/hooks/use-job";
 import { ApiError, TERMINAL, cancelJob, createJob } from "@/lib/client/api";
 
-/** Submits a job, follows it and cancels it; shared by the Gerar and Editar screens. */
+/** Submits a job, follows it and cancels it; shared by the Generate and Edit screens. */
 export function useJobRunner() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

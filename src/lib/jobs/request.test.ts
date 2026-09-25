@@ -8,7 +8,7 @@ const found: UploadLookup = async (id) => ({ id });
 const missing: UploadLookup = async () => null;
 const plan = (body: unknown, lookup = found) => planJob(parse(body), testConfig, lookup);
 
-describe("planJob — Gerar without references", () => {
+describe("planJob — Generate without references", () => {
   it("defaults to 1:1 · 1 MP, normal quality, random seed, t2i", async () => {
     const p = await plan(base);
     expect(p).toMatchObject({
@@ -45,7 +45,7 @@ describe("planJob — Gerar without references", () => {
     expect(err.details).toContain("Largura e altura precisam ser múltiplos de 32.");
   });
 
-  it("rejects Original on the Gerar screen", async () => {
+  it("rejects Original on the Generate screen", async () => {
     await expect(plan({ ...base, size: { ratio: "original" } })).rejects.toMatchObject({
       code: "invalid_request",
     });
@@ -56,7 +56,7 @@ describe("planJob — Gerar without references", () => {
   });
 });
 
-describe("planJob — references and Editar", () => {
+describe("planJob — references and Edit", () => {
   const ids = (n: number) => Array.from({ length: n }, (_, i) => `u${i + 1}`);
 
   it("switches to the edit workflow with the first reference", async () => {
@@ -74,14 +74,14 @@ describe("planJob — references and Editar", () => {
     await expect(plan({ ...base, images: ids(11) })).rejects.toMatchObject({ code: "too_many_images" });
   });
 
-  it("Editar needs exactly one image and allows Original (size null)", async () => {
+  it("Edit needs exactly one image and allows Original (size null)", async () => {
     const edit = { ...base, screen: "edit", size: { ratio: "original" } };
     await expect(plan({ ...edit, images: ids(1) })).resolves.toMatchObject({ workflow: "edit", size: null });
     await expect(plan({ ...edit, images: [] })).rejects.toMatchObject({ code: "invalid_request" });
     await expect(plan({ ...edit, images: ids(2) })).rejects.toMatchObject({ code: "invalid_request" });
   });
 
-  it("Editar with another proportion sends the computed size", async () => {
+  it("Edit with another proportion sends the computed size", async () => {
     const p = await plan({ ...base, screen: "edit", images: ids(1), size: { ratio: "9:16", megapixels: 1 } });
     expect(p.size).toEqual({ width: 768, height: 1376 });
   });

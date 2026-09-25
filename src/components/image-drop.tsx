@@ -5,7 +5,7 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ACCEPTED_TYPES, type UploadItem } from "@/hooks/use-uploads";
 
-/** Single image picker for the Editar screen. */
+/** Single image picker for the Edit screen. */
 export function ImageDrop({
   item,
   onFile,

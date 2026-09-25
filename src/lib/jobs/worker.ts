@@ -49,7 +49,7 @@ export async function transparentShare(png: Buffer): Promise<number> {
 }
 
 /**
- * The model always returns RGBA, but without "Fundo transparente" the alpha is only noise
+ * The model always returns RGBA, but without a transparent background the alpha is only noise
  * (values ~204–255, spec §14). Opaque results get the alpha channel dropped; transparent ones
  * are delivered as the original PNG (spec §8.2).
  */

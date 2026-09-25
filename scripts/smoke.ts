@@ -1,6 +1,6 @@
 // End-to-end check through the app's HTTP API (needs `pnpm dev` or `pnpm start` running).
 // Usage: pnpm smoke [base-url]   (default http://localhost:3000)
-// Acceptance §13: "Gerar, sem referências, sem mexer em nada" → PNG 1024 × 1024 via t2i.
+// Acceptance §13: Generate with no references and default settings → 1024 × 1024 PNG via t2i.
 import sharp from "sharp";
 
 const base = process.argv[2] ?? "http://localhost:3000";

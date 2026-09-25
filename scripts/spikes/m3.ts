@@ -1,4 +1,4 @@
-// Marco 3 spikes (spec §14) through the app's HTTP API (needs `pnpm dev` and the M1 spike images).
+// Milestone 3 spikes (spec §14) through the app's HTTP API (needs `pnpm dev` and the M1 spike images).
 // Usage: node scripts/spikes/m3.ts [name-filter] [base-url]
 // Covers: resolution = 0 / Original sizes, image injection with 2 and 10 images, VRAM with
 // 10 references, references with another proportion, editing with another proportion.

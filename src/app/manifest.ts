@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Bigos",
     description: "Gere e edite imagens de um jeito simples.",
     lang: "pt-BR",
-    start_url: "/gerar",
+    start_url: "/generate",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

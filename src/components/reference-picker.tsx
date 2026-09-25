@@ -15,7 +15,7 @@ import { ACCEPTED_TYPES, type useUploads } from "@/hooks/use-uploads";
 
 type Uploads = ReturnType<typeof useUploads>;
 
-/** Optional reference images for the Gerar screen (spec §4): add, remove, reorder, mention. */
+/** Optional reference images for the Generate screen (spec §4): add, remove, reorder, mention. */
 export function ReferencePicker({
   uploads,
   max,

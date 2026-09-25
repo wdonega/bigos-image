@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Valida os workflows exportados em API format (workflows/api/).
-// Uso: node scripts/check-workflows.mjs [pasta]   (padrão: workflows/api)
-// Sai com código 1 se algo obrigatório estiver errado. Avisos (!) não falham.
+// Validates the workflows exported in API format (workflows/api/).
+// Usage: node scripts/check-workflows.mjs [dir]   (default: workflows/api)
+// Exits with code 1 when something required is wrong. Warnings (!) do not fail.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -11,7 +11,7 @@ const PROMPT = ["prompt", "negative_prompt"];
 const LATENT = ["width", "height"];
 const SAMPLER = ["seed", "steps", "cfg", "sampler_name", "scheduler"];
 
-// título -> [class_type, inputs que o backend escreve (devem ser valores, não ligações)]
+// title -> [class_type, inputs the backend writes (must be values, not links)]
 const EXPECTED = {
   "t2i_api.json": {
     "@prompt": ["TextEncodeQwenImage21", PROMPT],
@@ -43,7 +43,7 @@ for (const [file, expected] of Object.entries(EXPECTED)) {
   console.log(`\n${file}`);
   const path = join(dir, file);
   if (!existsSync(path)) {
-    fail(`arquivo não encontrado em ${dir}`);
+    fail(`file not found in ${dir}`);
     continue;
   }
 
@@ -51,24 +51,24 @@ for (const [file, expected] of Object.entries(EXPECTED)) {
   try {
     wf = JSON.parse(readFileSync(path, "utf8"));
   } catch (e) {
-    fail(`JSON inválido: ${e.message}`);
+    fail(`invalid JSON: ${e.message}`);
     continue;
   }
 
   if (Array.isArray(wf.nodes) || wf.links) {
-    fail("parece o formato de UI (tem 'nodes'/'links'). Exporte com Save (API Format).");
+    fail("looks like the UI format (has 'nodes'/'links'). Export with Save (API Format).");
     continue;
   }
   const nodes = Object.entries(wf).filter(([, n]) => n && typeof n === "object" && n.class_type);
   if (nodes.length === 0) {
-    fail("nenhum nó com class_type: não é API format");
+    fail("no node with class_type: not API format");
     continue;
   }
-  ok(`${nodes.length} nós, formato API`);
+  ok(`${nodes.length} nodes, API format`);
 
   for (const [id, n] of nodes) {
     if (FORBIDDEN.includes(n.class_type)) {
-      fail(`nó ${id} (${n.class_type}) deve ser removido antes de exportar`);
+      fail(`node ${id} (${n.class_type}) must be removed before exporting`);
     }
   }
 
@@ -81,45 +81,45 @@ for (const [file, expected] of Object.entries(EXPECTED)) {
   for (const [title, [cls, keys]] of Object.entries(expected)) {
     const found = byTitle[title] ?? [];
     if (found.length !== 1) {
-      fail(`${title}: esperado 1 nó com esse título, encontrei ${found.length}`);
+      fail(`${title}: expected 1 node with this title, found ${found.length}`);
       continue;
     }
     const [id, n] = found[0];
     if (n.class_type !== cls) {
-      fail(`${title} (nó ${id}): class_type é ${n.class_type}, esperado ${cls}`);
+      fail(`${title} (node ${id}): class_type is ${n.class_type}, expected ${cls}`);
       continue;
     }
     const problems = [];
     for (const k of keys) {
-      if (!(k in (n.inputs ?? {}))) problems.push(`falta o input '${k}'`);
-      else if (Array.isArray(n.inputs[k])) problems.push(`'${k}' está ligado a outro nó (deve ser valor fixo)`);
+      if (!(k in (n.inputs ?? {}))) problems.push(`missing input '${k}'`);
+      else if (Array.isArray(n.inputs[k])) problems.push(`'${k}' is linked to another node (must be a plain value)`);
     }
-    if (problems.length) fail(`${title} (nó ${id}): ${problems.join("; ")}`);
-    else ok(`${title} → ${cls} (nó ${id})`);
+    if (problems.length) fail(`${title} (node ${id}): ${problems.join("; ")}`);
+    else ok(`${title} → ${cls} (node ${id})`);
   }
 
   for (const t of Object.keys(byTitle)) {
-    if (!(t in expected)) warn(`título ${t} não faz parte da convenção (ignorado)`);
+    if (!(t in expected)) warn(`title ${t} is not part of the convention (ignored)`);
   }
 
   const loads = nodes.filter(([, n]) => n.class_type === "LoadImage").length;
-  if (file === "t2i_api.json" && loads > 0) fail(`o t2i não deve ter LoadImage (achei ${loads})`);
+  if (file === "t2i_api.json" && loads > 0) fail(`t2i must not have LoadImage (found ${loads})`);
 
   if (file === "edit_api.json") {
-    if (loads !== 1) fail(`o edit deve ter exatamente 1 LoadImage (@image_1); achei ${loads}`);
+    if (loads !== 1) fail(`edit must have exactly 1 LoadImage (@image_1); found ${loads}`);
     const enc = byTitle["@prompt"]?.[0]?.[1];
     const linked = enc && Array.isArray(enc.inputs?.["images.image_1"]);
-    if (linked) ok("@prompt recebe imagem em 'images.image_1'");
+    if (linked) ok("@prompt receives an image in 'images.image_1'");
     else {
       const names = Object.keys(enc?.inputs ?? {}).filter((k) => k.toLowerCase().includes("image"));
       warn(
-        `não achei 'images.image_1' ligado ao @prompt. Entradas com 'image' no nome: ${
-          names.length ? names.join(", ") : "nenhuma"
-        }. Confirme os nomes reais e registre na spec §14.`,
+        `'images.image_1' is not linked to @prompt. Inputs with 'image' in the name: ${
+          names.length ? names.join(", ") : "none"
+        }. Confirm the real names and record them in spec §14.`,
       );
     }
   }
 }
 
-console.log(failed ? "\nFalhou: corrija os itens marcados com ✗." : "\nOK.");
+console.log(failed ? "\nFailed: fix the items marked with ✗." : "\nOK.");
 process.exit(failed ? 1 : 0);
