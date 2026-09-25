@@ -1,6 +1,7 @@
 # Spec — Gerador de imagens simples sobre ComfyUI (Qwen Image 2.1)
 
-> Status: rascunho v0.3 · 2026-09-25
+> Status: rascunho v0.4 · 2026-09-25
+> Mudanças na v0.4: decisões do plano (§14, "Decisões tomadas (v0.4)"): imagens pequenas são ampliadas até `MIN_SIDE`; `image_1` é ajustada a múltiplo de 32 pelo backend; limite de proporção no Manual; fila persistida em Redis (BullMQ); sharp no lugar de Pillow; um `client_id` por processo; ComfyUI exposto sem login (risco aceito, §12). Resultados já descobertos em §14.
 > Mudanças na v0.3: **fundo transparente** (checkbox em todas as telas) entrou no MVP (§8.2); trocar a proporção na edição passou a constar como requisito do MVP (§7).
 > Mudanças da v0.1 para a v0.2: decisões de §14 aplicadas; duas telas (Gerar com referências opcionais, Editar); seletor de tamanho por proporção + resolução (§5); "manter original" virou uma opção do seletor (§7); seletor de qualidade (§8); autenticação e multiusuário saíram do MVP.
 > Itens marcados com **(proposta)** são sugestões minhas, não vêm dos templates nem de decisões suas.
@@ -105,7 +106,9 @@ Os valores reais ficam entre 0,99 e 1,01 do nominal (1 MP), entre 1,98 e 1,99 (2
 
 - Inteiros, múltiplos de 32 (a UI arredonda ao mais próximo ao sair do campo).
 - Pixels totais ≤ `MAX_PIXELS` (padrão 4.194.304 = 2048²).
-- Lado mínimo 512 **(proposta)**.
+- Lado mínimo 512 (`MIN_SIDE`).
+- Proporção máxima 1:4 entre os lados (`MAX_ASPECT_RATIO`, padrão 4), para evitar tiras extremas no Manual (decidido na v0.4).
+- No Manual, a UI arredonda para múltiplo de 32 ao sair do campo e avisa; o backend **rejeita** (400) qualquer par que ainda chegue fora destas regras.
 - Limites configuráveis por variável de ambiente, pois dependem da VRAM.
 - O limite é **em pixels totais**, então o preset 16:9 de 4 MP tem lado de 2720. As notas do template falam em suporte "até 2048" sem dizer se é por lado ou em pixels; ver §14 (a validar).
 
@@ -123,7 +126,9 @@ Aqui `resolution` é o parâmetro interno do encoder do ComfyUI, sem relação c
 
 Regras:
 1. **Aproximado é aceitável (decidido).** Como o tamanho é ajustado a múltiplo de 32, a saída pode diferir em até 31 px por lado da imagem original. Não há reescala para o tamanho exato.
-2. **Imagem de entrada grande.** Com `resolution = 0` uma foto de 12 MP rodaria em tamanho cheio e pode estourar a VRAM. O backend **redimensiona a imagem com Pillow** (mantendo a proporção) para caber em `MAX_INPUT_PIXELS` antes de enviá-la ao ComfyUI, e avisa o usuário na UI. Assim `resolution` fica sempre `0` e não dependemos da unidade desse parâmetro. O mesmo limite vale para as referências.
+2. **Imagem de entrada grande.** Com `resolution = 0` uma foto de 12 MP rodaria em tamanho cheio e pode estourar a VRAM. O backend **redimensiona a imagem com sharp** (mantendo a proporção) para caber em `MAX_INPUT_PIXELS` antes de enviá-la ao ComfyUI, e avisa o usuário na UI. Assim `resolution` fica sempre `0` e não dependemos da unidade desse parâmetro. O mesmo limite vale para as referências.
+   - **Imagem pequena (v0.4):** se o menor lado estiver abaixo de `MIN_SIDE`, o backend **amplia** a imagem (sharp, mantendo a proporção) até o menor lado chegar a `MIN_SIDE`, e a UI avisa que o resultado pode ficar menos nítido. Vale para `image_1` e referências.
+   - **Múltiplo de 32 (v0.4):** depois de reduzir/ampliar, o backend ajusta `image_1` para largura e altura múltiplas de 32 (`floor32`, recorte central de no máximo 31 px por lado). Assim a saída em "Original" é exata e conhecida antes da execução, e nunca passa de `MAX_PIXELS`.
 3. **Outra proporção na edição (requisito do MVP).** O usuário pode escolher qualquer proporção (ou Manual) na tela Editar. As notas do template avisam que, se o tamanho ficar longe do de `image_1`, a edição pode "deslocar". A UI avisa quando a proporção escolhida difere da original. Como o modelo trata isso na prática (recorta, estica ou desloca o conteúdo) precisa ser testado (§14).
 4. **"Original" = dimensões.** O template regenera a imagem inteira (KSampler com `denoise = 1`), então isso não preserva os pixels fora da área editada. Isso exigiria máscara e composição (fora do escopo).
 
@@ -153,7 +158,7 @@ This is an RGBA format image with transparency. <prompt do usuário>. The image 
 - **Formato de saída:** PNG é obrigatório para manter o canal alfa. Já é o formato fixo do `SaveImageAdvanced` (§9.2); não oferecer JPG/WebP.
 - **Preview e download:** com o checkbox ligado, o preview usa fundo xadrez (senão a transparência aparece como cor sólida) e o download é o PNG original.
 - **Editar:** o mesmo embrulho é aplicado em volta da instrução de edição. As notas do template de edição **não** descrevem transparência, então esse comportamento é uma suposição a validar (§14).
-- **Desligado:** o prompt segue exatamente como digitado. Não há remoção de fundo por pós-processamento no MVP.
+- **Desligado:** o prompt segue exatamente como digitado. Não há remoção de fundo por pós-processamento no MVP. **(v0.4)** O modelo sempre devolve RGBA; sem o embrulho o alfa é só ruído (valores 204–255, §14). O backend remove o canal alfa desses resultados para entregar um PNG opaco de verdade.
 - O trecho embrulhador fica em inglês, mesmo com prompt em português (mistura a testar, §14).
 
 ## 9. Mapeamento com o ComfyUI
@@ -220,7 +225,7 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 1. Validar entrada (campos obrigatórios, tipo/tamanho dos arquivos, regras de §6, tela × proporção `original`).
 2. Reduzir imagens acima de `MAX_INPUT_PIXELS` (§7.2) e enviar cada uma ao ComfyUI com `POST /upload/image`.
 3. Escolher o workflow, calcular width/height, montar o grafo (§9), embrulhar o prompt se Fundo transparente (§8.2) e gerar a seed.
-4. `POST /prompt` com um `client_id` por sessão e guardar o `prompt_id`.
+4. `POST /prompt` com o `client_id` do processo do backend (um só, v0.4; o navegador nunca fala com o ComfyUI) e guardar o `prompt_id`.
 5. Acompanhar progresso e posição na fila por WebSocket (`/ws?clientId=...`).
 6. Ao terminar, ler `/history/{prompt_id}` e baixar o resultado por `/view`.
 7. Entregar a imagem à UI e limpar arquivos temporários conforme a retenção configurada.
@@ -228,7 +233,8 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 ## 12. Requisitos não funcionais
 
 - **Segurança:** o ComfyUI não tem autenticação e permite instalar custom nodes, então **não expor a porta do ComfyUI**; só o backend fala com ele. Sem login no MVP, o app deve rodar em rede confiável; expor à internet exige proxy reverso com autenticação antes.
-- **Fila:** uma geração por vez por GPU. O backend controla a fila, mostra estado/progresso (e posição, se houver outras execuções) e permite cancelar.
+- **Segurança, estado real (v0.4):** o ComfyUI de produção (`https://comfy.bigode.ai`) responde sem login. Decisão do dono: manter sem login por enquanto. Risco aceito: qualquer pessoa com a URL pode enfileirar execuções na GPU e, se o ComfyUI-Manager estiver instalado, instalar custom nodes.
+- **Fila:** uma geração por vez por GPU. O backend controla a fila, mostra estado/progresso (e posição, se houver outras execuções) e permite cancelar. A fila e o estado dos jobs ficam em **Redis** (BullMQ, worker com concorrência 1), para sobreviver a reinícios do backend (v0.4). Redis roda via `docker-compose.yml`.
 - **Uploads:** PNG/JPG/WebP; limite de bytes e de dimensão configuráveis.
 - **Erros amigáveis:** mensagens em português para falhas comuns (imagem inválida, tamanho fora do limite, ComfyUI indisponível, fila ocupada).
 - **Versionamento:** cada workflow (JSON de API + arquivo de mapeamento) versionado junto, para que mudar um nó não quebre o backend silenciosamente.
@@ -244,7 +250,7 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 - **Editar, outra proporção ou Manual:** o backend envia `switch = true` com os valores calculados; a UI avisa quando a proporção difere da original.
 - **Editar, imagem acima do limite:** a execução não estoura VRAM; a imagem é reduzida e o usuário é avisado.
 - **Qualidade:** "Alta" executa com mais passos que "Normal" e demora mais.
-- **Fundo transparente (Gerar e Editar):** com o checkbox ligado, o PNG resultante tem canal alfa e parte dos pixels com alfa menor que 255 (verificável por script), e o preview mostra fundo xadrez. Desligado, o prompt chega ao ComfyUI sem alteração.
+- **Fundo transparente (Gerar e Editar):** com o checkbox ligado, o PNG resultante tem canal alfa e **pelo menos 5% dos pixels com alfa menor que 16** (verificável por script; v0.4: "alfa < 255" não basta, porque imagens opacas do modelo também têm alfa ruidoso), e o preview mostra fundo xadrez. Desligado, o prompt chega ao ComfyUI sem alteração e o PNG entregue não tem canal alfa.
 - **Geral:** duas execuções idênticas sem seed fixa geram resultados diferentes; com a GPU ocupada, o usuário vê o estado de espera.
 
 ## 14. Decisões e pontos em aberto
@@ -258,22 +264,47 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 6. Tamanho definido por proporção + resolução (rótulo + MP), com **Manual** (campos abertos) e **Original** (só edição).
 7. Entram no MVP: checkbox de **Fundo transparente** em todas as telas e a **troca de proporção na Editar**.
 
+**Decisões tomadas (v0.4, revisão do plano)**
+8. Imagem de entrada pequena: ampliada até o menor lado = `MIN_SIDE`, com aviso (§7.2).
+9. `image_1` ajustada pelo backend a múltiplo de 32 (`floor32`, recorte central) antes do envio; "Original" mostra a saída exata (§7.2).
+10. Manual: proporção máxima 1:4 (`MAX_ASPECT_RATIO`); a UI arredonda com aviso e o backend rejeita o inválido (§6).
+11. Fila e estado dos jobs em Redis (BullMQ), Redis via `docker-compose.yml`, `REDIS_URL` na configuração (§12).
+12. Redimensionamento com **sharp** (a v0.3 dizia Pillow; a stack é Node).
+13. Um único `client_id` por processo do backend (§11).
+14. A função pura de tamanho (§5/§6) e o teste da tabela entram no Marco 1 (o backend precisa dela); o Marco 2 fica com a tela.
+15. ComfyUI em `https://comfy.bigode.ai`, **sem login** por decisão do dono (risco em §12).
+
+**Descobertas (v0.4)**
+- **Exports de API corrigidos à mão (2026-09-25):** os JSONs em `workflows/api/` vieram sem os títulos `@…` e, no edit, com `ResolutionSelector`, `ImageCompare` e um 2º `LoadImage`. Com autorização do dono, os títulos foram adicionados e esses nós removidos direto no JSON (sem reexportar); `width`/`height` do edit ficaram como valores (1024 × 1024). `check-workflows.mjs` passa.
+- **`resolution` também existe no t2i** (valor `1024` no export), ao contrário do que dizia §9.2. Pelo tooltip do nó (abaixo), ele só redimensiona imagens de referência; sem imagens não tem efeito. O backend não mexe nele no t2i.
+- **`resolution` (tooltip do nó, `GET /object_info`):** "Reference images are resized to about resolution x resolution pixels, at multiples of 32, preserving aspect ratio. 0 keeps each reference at its own size, rounded to a multiple of 32." Faixa 0–4096, passo 32. Ou seja: é um orçamento em pixels (1024 ≈ 1 MP), e `0` confirma o comportamento de §7. Falta confirmar se o arredondamento é para cima, para baixo ou ao mais próximo (irrelevante depois da decisão 9).
+- **Entradas de imagem:** `images` é um `COMFY_AUTOGROW_V3` com nomes `image_1` … `image_16` (mínimo 0). No JSON de API aparecem como `images.image_N`. O nó aceita 16; o app limita a `MAX_REFS` (10).
+
+**Resultados dos spikes do Marco 1 (2026-09-25, ComfyUI 0.37.0 em `comfy.bigode.ai`, seed 42, 25 passos; script `scripts/spikes/m1.ts`)**
+- **Limite "2048" → é orçamento de pixels, não lado.** 2048 × 2048, 2720 × 1536 e 1536 × 2720 geraram sem erro e sem duplicação/deformação visível (~125 s cada). Os presets de 4 MP do §5 ficam como estão.
+- **VRAM:** sem OOM em nenhum caso de 4 MP. `vram_free` oscila entre 1,3 e 6,7 GB entre execuções (o ComfyUI descarrega/recarrega modelos), então não serve como medida fina; os limites `MAX_PIXELS = MAX_INPUT_PIXELS = 4 MP` ficam. Falta medir edição com 10 referências (Marco 3).
+- **Tempo:** 1 MP ≈ 18 s; 4 MP ≈ 125 s (25 passos, GPU livre). A 1ª execução após ociosidade leva ~35 s (carga dos modelos).
+- **Prompts em português:** 3 pares PT × EN com a mesma seed deram qualidade equivalente (inclusive texto "Café do Zé" renderizado no PT). Não é preciso tradução.
+- **Alfa ponta a ponta (t2i):** `SaveImageAdvanced` + `/view` preservam o alfa. Com o embrulho, 59–73% dos pixels ficam com alfa < 16 e o recorte é limpo. **Sem o embrulho a saída também é RGBA**, com alfa entre 204 e 255 em 10–40% dos pixels (ruído) → decisão v0.4 de remover o alfa quando o checkbox está desligado (§8.2) e critério de aceite ajustado (§13).
+- **Embrulho em inglês + prompt em português:** mesma fração de transparência que o prompt em inglês (59% vs 60%; 72,5% vs 73%). Sem impacto.
+- **Saída no `/history`:** `outputs["<id do @save>"].images[0] = { filename, subfolder, type: "output" }`.
+
 **A definir**
 - **Rótulos e padrões:** Pequeno / Médio / Grande e o padrão 1 MP são sugestões; "Alta" = 40 passos é proposta.
 - **Original com resolução:** hoje "Original" mantém as dimensões e esconde a resolução. Permitir "proporção da imagem + 1/2/4 MP" (para ampliar mantendo a proporção) é possível, mas fica fora por enquanto.
 
 **A validar em teste**
-- **Limite "2048":** se as notas do template significam 2048 por lado ou 2048² em pixels. Se for por lado, os presets 16:9 e 3:2 de 4 MP (lado de 2720 e 2496) precisam de outro cálculo.
+- ✅ *(Marco 1: orçamento de pixels; ver resultados acima)* **Limite "2048":** se as notas do template significam 2048 por lado ou 2048² em pixels. Se for por lado, os presets 16:9 e 3:2 de 4 MP (lado de 2720 e 2496) precisam de outro cálculo.
 - **`resolution = 0`:** que realmente não redimensiona (além do múltiplo de 32) com imagens de tamanhos variados.
-- **Injeção de imagens:** nomes reais de `images.image_N` no JSON de API e se o grafo dinâmico de §9.3 funciona; senão, um JSON por quantidade.
-- **`ResolutionSelector`:** se removê-lo deixa `width`/`height` como valores simples no export.
-- **VRAM:** limites reais de `MAX_PIXELS` e `MAX_INPUT_PIXELS`, incluindo 10 referências e o preset de 4 MP.
-- **Prompts em português:** os exemplos dos templates são em inglês; testar e, se a qualidade cair, considerar tradução automática.
+- *(nomes confirmados via `/object_info`; grafo dinâmico no Marco 3)* **Injeção de imagens:** nomes reais de `images.image_N` no JSON de API e se o grafo dinâmico de §9.3 funciona; senão, um JSON por quantidade.
+- ✅ *(removido; `width`/`height` são valores simples nos dois JSONs)* **`ResolutionSelector`:** se removê-lo deixa `width`/`height` como valores simples no export.
+- *(t2i 4 MP ok no Marco 1; edição com 10 referências no Marco 3)* **VRAM:** limites reais de `MAX_PIXELS` e `MAX_INPUT_PIXELS`, incluindo 10 referências e o preset de 4 MP.
+- ✅ *(Marco 1: qualidade equivalente)* **Prompts em português:** os exemplos dos templates são em inglês; testar e, se a qualidade cair, considerar tradução automática.
 - **Proporção diferente de `image_1`:** comportamento quando a tela Gerar usa referências com proporção distinta do tamanho pedido.
-- **Alfa ponta a ponta:** se `SaveImageAdvanced` e `/view` preservam o canal alfa e se o prompt embrulhado produz mesmo fundo transparente no t2i (é o único workflow em que o template descreve isso).
+- ✅ *(Marco 1: funciona no t2i)* **Alfa ponta a ponta:** se `SaveImageAdvanced` e `/view` preservam o canal alfa e se o prompt embrulhado produz mesmo fundo transparente no t2i (é o único workflow em que o template descreve isso).
 - **Transparência na edição:** se o embrulho funciona no workflow de edição, inclusive com referências. Se não funcionar, o checkbox fica só na tela Gerar ou a Editar passa a usar outra formulação.
 - **Editar com proporção diferente da original:** se o modelo recorta, estica ou desloca o conteúdo. Isso decide se basta o aviso ou se a UI precisa mostrar uma prévia do enquadramento **(proposta)**.
-- **Embrulho em inglês com prompt em português:** se a mistura afeta a qualidade ou a transparência.
+- ✅ *(Marco 1: sem impacto)* **Embrulho em inglês com prompt em português:** se a mistura afeta a qualidade ou a transparência.
 
 **Futuro (fora do MVP):** autenticação e histórico por usuário.
 

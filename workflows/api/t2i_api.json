@@ -12,7 +12,7 @@
     },
     "class_type": "SaveImageAdvanced",
     "_meta": {
-      "title": "Salvar Imagem (Avançado)"
+      "title": "@save"
     }
   },
   "459:451": {
@@ -37,7 +37,7 @@
     },
     "class_type": "TextEncodeQwenImage21",
     "_meta": {
-      "title": "Text Encode Qwen Image 2.1"
+      "title": "@prompt"
     }
   },
   "459:453": {
@@ -68,7 +68,7 @@
     },
     "class_type": "EmptyLatentImage",
     "_meta": {
-      "title": "Imagem Latente Vazia"
+      "title": "@latent_size"
     }
   },
   "459:457": {
@@ -114,7 +114,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler"
+      "title": "@sampler"
     }
   }
 }

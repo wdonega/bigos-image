@@ -11,3 +11,7 @@ tmp/
 coverage/
 playwright-report/
 test-results/
+
+# next / typescript
+next-env.d.ts
+*.tsbuildinfo

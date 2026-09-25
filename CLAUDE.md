@@ -20,11 +20,24 @@ Aplicação web simples para leigos gerarem e editarem imagens com workflows do 
 
 ## Comandos
 
-_Preencha esta seção quando o projeto for criado (instalar, rodar em dev, testes, lint, build)._
+```bash
+pnpm install              # dependências
+pnpm redis                # sobe o Redis da fila (docker compose)
+pnpm dev                  # app em http://localhost:3000 (o worker da fila sobe junto)
+pnpm test                 # testes unitários (Vitest)
+pnpm typecheck            # next typegen + tsc
+pnpm lint                 # ESLint
+pnpm build && pnpm start  # produção (servidor Node persistente; não é serverless)
+pnpm check:workflows      # valida workflows/api/*.json
+pnpm smoke                # ponta a ponta pela API (precisa do app rodando e do ComfyUI)
+node --env-file=.env scripts/spikes/m1.ts [filtro]   # spikes contra o ComfyUI real
+```
+
+Código em `src/lib/` usa imports relativos com extensão `.ts` (para rodar direto no Node nos scripts); em `src/app/` use `@/lib/...`.
 
 ## Configuração (`.env`, ver `.env.example`)
 
-`COMFY_URL`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_INPUT_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `STEPS_NORMAL`, `STEPS_HIGH`. Nunca deixe limites fixos no código: leia da configuração.
+`COMFY_URL`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`. Nunca deixe limites fixos no código: leia da configuração.
 
 ## Arquitetura (resumo; detalhes na spec)
 

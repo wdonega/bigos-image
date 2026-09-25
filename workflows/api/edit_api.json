@@ -1,15 +1,4 @@
 {
-  "13": {
-    "inputs": {
-      "aspect_ratio": "1:1 (Square)",
-      "megapixels": 1,
-      "multiple": 32
-    },
-    "class_type": "ResolutionSelector",
-    "_meta": {
-      "title": "Seletor de Resolução"
-    }
-  },
   "461": {
     "inputs": {
       "filename_prefix": "Qwen_image_2.1",
@@ -23,7 +12,7 @@
     },
     "class_type": "SaveImageAdvanced",
     "_meta": {
-      "title": "Salvar Imagem (Avançado)"
+      "title": "@save"
     }
   },
   "470": {
@@ -32,38 +21,7 @@
     },
     "class_type": "LoadImage",
     "_meta": {
-      "title": "Carregar Imagem"
-    }
-  },
-  "472": {
-    "inputs": {
-      "compare_view": {
-        "__value__": [
-          "",
-          ""
-        ]
-      },
-      "image_a": [
-        "470",
-        0
-      ],
-      "image_b": [
-        "461",
-        0
-      ]
-    },
-    "class_type": "ImageCompare",
-    "_meta": {
-      "title": "Comparar Imagens"
-    }
-  },
-  "475": {
-    "inputs": {
-      "image": "3b87d1c7-bb29-485f-b908-7f60d1a27b26.webp"
-    },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "Carregar Imagem"
+      "title": "@image_1"
     }
   },
   "459:451": {
@@ -98,19 +56,13 @@
   },
   "459:456": {
     "inputs": {
-      "width": [
-        "13",
-        0
-      ],
-      "height": [
-        "13",
-        1
-      ],
+      "width": 1024,
+      "height": 1024,
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
     "_meta": {
-      "title": "Imagem Latente Vazia"
+      "title": "@latent_size"
     }
   },
   "459:457": {
@@ -156,7 +108,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler"
+      "title": "@sampler"
     }
   },
   "459:468": {
@@ -173,7 +125,7 @@
     },
     "class_type": "ComfySwitchNode",
     "_meta": {
-      "title": "Alternar"
+      "title": "@custom_size"
     }
   },
   "459:469": {
@@ -206,15 +158,11 @@
       "vae": [
         "459:454",
         0
-      ],
-      "images.image_2": [
-        "475",
-        0
       ]
     },
     "class_type": "TextEncodeQwenImage21",
     "_meta": {
-      "title": "Text Encode Qwen Image 2.1"
+      "title": "@prompt"
     }
   }
 }
