@@ -59,9 +59,9 @@
   <body>
     <main>
       <img src="/icons/icon-192.png" alt="" />
-      <h1 data-en="You are offline">Você está sem conexão</h1>
-      <p data-en="Bigos Image needs the internet to generate images.">O Bigos Image precisa de internet para gerar imagens.</p>
-      <button type="button" onclick="location.reload()" data-en="Try again">Tentar de novo</button>
+      <h1>Você está sem conexão</h1>
+      <p>O Bigos Image precisa de internet para gerar imagens.</p>
+      <button type="button" onclick="location.reload()">Tentar de novo</button>
     </main>
     <script>
       // Static page (served by the service worker while offline): Portuguese by default, English
@@ -70,10 +70,23 @@
         document.documentElement.classList.add("light");
         document.querySelector('meta[name="theme-color"]').content = "#ffc87c";
       }
-      if (/^en\b/i.test(navigator.language)) {
-        document.documentElement.lang = "en";
-        document.title = "Offline · Bigos Image";
-        for (const el of document.querySelectorAll("[data-en]")) el.textContent = el.dataset.en;
+      // Portuguese is the markup; other languages follow the saved choice or the browser.
+      const TEXT = {
+        "en-US": ["Offline", "You are offline", "Bigos Image needs the internet to generate images.", "Try again"],
+        "es-MX": ["Sin conexión", "No tienes conexión", "Bigos Image necesita internet para crear imágenes.", "Intentar de nuevo"],
+        "zh-CN": ["离线", "你已离线", "Bigos Image 需要联网才能生成图片。", "重试"],
+      };
+      const BY_LANGUAGE = { pt: "pt-BR", en: "en-US", es: "es-MX", zh: "zh-CN" };
+      const saved = (document.cookie.match(/(?:^|; )locale=([^;]+)/) || [])[1];
+      const tags = [saved, ...(navigator.languages || [navigator.language])].filter(Boolean);
+      const locale = tags.map((t) => BY_LANGUAGE[decodeURIComponent(t).toLowerCase().split(/[-_]/)[0]]).find(Boolean) || "en-US";
+      if (TEXT[locale]) {
+        const [title, heading, body, action] = TEXT[locale];
+        document.documentElement.lang = locale;
+        document.title = `${title} · Bigos Image`;
+        document.querySelector("h1").textContent = heading;
+        document.querySelector("p").textContent = body;
+        document.querySelector("button").textContent = action;
       }
     </script>
   </body>

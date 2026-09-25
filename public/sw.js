@@ -1,7 +1,7 @@
 // Minimal service worker: installability + an offline page. The app needs the server (and the
 // GPU) for everything else, so it deliberately caches nothing but the fallback: no API calls,
 // no Next.js assets (cached assets would break updates).
-const CACHE = "bigos-offline-v4";
+const CACHE = "bigos-offline-v5";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png"];
 

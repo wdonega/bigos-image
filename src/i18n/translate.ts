@@ -1,4 +1,4 @@
-import type { Messages } from "./messages/en.ts";
+import type { Messages } from "./messages/en-US.ts";
 
 /** Dot-separated path of every string leaf, e.g. "generate.title". */
 type Leaves<T, Prefix extends string = ""> = {

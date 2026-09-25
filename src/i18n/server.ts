@@ -1,5 +1,5 @@
 import { cookies, headers } from "next/headers";
-import { LOCALE_COOKIE, type Locale, resolveLocale } from "./config.ts";
+import { FALLBACK_LOCALE, LOCALE_COOKIE, type Locale, resolveLocale } from "./config.ts";
 import { MESSAGES } from "./messages/index.ts";
 import { type MessageKey, type MessageParams, translate } from "./translate.ts";
 
@@ -14,6 +14,6 @@ export async function getTranslator() {
   const locale = await getLocale();
   return {
     locale,
-    t: (key: MessageKey, params?: MessageParams) => translate(MESSAGES[locale], key, params, MESSAGES.en),
+    t: (key: MessageKey, params?: MessageParams) => translate(MESSAGES[locale], key, params, MESSAGES[FALLBACK_LOCALE]),
   };
 }

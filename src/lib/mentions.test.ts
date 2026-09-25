@@ -9,6 +9,11 @@ describe("mentions", () => {
     expect(mentionsToTokens("the cat from [Image 1] on [image 2]")).toBe("the cat from <image1> on <image2>");
   });
 
+  it("converts Spanish and Chinese mentions too", () => {
+    expect(mentionsToTokens("el gato de la [Imagen 1]")).toBe("el gato de la <image1>");
+    expect(mentionsToTokens("[图片 1] 里的猫坐在 [图片2] 上")).toBe("<image1> 里的猫坐在 <image2> 上");
+  });
+
   it("leaves plain prose and typed tokens alone", () => {
     expect(mentionsToTokens("a imagem 2 é bonita, use <image3>")).toBe("a imagem 2 é bonita, use <image3>");
   });

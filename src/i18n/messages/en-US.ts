@@ -1,6 +1,6 @@
-// English UI messages. Keys are the source of truth: pt-BR must provide exactly the same keys
+// US English UI messages. Keys are the source of truth: every locale must provide exactly the same keys
 // (enforced by the `Messages` type and by i18n.test.ts). Placeholders use {name}.
-export const en = {
+export const enUS = {
   app: {
     name: "Bigos Image",
     description: "Generate and edit images the easy way.",
@@ -149,6 +149,6 @@ export const en = {
   },
 };
 
-/** Same shape as `en`, with any string values: the contract every locale must satisfy. */
+/** Same shape as `enUS`, with any string values: the contract every locale must satisfy. */
 type Widen<T> = { [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };
-export type Messages = Widen<typeof en>;
+export type Messages = Widen<typeof enUS>;

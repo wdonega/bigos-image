@@ -1,6 +1,7 @@
-// Image mentions in prompts (spec §4): the UI inserts "[Image N]" (EN) or "[Imagem N]" (PT) so
-// lay users never type the model's syntax; the backend converts both to <imageN> for the encoder.
-const MENTION = /\[\s*(?:imagem|image)\s+(\d{1,2})\s*\]/giu;
+// Image mentions in prompts (spec §4): the UI inserts the localized label ("[Imagem N]",
+// "[Image N]", "[Imagen N]", "[图片 N]") so lay users never type the model's syntax; the backend
+// converts every form to <imageN> for the encoder.
+const MENTION = /\[\s*(?:imagem|imagen|image|图片)\s*(\d{1,2})\s*\]/giu;
 
 /** `word` is the localized word for "image" (i18n key references.mentionWord). */
 export const mentionLabel = (n: number, word: string) => `[${word} ${n}]`;

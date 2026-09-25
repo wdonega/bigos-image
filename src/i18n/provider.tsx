@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, createContext, useContext, useMemo } from "react";
-import type { Locale } from "./config";
+import { FALLBACK_LOCALE, type Locale } from "./config";
 import { MESSAGES } from "./messages";
 import { type MessageKey, type MessageParams, translate } from "./translate";
 
@@ -20,7 +20,7 @@ export function useI18n() {
 
   return useMemo(() => {
     const t = (key: MessageKey | (string & {}), params?: MessageParams) =>
-      translate(MESSAGES[locale], key, params, MESSAGES.en);
+      translate(MESSAGES[locale], key, params, MESSAGES[FALLBACK_LOCALE]);
     return {
       locale,
       t,

@@ -1,6 +1,6 @@
-import type { Messages } from "./en.ts";
+import type { Messages } from "./en-US.ts";
 
-// Brazilian Portuguese UI messages (default locale). Must have exactly the keys of `en`.
+// Brazilian Portuguese UI messages. Must have exactly the keys of `enUS`.
 export const ptBR: Messages = {
   app: {
     name: "Bigos Image",
