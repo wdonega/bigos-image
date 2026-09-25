@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffc87c" />
+    <meta name="theme-color" content="#0a0a0a" />
     <title>Sem conexão · Bigos Image</title>
     <style>
       body {
@@ -15,8 +15,8 @@
         padding: 24px;
         box-sizing: border-box;
         font-family: system-ui, -apple-system, sans-serif;
-        color: #171717;
-        background: #fff;
+        color: #fafafa;
+        background: #0a0a0a;
         text-align: center;
       }
       img {
@@ -30,7 +30,7 @@
       }
       p {
         margin: 0 0 24px;
-        color: #737373;
+        color: #a3a3a3;
         font-size: 15px;
       }
       button {
@@ -39,6 +39,18 @@
         padding: 12px 20px;
         border: 0;
         border-radius: 10px;
+        background: #fafafa;
+        color: #171717;
+      }
+      /* Light theme when the user chose it (cookie "theme=light"); dark is the default. */
+      .light body {
+        color: #171717;
+        background: #fff;
+      }
+      .light p {
+        color: #737373;
+      }
+      .light button {
         background: #171717;
         color: #fff;
       }
@@ -54,6 +66,10 @@
     <script>
       // Static page (served by the service worker while offline): Portuguese by default, English
       // when the browser prefers it, mirroring the app's locale rule.
+      if (/(?:^|; )theme=light(?:;|$)/.test(document.cookie)) {
+        document.documentElement.classList.add("light");
+        document.querySelector('meta[name="theme-color"]').content = "#ffc87c";
+      }
       if (/^en\b/i.test(navigator.language)) {
         document.documentElement.lang = "en";
         document.title = "Offline · Bigos Image";

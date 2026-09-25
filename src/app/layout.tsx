@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppHeader } from "@/components/app-header";
 import { ServiceWorkerRegister } from "@/components/sw-register";
@@ -8,12 +9,17 @@ import {
   APPLE_ICON_SIZES,
   FAVICON_SIZES,
   STARTUP_DEVICES,
-  THEME_COLOR,
   appleIconPath,
   faviconPath,
   startupImagePath,
   startupMedia,
 } from "@/lib/pwa-assets";
+import { THEME_BAR_COLORS, THEME_COOKIE, type Theme, resolveTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
+
+async function getTheme(): Promise<Theme> {
+  return resolveTheme((await cookies()).get(THEME_COOKIE)?.value);
+}
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,21 +51,28 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = {
-  themeColor: THEME_COLOR,
-  width: "device-width",
-  initialScale: 1,
-  // Lets the installed app draw under the notch; padding uses env(safe-area-inset-*).
-  viewportFit: "cover",
-};
+export async function generateViewport(): Promise<Viewport> {
+  return {
+    themeColor: THEME_BAR_COLORS[await getTheme()],
+    width: "device-width",
+    initialScale: 1,
+    // Lets the installed app draw under the notch; padding uses env(safe-area-inset-*).
+    viewportFit: "cover",
+  };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
+  const theme = await getTheme();
   return (
-    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang={locale}
+      className={cn(geistSans.variable, geistMono.variable, "h-full antialiased", theme === "dark" && "dark")}
+      style={{ colorScheme: theme }}
+    >
       <body className="flex min-h-full flex-col bg-background font-sans">
         <I18nProvider locale={locale}>
-          <AppHeader />
+          <AppHeader theme={theme} />
           <main className="mx-auto w-full max-w-6xl flex-1 px-[max(1rem,env(safe-area-inset-left))] pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pt-8">
             {children}
           </main>

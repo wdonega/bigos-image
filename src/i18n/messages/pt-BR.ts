@@ -5,6 +5,12 @@ export const ptBR: Messages = {
   app: {
     name: "Bigos Image",
     description: "Gere e edite imagens de um jeito simples.",
+  },
+  settings: {
+    title: "Configurações",
+    theme: "Tema",
+    light: "Claro",
+    dark: "Escuro",
     language: "Idioma",
   },
   nav: {

@@ -4,6 +4,12 @@ export const en = {
   app: {
     name: "Bigos Image",
     description: "Generate and edit images the easy way.",
+  },
+  settings: {
+    title: "Settings",
+    theme: "Theme",
+    light: "Light",
+    dark: "Dark",
     language: "Language",
   },
   nav: {

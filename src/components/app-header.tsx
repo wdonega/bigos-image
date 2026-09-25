@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { SettingsMenu } from "@/components/settings-menu";
 import { useI18n } from "@/i18n/provider";
+import type { Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -11,7 +12,7 @@ const LINKS = [
   { href: "/edit", label: "nav.edit" },
 ] as const;
 
-export function AppHeader() {
+export function AppHeader({ theme }: { theme: Theme }) {
   const { t } = useI18n();
   const pathname = usePathname();
   return (
@@ -36,7 +37,7 @@ export function AppHeader() {
             </Link>
           ))}
         </nav>
-        <LocaleSwitcher />
+        <SettingsMenu initialTheme={theme} />
       </div>
     </header>
   );
