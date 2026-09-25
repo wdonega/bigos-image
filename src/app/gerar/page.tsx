@@ -1,4 +1,5 @@
 import { GenerateScreen } from "@/components/generate-screen";
+import { ServiceStatus } from "@/components/service-status";
 import { screenLimits } from "@/lib/screen-limits";
 
 // Limits come from the server's environment at request time.
@@ -11,6 +12,7 @@ export default function GeneratePage() {
         <h1 className="text-2xl font-semibold tracking-tight">Gerar imagem</h1>
         <p className="text-sm text-muted-foreground">Descreva o que você quer ver e escolha o tamanho.</p>
       </div>
+      <ServiceStatus />
       <GenerateScreen limits={screenLimits()} />
     </div>
   );

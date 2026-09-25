@@ -1,5 +1,22 @@
 # Gerador de imagens (ComfyUI + Qwen Image 2.1)
 
+## Como rodar
+
+Precisa de Node.js ≥ 24, pnpm, Docker (para o Redis da fila) e um ComfyUI com os modelos da spec §9.4.
+
+```bash
+cp .env.example .env        # ajuste COMFY_URL
+pnpm install
+pnpm redis                  # sobe o Redis (docker compose)
+pnpm dev                    # http://localhost:3000 → telas Gerar e Editar
+```
+
+Produção: `pnpm build && pnpm start` (servidor Node persistente; o worker da fila roda no mesmo processo).
+
+Verificação: `pnpm test` (unitários), `pnpm typecheck`, `pnpm lint`, `pnpm check:workflows`, e com o app rodando `pnpm smoke` (1 geração) ou `pnpm acceptance` (critérios do §13, ~4 min de GPU).
+
+---
+
 Pacote inicial para construir o projeto com o Claude Code. A definição do produto está em `docs/spec.md`; as regras de trabalho do Claude estão em `CLAUDE.md`.
 
 ```
@@ -7,7 +24,7 @@ bigos-image/
 ├── CLAUDE.md                 regras, stack, marcos
 ├── README.md                 este arquivo
 ├── .env.example              limites e configuração
-├── docs/spec.md              especificação (v0.3)
+├── docs/spec.md              especificação (v0.4)
 ├── scripts/check-workflows.mjs   valida os JSONs exportados
 └── workflows/
     ├── README.md             como exportar e convenção de títulos

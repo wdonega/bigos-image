@@ -9,6 +9,7 @@ import { JobPanel } from "@/components/job-panel";
 import { type Quality, QualityPicker } from "@/components/quality-picker";
 import { ReferencePicker } from "@/components/reference-picker";
 import { SizePicker } from "@/components/size-picker";
+import { TransparencyToggle } from "@/components/transparency-toggle";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useJobRunner } from "@/hooks/use-job-runner";
@@ -22,6 +23,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
   const [size, setSize] = useState<SizeSelection>(DEFAULT_GENERATE_SELECTION);
   const [quality, setQuality] = useState<Quality>("normal");
   const [seed, setSeed] = useState("");
+  const [transparent, setTransparent] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const job = useJobRunner();
   const uploads = useUploads(limits.maxRefs, (order) => setPrompt((p) => renumberMentions(p, order)));
@@ -53,7 +55,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
       images: uploads.ids,
       size: toRequestSize(size),
       quality,
-      transparent_background: false,
+      transparent_background: transparent,
       seed: seed === "" ? null : Number(seed),
     });
   }
@@ -78,6 +80,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
         <ReferencePicker uploads={uploads} max={limits.maxRefs} disabled={job.busy} onMention={insertMention} />
         <SizePicker value={size} onChange={setSize} limits={limits} disabled={job.busy} />
         <QualityPicker value={quality} onChange={setQuality} disabled={job.busy} />
+        <TransparencyToggle checked={transparent} onChange={setTransparent} disabled={job.busy} />
         <AdvancedOptions seed={seed} onSeedChange={setSeed} disabled={job.busy} />
         <FormError error={job.error} />
 

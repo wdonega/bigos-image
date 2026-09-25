@@ -29,9 +29,23 @@ function toErrorCode(err: unknown, cancelled: boolean): ErrorCode {
   if (err instanceof ComfyError) {
     if (err.kind === "unavailable") return "comfy_unavailable";
     if (err.kind === "timeout") return "timeout";
+    if (/out of memory|exceed allowed memory/i.test(err.message)) return "out_of_memory";
     return "generation_failed";
   }
   return "unexpected";
+}
+
+/** Minimum share of fully transparent pixels (alpha < 16) to call a result transparent (spec §13). */
+export const MIN_TRANSPARENT_SHARE = 0.05;
+
+/** Share of pixels with alpha < 16; 0 when the image has no alpha channel. */
+export async function transparentShare(png: Buffer): Promise<number> {
+  const meta = await sharp(png).metadata();
+  if (!meta.hasAlpha) return 0;
+  const alpha = await sharp(png).extractChannel(3).raw().toBuffer();
+  let clear = 0;
+  for (const a of alpha) if (a < 16) clear++;
+  return clear / alpha.length;
 }
 
 /**
@@ -111,6 +125,12 @@ async function processJob(
     });
     const raw = await client.view(outputImage(entry, findNodeId(graph, "@save")));
     const image = await finalizeImage(raw, job.data.transparentBackground);
+    if (job.data.transparentBackground && (await transparentShare(image.png)) < MIN_TRANSPARENT_SHARE) {
+      // Happens with full photos on the edit workflow (spec §14): the model keeps the background.
+      warnings.push(
+        "Não foi possível deixar o fundo transparente nesta imagem. Isso funciona melhor com um objeto ou personagem sobre um fundo simples.",
+      );
+    }
     await writeStored(config, "results", resultName(id), image.png);
     return {
       width: image.width,

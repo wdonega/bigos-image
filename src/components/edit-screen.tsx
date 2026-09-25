@@ -9,6 +9,7 @@ import { ImageDrop } from "@/components/image-drop";
 import { JobPanel } from "@/components/job-panel";
 import { type Quality, QualityPicker } from "@/components/quality-picker";
 import { SizePicker } from "@/components/size-picker";
+import { TransparencyToggle } from "@/components/transparency-toggle";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useJobRunner } from "@/hooks/use-job-runner";
@@ -28,6 +29,7 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
   const [size, setSize] = useState<SizeSelection>({ ...DEFAULT_GENERATE_SELECTION, ratio: "original" });
   const [quality, setQuality] = useState<Quality>("normal");
   const [seed, setSeed] = useState("");
+  const [transparent, setTransparent] = useState(false);
   const job = useJobRunner();
   const uploads = useUploads(1);
   const item = uploads.items[0];
@@ -57,7 +59,7 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
       images: [upload.id],
       size: toRequestSize(size),
       quality,
-      transparent_background: false,
+      transparent_background: transparent,
       seed: seed === "" ? null : Number(seed),
     });
   }
@@ -98,6 +100,12 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
           </p>
         )}
         <QualityPicker value={quality} onChange={setQuality} disabled={job.busy} />
+        <TransparencyToggle
+          checked={transparent}
+          onChange={setTransparent}
+          disabled={job.busy}
+          hint="Funciona quando a imagem já tem um objeto ou personagem sobre um fundo simples. Em fotos com cenário completo o fundo costuma continuar."
+        />
         <AdvancedOptions seed={seed} onSeedChange={setSeed} disabled={job.busy} />
         <FormError error={job.error} />
 

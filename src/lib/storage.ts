@@ -10,7 +10,7 @@ const SAFE_NAME = /^[A-Za-z0-9_-]+\.[a-z0-9]+$/;
 
 export function storageFile(config: Config, area: Area, name: string): string {
   if (!SAFE_NAME.test(name)) throw new Error(`Unsafe storage file name: ${name}`);
-  return path.resolve(config.storageDir, area, name);
+  return path.resolve(/* turbopackIgnore: true */ config.storageDir, area, name);
 }
 
 export async function writeStored(config: Config, area: Area, name: string, data: Buffer) {
@@ -32,7 +32,7 @@ export async function readStored(config: Config, area: Area, name: string): Prom
 export async function removeExpired(config: Config, now = Date.now()): Promise<number> {
   let removed = 0;
   for (const area of AREAS) {
-    const dir = path.resolve(config.storageDir, area);
+    const dir = path.resolve(/* turbopackIgnore: true */ config.storageDir, area);
     const names = await readdir(dir).catch(() => [] as string[]);
     for (const name of names) {
       const file = path.join(dir, name);

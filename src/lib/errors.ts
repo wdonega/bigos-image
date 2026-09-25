@@ -13,6 +13,8 @@ export const ERROR_MESSAGES = {
   queue_unavailable: "A fila de geração está fora do ar. Tente de novo em alguns minutos.",
   comfy_unavailable: "O gerador de imagens está fora do ar. Tente de novo em alguns minutos.",
   generation_failed: "Não foi possível gerar a imagem. Tente de novo.",
+  out_of_memory:
+    "A imagem ficou pesada demais para o gerador. Tente um tamanho menor, menos imagens ou qualidade Normal.",
   timeout: "A geração demorou demais e foi interrompida. Tente de novo.",
   cancelled: "Geração cancelada.",
   unexpected: "Algo deu errado. Tente de novo.",

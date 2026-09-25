@@ -300,6 +300,25 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 - **Editar com outra proporção:** o modelo **reenquadra** a cena, não estica: em 1:1 afasta, em 16:9 aproxima e corta, em 9:16 estende parede e chão; o objeto perde parte da fidelidade (é redesenhado). Como o enquadramento é decidido pelo modelo, uma prévia não seria fiel → **basta o aviso** na UI.
 - **Observação aberta (qualidade do modelo, não do pipeline):** com 2 referências (coruja em fundo branco + cafeteria), em qualquer ordem e com prompts em PT e EN, o modelo devolveu a cafeteria sem a coruja; os grafos enviados estavam corretos (conferido no `/history`). Com 10 referências a coruja apareceu. Vale testar mais combinações antes de prometer "juntar duas imagens" na UI.
 
+**Resultados do spike do Marco 4 — transparência na edição (2026-09-25; `scripts/spikes/m4.ts`)**
+- **Funciona quando a `image_1` já é um objeto/personagem sobre fundo simples:** coruja em fundo claro (Editar "chapéu de mago", Gerar com 1 e 2 referências) → 65–69% dos pixels com alfa < 16, recorte limpo.
+- **Não funciona em fotos com cenário completo:** bicicleta na parede → 0% transparente, com PT, EN e instrução explícita ("keep only the bicycle… remove the wall"). Além disso o embrulho **piora** a foto (cores lavadas, aspecto "HDR") e a edição pedida pode ser ignorada.
+- **Comportamento implementado (provisório, v0.4):** o checkbox continua nas duas telas; na Editar o texto de ajuda explica o limite; o backend mede o resultado e, se foi pedida transparência e menos de 5% dos pixels ficaram transparentes, avisa o usuário ("Não foi possível deixar o fundo transparente nesta imagem…").
+- **Decisão pendente do dono (§8.2 previa isto):** (a) manter como está; (b) tirar o checkbox da Editar; (c) no MVP, remover o fundo por pós-processamento (fora do escopo atual e exige dependência nova).
+
+**Checklist do §13 (Marco 4, 2026-09-25)** — `pnpm acceptance` roda os itens marcados com (auto) contra o app e o ComfyUI reais: 10/10 passaram.
+- ✅ Gerar sem mexer em nada → PNG 1024 × 1024 pelo t2i (auto; t2i garantido pelo teste de `planJob`).
+- ✅ Presets: as 21 combinações conferidas por teste unitário contra a tabela do §5; geração real conferida em 1024², 2048², 2720×1536, 1536×2720, 1376×768, 768×1376 e 1920×1088 (Marcos 1–3). Nem todas as 21 foram geradas de verdade (custo de GPU). Campos bloqueados: conferido no navegador.
+- ✅ Manual: campos abertos, arredondamento com aviso ao sair do campo, backend rejeita inválido (auto); 1280 × 736 gerado (auto e no navegador).
+- ✅ Gerar com referências: workflow de edição a partir da 1ª imagem (teste de `planJob`); `<image1>`/`<image2>` e ordem respeitada no grafo (conferido no `/history`); 10 aceitas (spike M3) e 11ª rejeitada (auto e no navegador).
+- ✅ Editar, Original: sem seletor de resolução (navegador); saída = dimensões enviadas, ≤ 31 px de diferença da original (auto).
+- ✅ Editar, outra proporção/Manual: `switch = true` com os valores calculados (teste de `buildEdit` + spike M3); aviso de proporção diferente (navegador).
+- ✅ Editar, imagem acima do limite: reduzida com aviso (auto), 4 MP de edição sem estourar VRAM (spike M3).
+- ✅ Qualidade: Alta = 40 passos, +49% de tempo (Marco 2).
+- ✅ Fundo transparente: Gerar e Editar com objeto em fundo simples ≥ 5% alfa < 16 (auto); preview xadrez (navegador); desligado → prompt inalterado (teste) e PNG sem alfa (auto). ⚠️ Em fotos com cenário, a Editar não fica transparente (ver acima).
+- ✅ Geral: duas execuções sem seed diferem (auto); com a GPU ocupada o 2º pedido mostra "Na fila" com 1 na frente (auto e no navegador).
+- **Não verificado:** Playwright (opcional na stack, não adicionado para evitar dependência); navegadores além do Chrome; tema escuro.
+
 **A definir**
 - **Rótulos e padrões:** Pequeno / Médio / Grande e o padrão 1 MP são sugestões; "Alta" = 40 passos é proposta.
 - **Original com resolução:** hoje "Original" mantém as dimensões e esconde a resolução. Permitir "proporção da imagem + 1/2/4 MP" (para ampliar mantendo a proporção) é possível, mas fica fora por enquanto.
@@ -313,7 +332,7 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 - ✅ *(Marco 1: qualidade equivalente)* **Prompts em português:** os exemplos dos templates são em inglês; testar e, se a qualidade cair, considerar tradução automática.
 - ✅ *(Marco 3: recompõe)* **Proporção diferente de `image_1`:** comportamento quando a tela Gerar usa referências com proporção distinta do tamanho pedido.
 - ✅ *(Marco 1: funciona no t2i)* **Alfa ponta a ponta:** se `SaveImageAdvanced` e `/view` preservam o canal alfa e se o prompt embrulhado produz mesmo fundo transparente no t2i (é o único workflow em que o template descreve isso).
-- **Transparência na edição:** se o embrulho funciona no workflow de edição, inclusive com referências. Se não funcionar, o checkbox fica só na tela Gerar ou a Editar passa a usar outra formulação.
+- ⚠️ *(Marco 4: só com objeto em fundo simples; decisão pendente)* **Transparência na edição:** se o embrulho funciona no workflow de edição, inclusive com referências. Se não funcionar, o checkbox fica só na tela Gerar ou a Editar passa a usar outra formulação.
 - ✅ *(Marco 3: reenquadra; basta o aviso)* **Editar com proporção diferente da original:** se o modelo recorta, estica ou desloca o conteúdo. Isso decide se basta o aviso ou se a UI precisa mostrar uma prévia do enquadramento **(proposta)**.
 - ✅ *(Marco 1: sem impacto)* **Embrulho em inglês com prompt em português:** se a mistura afeta a qualidade ou a transparência.
 

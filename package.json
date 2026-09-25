@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "check:workflows": "node scripts/check-workflows.mjs",
     "redis": "docker compose up -d redis",
-    "smoke": "node --env-file=.env scripts/smoke.ts"
+    "smoke": "node --env-file=.env scripts/smoke.ts",
+    "acceptance": "node scripts/acceptance.ts"
   },
   "dependencies": {
     "bullmq": "^6.3.8",
