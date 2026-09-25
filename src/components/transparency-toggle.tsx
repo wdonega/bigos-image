@@ -1,7 +1,6 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 
 /** "Fundo transparente" (spec §8.2): the backend wraps the prompt; output stays PNG. */
 export function TransparencyToggle({
@@ -16,20 +15,24 @@ export function TransparencyToggle({
   hint?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg border p-3">
+    <label htmlFor="transparent" className="flex cursor-pointer items-start gap-3 rounded-lg border p-3">
       <Checkbox
         id="transparent"
+        aria-labelledby="transparent-label"
+        aria-describedby="transparent-hint"
         checked={checked}
         disabled={disabled}
         onCheckedChange={(value) => onChange(value === true)}
-        className="mt-0.5"
+        className="mt-0.5 size-5 sm:size-4"
       />
       <div className="flex flex-col gap-1">
-        <Label htmlFor="transparent" className="text-sm font-medium">
+        <span id="transparent-label" className="text-sm font-medium">
           Fundo transparente
-        </Label>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        </span>
+        <p id="transparent-hint" className="text-xs text-muted-foreground">
+          {hint}
+        </p>
       </div>
-    </div>
+    </label>
   );
 }

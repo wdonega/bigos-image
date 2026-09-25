@@ -23,6 +23,9 @@ export function Field({
   );
 }
 
-/** Makes the selected option of a toggle group unmistakable for lay users. */
-export const CHOICE_ON =
-  "data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:[&_span]:text-primary-foreground/70";
+/**
+ * Toggle-group option: finger-sized on phones (40 px), compact from `sm` up, and a selected state
+ * that is unmistakable for lay users.
+ */
+export const CHOICE_ITEM =
+  "h-10 sm:h-7 data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:[&_span]:text-primary-foreground/70";

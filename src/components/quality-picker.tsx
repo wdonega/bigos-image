@@ -1,6 +1,6 @@
 "use client";
 
-import { CHOICE_ON, Field } from "@/components/field";
+import { CHOICE_ITEM, Field } from "@/components/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export type Quality = "normal" | "high";
@@ -29,10 +29,10 @@ export function QualityPicker({
         disabled={disabled}
         onValueChange={(v) => v && onChange(v as Quality)}
       >
-        <ToggleGroupItem value="normal" className={`flex-1 ${CHOICE_ON}`}>
+        <ToggleGroupItem value="normal" className={`flex-1 ${CHOICE_ITEM}`}>
           Normal
         </ToggleGroupItem>
-        <ToggleGroupItem value="high" className={`flex-1 ${CHOICE_ON}`}>
+        <ToggleGroupItem value="high" className={`flex-1 ${CHOICE_ITEM}`}>
           Alta
         </ToggleGroupItem>
       </ToggleGroup>

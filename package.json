@@ -17,7 +17,8 @@
     "check:workflows": "node scripts/check-workflows.mjs",
     "redis": "docker compose up -d redis",
     "smoke": "node --env-file=.env scripts/smoke.ts",
-    "acceptance": "node scripts/acceptance.ts"
+    "acceptance": "node scripts/acceptance.ts",
+    "icons": "node scripts/generate-icons.ts"
   },
   "dependencies": {
     "bullmq": "^6.3.8",

@@ -80,7 +80,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
         <TransparencyToggle checked={transparent} onChange={setTransparent} disabled={job.busy} />
         <FormError error={job.error} />
 
-        <Button type="submit" size="lg" disabled={!canSubmit}>
+        <Button type="submit" size="lg" className="h-12 text-base sm:h-9 sm:text-sm" disabled={!canSubmit}>
           <SparklesIcon aria-hidden />
           {job.busy ? "Gerando…" : uploads.ready ? "Gerar imagem" : "Enviando imagens…"}
         </Button>

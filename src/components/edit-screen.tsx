@@ -105,7 +105,7 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
         />
         <FormError error={job.error} />
 
-        <Button type="submit" size="lg" disabled={!canSubmit}>
+        <Button type="submit" size="lg" className="h-12 text-base sm:h-9 sm:text-sm" disabled={!canSubmit}>
           <WandSparklesIcon aria-hidden />
           {job.busy ? "Editando…" : "Editar imagem"}
         </Button>

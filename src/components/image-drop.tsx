@@ -64,7 +64,7 @@ export function ImageDrop({
             <span className="tabular-nums">
               {item.upload ? `Imagem: ${item.upload.width} × ${item.upload.height} px` : "Enviando…"}
             </span>
-            <Button type="button" variant="outline" size="sm" onClick={pick} disabled={disabled}>
+            <Button type="button" variant="outline" size="sm" className="h-10 sm:h-7" onClick={pick} disabled={disabled}>
               <RefreshCwIcon aria-hidden /> Trocar imagem
             </Button>
           </div>

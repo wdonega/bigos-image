@@ -1,7 +1,7 @@
 "use client";
 
 import { LockIcon, TriangleAlertIcon } from "lucide-react";
-import { CHOICE_ON, Field } from "@/components/field";
+import { CHOICE_ITEM, Field } from "@/components/field";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { describeSizeProblems } from "@/lib/errors";
@@ -71,7 +71,7 @@ export function SizePicker({
           onValueChange={(ratio) => ratio && onChange(changeRatio(value, ratio as RatioChoice, limits, original))}
         >
           {ratios.map((ratio) => (
-            <ToggleGroupItem key={ratio} value={ratio} className={`min-w-12 ${CHOICE_ON}`}>
+            <ToggleGroupItem key={ratio} value={ratio} className={`min-w-12 ${CHOICE_ITEM}`}>
               {ratio === "manual" ? "Manual" : ratio === "original" ? "Original" : ratio}
             </ToggleGroupItem>
           ))}
@@ -95,7 +95,7 @@ export function SizePicker({
                 key={option}
                 value={String(option)}
                 disabled={!allowed.includes(option)}
-                className={`flex-1 ${CHOICE_ON}`}
+                className={`flex-1 ${CHOICE_ITEM}`}
               >
                 {MEGAPIXEL_LABELS[option]} <span className="text-muted-foreground">{option} MP</span>
               </ToggleGroupItem>
@@ -109,6 +109,7 @@ export function SizePicker({
           <Field label="Largura (px)" htmlFor="size-width">
             <Input
               id="size-width"
+              className="h-10 sm:h-8"
               type="number"
               inputMode="numeric"
               step={32}
@@ -121,6 +122,7 @@ export function SizePicker({
           <Field label="Altura (px)" htmlFor="size-height">
             <Input
               id="size-height"
+              className="h-10 sm:h-8"
               type="number"
               inputMode="numeric"
               step={32}

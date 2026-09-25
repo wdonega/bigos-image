@@ -64,6 +64,7 @@ export function ReferencePicker({
           type="button"
           variant="outline"
           size="sm"
+          className="h-10 sm:h-7"
           disabled={disabled || full}
           onClick={() => input.current?.click()}
         >
@@ -83,7 +84,7 @@ export function ReferencePicker({
       </div>
 
       {uploads.items.length > 0 && (
-        <ol className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2">
           {uploads.items.map((item, index) => (
             <li key={item.key} className="flex flex-col gap-1">
               <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
@@ -104,7 +105,7 @@ export function ReferencePicker({
                 </span>
                 <button
                   type="button"
-                  className="absolute top-1 right-1 rounded-full bg-background/90 p-0.5 shadow"
+                  className="absolute top-1 right-1 flex size-9 items-center justify-center rounded-full bg-background/90 shadow sm:size-6"
                   aria-label={`Remover imagem ${index + 1}`}
                   disabled={disabled}
                   onClick={() => {
@@ -121,6 +122,7 @@ export function ReferencePicker({
                     type="button"
                     variant="ghost"
                     size="icon-xs"
+                    className="size-10 sm:size-6"
                     aria-label={`Mover imagem ${index + 1} para a esquerda`}
                     disabled={disabled || index === 0}
                     onClick={() => uploads.move(item.key, -1)}
@@ -131,6 +133,7 @@ export function ReferencePicker({
                     type="button"
                     variant="ghost"
                     size="icon-xs"
+                    className="size-10 sm:size-6"
                     aria-label={`Mover imagem ${index + 1} para a direita`}
                     disabled={disabled || index === uploads.items.length - 1}
                     onClick={() => uploads.move(item.key, 1)}
@@ -141,6 +144,7 @@ export function ReferencePicker({
                     type="button"
                     variant="ghost"
                     size="icon-xs"
+                    className="size-10 sm:size-6"
                     aria-label={`Citar imagem ${index + 1} no texto`}
                     title="Citar no texto"
                     disabled={disabled}

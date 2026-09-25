@@ -30,6 +30,8 @@ pnpm lint                 # ESLint
 pnpm build && pnpm start  # produção (servidor Node persistente; não é serverless)
 pnpm check:workflows      # valida workflows/api/*.json
 pnpm smoke                # ponta a ponta pela API (precisa do app rodando e do ComfyUI)
+pnpm acceptance           # critérios do §13 contra o app e o ComfyUI reais (~4 min de GPU)
+pnpm icons                # regera favicon/ícones/PWA a partir de docs/icons/icon_warm.png
 node --env-file=.env scripts/spikes/m1.ts [filtro]   # spikes contra o ComfyUI real
 ```
 

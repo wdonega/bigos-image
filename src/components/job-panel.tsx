@@ -1,6 +1,7 @@
 "use client";
 
 import { DownloadIcon, ImageIcon, LoaderCircleIcon, XIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -37,9 +38,17 @@ export function JobPanel({
   cancelling: boolean;
 }) {
   const busy = jobId !== null && (view === null || ["queued", "waiting", "running"].includes(view.status));
+  const panel = useRef<HTMLDivElement>(null);
+
+  // On phones the panel sits below a long form: bring it into view when a job starts.
+  useEffect(() => {
+    if (jobId && window.matchMedia("(max-width: 1023px)").matches) {
+      panel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [jobId]);
 
   return (
-    <div className="flex min-h-80 flex-col gap-3">
+    <div ref={panel} className="flex min-h-80 scroll-mt-4 flex-col gap-3">
       {view?.status === "done" ? (
         <>
           <div
@@ -62,7 +71,7 @@ export function JobPanel({
             <span className="tabular-nums">
               {view.width} × {view.height} px · PNG{view.transparent ? " com fundo transparente" : ""}
             </span>
-            <Button asChild>
+            <Button asChild className="h-11 sm:h-8">
               <a href={`${view.imageUrl}?download`} download>
                 <DownloadIcon aria-hidden /> Baixar PNG
               </a>
@@ -86,7 +95,7 @@ export function JobPanel({
                 value={view?.status === "running" && view.progress !== null ? view.progress * 100 : null}
                 className="w-full max-w-xs"
               />
-              <Button variant="outline" size="sm" onClick={onCancel} disabled={cancelling}>
+              <Button variant="outline" size="sm" className="h-10 sm:h-7" onClick={onCancel} disabled={cancelling}>
                 <XIcon aria-hidden /> Cancelar
               </Button>
             </>
