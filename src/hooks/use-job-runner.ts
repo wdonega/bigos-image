@@ -19,7 +19,7 @@ export function useJobRunner() {
     try {
       setJobId(await createJob(request));
     } catch (err) {
-      setError(err instanceof ApiError ? err : new ApiError("unexpected", "Algo deu errado. Tente de novo."));
+      setError(err instanceof ApiError ? err : new ApiError("unexpected"));
     } finally {
       setSubmitting(false);
     }

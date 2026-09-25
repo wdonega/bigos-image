@@ -1,4 +1,4 @@
-import { AppError, ERROR_MESSAGES } from "@/lib/errors";
+import { AppError, errorMessage } from "@/lib/errors";
 import { type JobView, TERMINAL_STATUSES, getJobView } from "@/lib/jobs/queue";
 
 const POLL_MS = 700;
@@ -18,7 +18,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/jobs/[id]/ev
           const view: JobView = (await getJobView(id)) ?? {
             id,
             status: "failed",
-            error: { code: "job_not_found", message: ERROR_MESSAGES.job_not_found },
+            error: { code: "job_not_found", message: errorMessage("job_not_found") },
           };
           const json = JSON.stringify(view);
           if (json !== last) {
@@ -30,7 +30,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/jobs/[id]/ev
         }
       } catch (err) {
         const code = err instanceof AppError ? err.code : "unexpected";
-        send({ id, status: "failed", error: { code, message: ERROR_MESSAGES[code] } });
+        send({ id, status: "failed", error: { code, message: errorMessage(code) } });
       }
       try {
         controller.close();

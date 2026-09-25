@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import sharp, { type OutputInfo } from "sharp";
 import type { Config } from "./config.ts";
-import { AppError } from "./errors.ts";
+import { AppError, type Detail } from "./errors.ts";
 import { SIZE_MULTIPLE, floor32 } from "./size.ts";
 import { readStored, writeStored } from "./storage.ts";
 
@@ -17,7 +17,7 @@ export type UploadMeta = {
   /** As sent to ComfyUI: within the pixel limit, short side ≥ MIN_SIDE, sides multiple of 32. */
   sentWidth: number;
   sentHeight: number;
-  warnings: string[];
+  warnings: Detail[];
 };
 
 type Limits = Pick<Config, "maxInputPixels" | "minSide">;
@@ -36,7 +36,7 @@ export async function prepareImage(data: Buffer, limits: Limits) {
     throw new AppError("invalid_image", 400);
   }
   const { width, height } = oriented.info;
-  const warnings: string[] = [];
+  const warnings: Detail[] = [];
 
   let scale = 1;
   if (width * height > limits.maxInputPixels) {
@@ -48,11 +48,9 @@ export async function prepareImage(data: Buffer, limits: Limits) {
   const sentHeight = Math.max(SIZE_MULTIPLE, floor32(Math.round(height * scale)));
 
   if (scale < 1) {
-    warnings.push(`Sua imagem era grande e foi reduzida para ${sentWidth} × ${sentHeight} px.`);
+    warnings.push({ code: "image_reduced", params: { width: sentWidth, height: sentHeight } });
   } else if (scale > 1) {
-    warnings.push(
-      `Sua imagem era pequena e foi ampliada para ${sentWidth} × ${sentHeight} px; o resultado pode ficar menos nítido.`,
-    );
+    warnings.push({ code: "image_enlarged", params: { width: sentWidth, height: sentHeight } });
   }
 
   const png =

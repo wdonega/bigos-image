@@ -47,9 +47,18 @@
   <body>
     <main>
       <img src="/icons/icon-192.png" alt="" />
-      <h1>Você está sem conexão</h1>
-      <p>O Bigos Image precisa de internet para gerar imagens.</p>
-      <button type="button" onclick="location.reload()">Tentar de novo</button>
+      <h1 data-en="You are offline">Você está sem conexão</h1>
+      <p data-en="Bigos Image needs the internet to generate images.">O Bigos Image precisa de internet para gerar imagens.</p>
+      <button type="button" onclick="location.reload()" data-en="Try again">Tentar de novo</button>
     </main>
+    <script>
+      // Static page (served by the service worker while offline): Portuguese by default, English
+      // when the browser prefers it, mirroring the app's locale rule.
+      if (/^en\b/i.test(navigator.language)) {
+        document.documentElement.lang = "en";
+        document.title = "Offline · Bigos Image";
+        for (const el of document.querySelectorAll("[data-en]")) el.textContent = el.dataset.en;
+      }
+    </script>
   </body>
 </html>

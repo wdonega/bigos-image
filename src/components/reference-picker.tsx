@@ -12,6 +12,7 @@ import {
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ACCEPTED_TYPES, type useUploads } from "@/hooks/use-uploads";
+import { useI18n } from "@/i18n/provider";
 
 type Uploads = ReturnType<typeof useUploads>;
 
@@ -27,6 +28,7 @@ export function ReferencePicker({
   disabled?: boolean;
   onMention: (n: number) => void;
 }) {
+  const { t, detail } = useI18n();
   const input = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const full = uploads.items.length >= max;
@@ -37,9 +39,11 @@ export function ReferencePicker({
     const wrongType = files.length - images.length;
     setNotice(
       skipped > 0
-        ? `Limite de ${max} imagens: ${skipped} ${skipped === 1 ? "ficou" : "ficaram"} de fora.`
+        ? skipped === 1
+          ? t("references.skippedOne", { max })
+          : t("references.skippedOther", { max, count: skipped })
         : wrongType > 0
-          ? "Use imagens PNG, JPG ou WebP."
+          ? t("references.wrongType")
           : null,
     );
   }
@@ -55,9 +59,9 @@ export function ReferencePicker({
     >
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-medium">Imagens de referência</p>
+          <p className="text-sm font-medium">{t("references.title")}</p>
           <p className="text-xs text-muted-foreground">
-            Opcional. {uploads.items.length} de {max}.
+            {t("references.counter", { count: uploads.items.length, max })}
           </p>
         </div>
         <Button
@@ -68,7 +72,7 @@ export function ReferencePicker({
           disabled={disabled || full}
           onClick={() => input.current?.click()}
         >
-          <ImagePlusIcon aria-hidden /> Adicionar imagens
+          <ImagePlusIcon aria-hidden /> {t("references.add")}
         </Button>
         <input
           ref={input}
@@ -89,24 +93,24 @@ export function ReferencePicker({
             <li key={item.key} className="flex flex-col gap-1">
               <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
-                <img src={item.previewUrl} alt={`Imagem ${index + 1}`} className="size-full object-cover" />
+                <img src={item.previewUrl} alt={t("references.label", { n: index + 1 })} className="size-full object-cover" />
                 {item.status === "uploading" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                    <LoaderCircleIcon className="size-5 animate-spin" aria-label="Enviando" />
+                    <LoaderCircleIcon className="size-5 animate-spin" aria-label={t("references.uploading")} />
                   </div>
                 )}
                 {item.status === "error" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-destructive/80 p-1 text-center text-[11px] text-white">
-                    {item.error}
+                    {t(`errors.${item.error}`)}
                   </div>
                 )}
                 <span className="absolute bottom-1 left-1 rounded bg-background/90 px-1.5 py-0.5 text-[11px] font-medium shadow">
-                  Imagem {index + 1}
+                  {t("references.label", { n: index + 1 })}
                 </span>
                 <button
                   type="button"
                   className="absolute top-1 right-1 flex size-9 items-center justify-center rounded-full bg-background/90 shadow sm:size-6"
-                  aria-label={`Remover imagem ${index + 1}`}
+                  aria-label={t("references.remove", { n: index + 1 })}
                   disabled={disabled}
                   onClick={() => {
                     uploads.remove(item.key);
@@ -123,7 +127,7 @@ export function ReferencePicker({
                     variant="ghost"
                     size="icon-xs"
                     className="size-10 sm:size-6"
-                    aria-label={`Mover imagem ${index + 1} para a esquerda`}
+                    aria-label={t("references.moveLeft", { n: index + 1 })}
                     disabled={disabled || index === 0}
                     onClick={() => uploads.move(item.key, -1)}
                   >
@@ -134,7 +138,7 @@ export function ReferencePicker({
                     variant="ghost"
                     size="icon-xs"
                     className="size-10 sm:size-6"
-                    aria-label={`Mover imagem ${index + 1} para a direita`}
+                    aria-label={t("references.moveRight", { n: index + 1 })}
                     disabled={disabled || index === uploads.items.length - 1}
                     onClick={() => uploads.move(item.key, 1)}
                   >
@@ -145,8 +149,8 @@ export function ReferencePicker({
                     variant="ghost"
                     size="icon-xs"
                     className="size-10 sm:size-6"
-                    aria-label={`Citar imagem ${index + 1} no texto`}
-                    title="Citar no texto"
+                    aria-label={t("references.mention", { n: index + 1 })}
+                    title={t("references.mentionTitle")}
                     disabled={disabled}
                     onClick={() => onMention(index + 1)}
                   >
@@ -163,8 +167,8 @@ export function ReferencePicker({
         <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
           {uploads.items.map((item, index) =>
             item.upload?.warnings.map((w) => (
-              <li key={`${item.key}-${w}`}>
-                Imagem {index + 1}: {w}
+              <li key={`${item.key}-${typeof w === "string" ? w : w.code}`}>
+                {t("references.warning", { n: index + 1, text: detail("warnings", w) })}
               </li>
             )),
           )}
@@ -172,10 +176,7 @@ export function ReferencePicker({
       )}
 
       {uploads.items.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Com imagens, a Imagem 1 é a base. Use <AtSignIcon className="inline size-3" aria-hidden /> para citar uma
-          imagem no texto, por exemplo: “o gato da [Imagem 1] no sofá da [Imagem 2]”.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("references.help")}</p>
       )}
 
       {notice && (

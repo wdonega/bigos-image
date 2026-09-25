@@ -13,18 +13,22 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useJobRunner } from "@/hooks/use-job-runner";
 import { useUploads } from "@/hooks/use-uploads";
+import { useI18n } from "@/i18n/provider";
 import { mentionLabel, renumberMentions } from "@/lib/mentions";
 import type { ScreenLimits } from "@/lib/screen-limits";
 import { DEFAULT_GENERATE_SELECTION, type SizeSelection, selectionProblems, toRequestSize } from "@/lib/size-selection";
 
 export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
+  const { t } = useI18n();
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState<SizeSelection>(DEFAULT_GENERATE_SELECTION);
   const [quality, setQuality] = useState<Quality>("normal");
   const [transparent, setTransparent] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const job = useJobRunner();
-  const uploads = useUploads(limits.maxRefs, (order) => setPrompt((p) => renumberMentions(p, order)));
+  const uploads = useUploads(limits.maxRefs, (order) =>
+    setPrompt((p) => renumberMentions(p, order, t("references.mentionWord"), t("references.removedMention"))),
+  );
 
   const canSubmit =
     prompt.trim().length > 0 &&
@@ -34,7 +38,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
 
   function insertMention(n: number) {
     const el = promptRef.current;
-    const text = `${mentionLabel(n)} `;
+    const text = `${mentionLabel(n, t("references.mentionWord"))} `;
     const start = el?.selectionStart ?? prompt.length;
     const end = el?.selectionEnd ?? prompt.length;
     setPrompt(prompt.slice(0, start) + text + prompt.slice(end));
@@ -60,12 +64,12 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
       <form onSubmit={submit} className="flex flex-col gap-6">
-        <Field label="O que você quer criar?" htmlFor="prompt">
+        <Field label={t("generate.promptLabel")} htmlFor="prompt">
           <Textarea
             id="prompt"
             ref={promptRef}
             rows={5}
-            placeholder="Ex.: um farol numa costa rochosa ao pôr do sol, foto realista"
+            placeholder={t("generate.promptPlaceholder")}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => {
@@ -82,7 +86,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
 
         <Button type="submit" size="lg" className="h-12 text-base sm:h-9 sm:text-sm" disabled={!canSubmit}>
           <SparklesIcon aria-hidden />
-          {job.busy ? "Gerando…" : uploads.ready ? "Gerar imagem" : "Enviando imagens…"}
+          {job.busy ? t("generate.submitting") : uploads.ready ? t("generate.submit") : t("generate.uploading")}
         </Button>
       </form>
 

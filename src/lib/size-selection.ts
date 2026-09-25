@@ -29,7 +29,11 @@ export const DEFAULT_GENERATE_SELECTION: SizeSelection = {
   height: 1024,
 };
 
-export const MEGAPIXEL_LABELS: Record<Megapixels, string> = { 1: "Pequeno", 2: "Médio", 4: "Grande" };
+/** i18n keys of the Resolution labels (spec §5). */
+export const MEGAPIXEL_LABEL_KEYS = { 1: "size.small", 2: "size.medium", 4: "size.large" } as const satisfies Record<
+  Megapixels,
+  string
+>;
 
 /** The output size of a selection; null for "Original" while no image is loaded. */
 export function selectionSize(

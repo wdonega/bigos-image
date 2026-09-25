@@ -2,6 +2,7 @@
 
 import { CHOICE_ITEM, Field } from "@/components/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useI18n } from "@/i18n/provider";
 
 export type Quality = "normal" | "high";
 
@@ -14,10 +15,11 @@ export function QualityPicker({
   onChange: (next: Quality) => void;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <Field
-      label="Qualidade"
-      hint={value === "high" ? "Mais detalhes, mas demora cerca de 50% a mais." : "Boa para a maioria dos casos."}
+      label={t("quality.label")}
+      hint={t(value === "high" ? "quality.highHint" : "quality.normalHint")}
     >
       <ToggleGroup
         type="single"
@@ -30,10 +32,10 @@ export function QualityPicker({
         onValueChange={(v) => v && onChange(v as Quality)}
       >
         <ToggleGroupItem value="normal" className={`flex-1 ${CHOICE_ITEM}`}>
-          Normal
+          {t("quality.normal")}
         </ToggleGroupItem>
         <ToggleGroupItem value="high" className={`flex-1 ${CHOICE_ITEM}`}>
-          Alta
+          {t("quality.high")}
         </ToggleGroupItem>
       </ToggleGroup>
     </Field>

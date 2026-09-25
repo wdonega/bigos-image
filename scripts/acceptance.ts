@@ -23,7 +23,7 @@ async function upload(png: Buffer) {
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(png)]), "image.png");
   const res = await fetch(`${base}/api/uploads`, { method: "POST", body: form });
-  return (await res.json()) as { id: string; sentWidth: number; sentHeight: number; warnings: string[] };
+  return (await res.json()) as { id: string; sentWidth: number; sentHeight: number; warnings: { code: string }[] };
 }
 
 async function wait(jobId: string): Promise<View> {
@@ -80,7 +80,7 @@ await check("Manual 1280 × 736 generates at that size", async () => {
 await check("Invalid Manual size is rejected with reasons", async () => {
   const r = await post("/api/jobs", { screen: "generate", prompt: "x", size: { ratio: "manual", width: 1000, height: 300 } });
   assert(r.status === 400 && r.body.error.code === "invalid_size", JSON.stringify(r.body));
-  return r.body.error.details.join(" / ");
+  return r.body.error.details.map((d: { code: string }) => d.code).join(", ");
 });
 
 await check("References: the 11th image is rejected", async () => {
@@ -88,7 +88,7 @@ await check("References: the 11th image is rejected", async () => {
   const id = (await upload(png)).id;
   const r = await post("/api/jobs", { screen: "generate", prompt: "x", images: Array(11).fill(id), size: { ratio: "1:1", megapixels: 1 } });
   assert(r.status === 400 && r.body.error.code === "too_many_images", JSON.stringify(r.body));
-  return r.body.error.details.join(" ");
+  return r.body.error.details.map((d: { code: string }) => d.code).join(", ");
 });
 
 await check("Edit, Original → output matches the sent size (≤ 31 px off)", async () => {
@@ -103,7 +103,7 @@ await check("Edit, image above the limit → reduced with a warning", async () =
   const png = await sharp(path.join(m1, "lang-2-en.png")).resize(3000, 2000, { fit: "cover" }).jpeg().toBuffer();
   const u = await upload(png);
   assert(u.sentWidth * u.sentHeight <= 4_194_304 && u.warnings.length === 1, JSON.stringify(u));
-  return `3000x2000 → ${u.sentWidth}x${u.sentHeight}: "${u.warnings[0]}"`;
+  return `3000x2000 → ${u.sentWidth}x${u.sentHeight}: ${JSON.stringify(u.warnings)}`;
 });
 
 await check("Transparent background (Generate) → alpha in ≥ 5% of pixels", async () => {

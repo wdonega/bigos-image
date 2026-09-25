@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { ComfyClient, ComfyError } from "../comfy/client.ts";
 import { outputImage, runPrompt } from "../comfy/run.ts";
 import { type Config, getConfig } from "../config.ts";
-import { AppError, type ErrorCode } from "../errors.ts";
+import { AppError, type Detail, type ErrorCode } from "../errors.ts";
 import { buildPrompt } from "../prompt.ts";
 import { removeExpired, writeStored } from "../storage.ts";
 import { type SentImage, fitToBudget, readUploadImage, readUploadMeta } from "../uploads.ts";
@@ -66,7 +66,7 @@ async function buildGraph(
   data: JobData,
   client: ComfyClient,
   config: Config,
-  warnings: string[],
+  warnings: Detail[],
 ): Promise<ApiGraph> {
   const prompt = buildPrompt(data.prompt, data.transparentBackground);
   if (data.workflow === "t2i") {
@@ -82,7 +82,7 @@ async function buildGraph(
   }
   const { images, reduced } = await fitToBudget(stored, config.maxRefsTotalPixels);
   if (reduced) {
-    warnings.push("As imagens de referência foram reduzidas para caber na memória do gerador.");
+    warnings.push({ code: "references_reduced" });
   }
   const names: string[] = [];
   for (const [i, image] of images.entries()) {
@@ -114,7 +114,7 @@ async function processJob(
 
   try {
     if (await isCancelled()) throw new ComfyError("interrupted", "cancelled before start");
-    const warnings: string[] = [];
+    const warnings: Detail[] = [];
     const graph = await buildGraph(job.data, client, config, warnings);
     const { entry } = await runPrompt(client, graph, {
       timeoutMs: config.jobTimeoutMs,
@@ -127,9 +127,7 @@ async function processJob(
     const image = await finalizeImage(raw, job.data.transparentBackground);
     if (job.data.transparentBackground && (await transparentShare(image.png)) < MIN_TRANSPARENT_SHARE) {
       // Happens with full photos on the edit workflow (spec §14): the model keeps the background.
-      warnings.push(
-        "Não foi possível deixar o fundo transparente nesta imagem. Isso funciona melhor com um objeto ou personagem sobre um fundo simples.",
-      );
+      warnings.push({ code: "transparency_failed" });
     }
     await writeStored(config, "results", resultName(id), image.png);
     return {

@@ -16,7 +16,7 @@ Aplicação web simples para leigos gerarem e editarem imagens com workflows do 
 - TypeScript full-stack: **Next.js** (App Router) com rotas de API como backend, **Tailwind + shadcn/ui** na interface, **Zod** para validar payloads, **Vitest** para testes, **Playwright** para o fluxo de ponta a ponta (opcional).
 - Node.js LTS atual e **pnpm**. Use as versões estáveis mais recentes das bibliotecas.
 - Imagens: **sharp** para redimensionar entradas grandes e para checar o canal alfa nos testes.
-- Textos da interface e mensagens de erro em **português do Brasil**, sem jargão técnico para o usuário (a seed é sempre aleatória e não aparece; passos só via Qualidade). Código, nomes de variáveis e commits em inglês.
+- **Todo o código em inglês**: nomes, rotas (`/generate`, `/edit`), comentários, logs e commits. Textos da interface **só via i18n** (`src/i18n/messages/{en,pt-BR}.ts`, chaves em inglês, pt-BR é o padrão); nenhum texto de UI no código. O backend responde **códigos + parâmetros** (`errors.*`, `details.*`, `warnings.*`) e o front traduz. Sem jargão técnico para o usuário (a seed é sempre aleatória e não aparece; passos só via Qualidade).
 
 ## Comandos
 

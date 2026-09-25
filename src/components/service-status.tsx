@@ -3,12 +3,13 @@
 import { CloudOffIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ERROR_MESSAGES } from "@/lib/errors";
+import { useI18n } from "@/i18n/provider";
 
 type Health = { comfy: boolean; queue: boolean };
 
 /** Warns up front when the generator or the queue is down, before the user fills the form. */
 export function ServiceStatus() {
+  const { t } = useI18n();
   const [health, setHealth] = useState<Health | null>(null);
 
   useEffect(() => {
@@ -26,8 +27,8 @@ export function ServiceStatus() {
   return (
     <Alert variant="destructive">
       <CloudOffIcon aria-hidden />
-      <AlertTitle>{health.comfy ? ERROR_MESSAGES.queue_unavailable : ERROR_MESSAGES.comfy_unavailable}</AlertTitle>
-      <AlertDescription>Você pode preencher os campos agora e tentar de novo daqui a pouco.</AlertDescription>
+      <AlertTitle>{t(health.comfy ? "errors.queue_unavailable" : "errors.comfy_unavailable")}</AlertTitle>
+      <AlertDescription>{t("service.retryHint")}</AlertDescription>
     </Alert>
   );
 }

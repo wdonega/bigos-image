@@ -12,12 +12,14 @@ const ONE_MEGAPIXEL = 1024 * 1024;
 
 export type Size = { width: number; height: number };
 export type SizeLimits = { maxPixels: number; minSide: number; maxAspectRatio: number };
-export type SizeProblem =
-  | "not_integer"
-  | "not_multiple"
-  | "below_min_side"
-  | "above_max_pixels"
-  | "aspect_ratio";
+export const SIZE_PROBLEMS = [
+  "not_integer",
+  "not_multiple",
+  "below_min_side",
+  "above_max_pixels",
+  "aspect_ratio",
+] as const;
+export type SizeProblem = (typeof SIZE_PROBLEMS)[number];
 
 export const round32 = (v: number) => Math.round(v / SIZE_MULTIPLE) * SIZE_MULTIPLE;
 export const floor32 = (v: number) => Math.floor(v / SIZE_MULTIPLE) * SIZE_MULTIPLE;

@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) throw new AppError("invalid_image", 400);
     if (file.size > config.maxUploadBytes) {
       throw new AppError("image_too_large", 413, [
-        `O limite é ${Math.round(config.maxUploadBytes / 1024 / 1024)} MB por imagem.`,
+        { code: "max_upload_mb", params: { max: Math.round(config.maxUploadBytes / 1024 / 1024) } },
       ]);
     }
     const meta = await saveUpload(config, Buffer.from(await file.arrayBuffer()));

@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { mentionLabel, mentionsToTokens, renumberMentions } from "./mentions";
 
 describe("mentions", () => {
-  it("converts [Imagem N] into the model's <imageN> syntax", () => {
+  it("converts Portuguese and English mentions into the model's <imageN> syntax", () => {
     expect(mentionsToTokens("o gato da [Imagem 1] no sofá da [ imagem 2 ]")).toBe(
       "o gato da <image1> no sofá da <image2>",
     );
+    expect(mentionsToTokens("the cat from [Image 1] on [image 2]")).toBe("the cat from <image1> on <image2>");
   });
 
   it("leaves plain prose and typed tokens alone", () => {
@@ -14,12 +15,16 @@ describe("mentions", () => {
 
   it("renumbers after reordering and marks removed images", () => {
     // Old order 1,2,3 → new order 3,1 (image 2 removed).
-    expect(renumberMentions("[Imagem 1] com [Imagem 2] e [Imagem 3]", [3, 1])).toBe(
+    expect(renumberMentions("[Imagem 1] com [Imagem 2] e [Imagem 3]", [3, 1], "Imagem", "[Imagem removida]")).toBe(
       "[Imagem 2] com [Imagem removida] e [Imagem 1]",
+    );
+    expect(renumberMentions("[Image 2] and [Image 1]", [2, 1], "Image", "[Image removed]")).toBe(
+      "[Image 1] and [Image 2]",
     );
   });
 
-  it("builds labels", () => {
-    expect(mentionLabel(4)).toBe("[Imagem 4]");
+  it("builds labels in the given language", () => {
+    expect(mentionLabel(4, "Imagem")).toBe("[Imagem 4]");
+    expect(mentionLabel(4, "Image")).toBe("[Image 4]");
   });
 });

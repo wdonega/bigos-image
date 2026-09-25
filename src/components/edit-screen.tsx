@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useJobRunner } from "@/hooks/use-job-runner";
 import { useUploads } from "@/hooks/use-uploads";
+import { useI18n } from "@/i18n/provider";
 import type { ScreenLimits } from "@/lib/screen-limits";
 import {
   DEFAULT_GENERATE_SELECTION,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/size-selection";
 
 export function EditScreen({ limits }: { limits: ScreenLimits }) {
+  const { t } = useI18n();
   const [instruction, setInstruction] = useState("");
   const [size, setSize] = useState<SizeSelection>({ ...DEFAULT_GENERATE_SELECTION, ratio: "original" });
   const [quality, setQuality] = useState<Quality>("normal");
@@ -64,15 +66,15 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
       <form onSubmit={submit} className="flex flex-col gap-6">
-        <Field label="Imagem">
+        <Field label={t("edit.imageLabel")}>
           <ImageDrop item={item} onFile={replaceImage} disabled={job.busy} />
         </Field>
 
-        <Field label="O que você quer mudar?" htmlFor="instruction">
+        <Field label={t("edit.instructionLabel")} htmlFor="instruction">
           <Textarea
             id="instruction"
             rows={4}
-            placeholder="Ex.: troque o fundo por uma praia"
+            placeholder={t("edit.instructionPlaceholder")}
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             onKeyDown={(e) => {
@@ -92,8 +94,7 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
         {aspectChanged && (
           <p className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-400" role="status">
             <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-            A proporção escolhida é diferente da imagem original. Partes da imagem podem ser cortadas ou
-            reposicionadas.
+            {t("edit.aspectWarning")}
           </p>
         )}
         <QualityPicker value={quality} onChange={setQuality} disabled={job.busy} />
@@ -101,13 +102,13 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
           checked={transparent}
           onChange={setTransparent}
           disabled={job.busy}
-          hint="Funciona quando a imagem já tem um objeto ou personagem sobre um fundo simples. Em fotos com cenário completo o fundo costuma continuar."
+          hint={t("transparency.editHint")}
         />
         <FormError error={job.error} />
 
         <Button type="submit" size="lg" className="h-12 text-base sm:h-9 sm:text-sm" disabled={!canSubmit}>
           <WandSparklesIcon aria-hidden />
-          {job.busy ? "Editando…" : "Editar imagem"}
+          {job.busy ? t("edit.submitting") : t("edit.submit")}
         </Button>
       </form>
 

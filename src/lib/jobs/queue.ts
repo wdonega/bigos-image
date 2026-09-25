@@ -2,14 +2,14 @@ import { Job, Queue } from "bullmq";
 import { Redis } from "ioredis";
 import type { RunProgress } from "../comfy/run.ts";
 import { getConfig } from "../config.ts";
-import { AppError, ERROR_MESSAGES, type ErrorCode, isErrorCode } from "../errors.ts";
+import { AppError, type Detail, type ErrorCode, errorMessage, isErrorCode } from "../errors.ts";
 import type { JobPlan } from "./request.ts";
 
 // Generation queue in Redis (spec §12): one job at a time, state survives restarts.
 export const QUEUE_NAME = "bigos-generations";
 
 export type JobData = JobPlan & { promptId?: string };
-export type JobResult = { width: number; height: number; transparent: boolean; warnings: string[] };
+export type JobResult = { width: number; height: number; transparent: boolean; warnings: Detail[] };
 
 export type JobView =
   | { id: string; status: "queued"; ahead: number }
@@ -22,7 +22,7 @@ export type JobView =
       width: number;
       height: number;
       transparent: boolean;
-      warnings: string[];
+      warnings: Detail[];
     }
   | { id: string; status: "failed"; error: { code: ErrorCode; message: string } }
   | { id: string; status: "cancelled" };
@@ -127,7 +127,7 @@ export function getJobView(id: string): Promise<JobView | null> {
     if (state === "failed") {
       const code: ErrorCode = isErrorCode(job.failedReason) ? job.failedReason : "generation_failed";
       if (code === "cancelled") return { id, status: "cancelled" };
-      return { id, status: "failed", error: { code, message: ERROR_MESSAGES[code] } };
+      return { id, status: "failed", error: { code, message: errorMessage(code) } };
     }
     if (state === "active") return progressView(id, job.progress);
     return { id, status: "queued", ahead: await jobsAhead(id) };

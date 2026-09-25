@@ -1,38 +1,35 @@
 // Browser-side calls to our API. The browser never talks to ComfyUI (spec §12).
+import type { Detail } from "@/lib/errors";
 import type { JobView } from "@/lib/jobs/queue";
 
-export type { JobView };
+export type { Detail, JobView };
 
 export const TERMINAL: ReadonlySet<JobView["status"]> = new Set(["done", "failed", "cancelled"]);
 
+/** An API failure: `code` is translated by the UI (errors.*), `details` too (details.*). */
 export class ApiError extends Error {
   readonly code: string;
-  readonly details: string[];
+  readonly details: Detail[];
 
-  constructor(code: string, message: string, details: string[] = []) {
-    super(message);
+  constructor(code: string, details: Detail[] = []) {
+    super(code);
     this.name = "ApiError";
     this.code = code;
     this.details = details;
   }
 }
 
-const OFFLINE = "Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.";
-
 async function send<T>(url: string, init: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, init);
   } catch {
-    throw new ApiError("offline", OFFLINE);
+    throw new ApiError("offline");
   }
   const body = (await res.json().catch(() => null)) as
-    | (T & { error?: { code: string; message: string; details?: string[] } })
+    | (T & { error?: { code: string; details?: Detail[] } })
     | null;
-  if (!res.ok || !body) {
-    const error = body?.error;
-    throw new ApiError(error?.code ?? "unexpected", error?.message ?? OFFLINE, error?.details ?? []);
-  }
+  if (!res.ok || !body) throw new ApiError(body?.error?.code ?? "unexpected", body?.error?.details ?? []);
   return body;
 }
 
@@ -56,7 +53,7 @@ export type UploadedImage = {
   /** Size of what ComfyUI will receive after the backend resized/cropped it. */
   sentWidth: number;
   sentHeight: number;
-  warnings: string[];
+  warnings: Detail[];
 };
 
 export async function uploadImage(file: File): Promise<UploadedImage> {

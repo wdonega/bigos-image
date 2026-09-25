@@ -39,10 +39,10 @@ describe("planJob — Generate without references", () => {
     expect(p.size).toEqual({ width: 1280, height: 736 });
   });
 
-  it("rejects an invalid Manual size with readable reasons", async () => {
+  it("rejects an invalid Manual size with translatable reasons", async () => {
     const err = await plan({ ...base, size: { ratio: "manual", width: 1000, height: 300 } }).catch((e) => e);
     expect(err).toMatchObject({ code: "invalid_size", status: 400 });
-    expect(err.details).toContain("Largura e altura precisam ser múltiplos de 32.");
+    expect(err.details).toEqual([{ code: "not_multiple" }, { code: "below_min_side", params: { min: 512 } }]);
   });
 
   it("rejects Original on the Generate screen", async () => {

@@ -47,7 +47,7 @@ export function useUploads(max: number, onReorder?: (order: number[]) => void) {
         .catch((err: unknown) =>
           patch(item.key, {
             status: "error",
-            error: err instanceof ApiError ? err.message : "Não foi possível enviar a imagem.",
+            error: err instanceof ApiError ? err.code : "upload_failed",
           }),
         );
     }

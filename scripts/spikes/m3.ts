@@ -12,7 +12,7 @@ const m1 = path.resolve("storage/spikes/m1");
 const outDir = path.resolve("storage/spikes/m3");
 mkdirSync(outDir, { recursive: true });
 
-type Upload = { id: string; width: number; height: number; sentWidth: number; sentHeight: number; warnings: string[] };
+type Upload = { id: string; width: number; height: number; sentWidth: number; sentHeight: number; warnings: { code: string }[] };
 
 async function upload(png: Buffer, name: string): Promise<Upload> {
   const form = new FormData();

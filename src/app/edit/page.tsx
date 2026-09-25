@@ -1,16 +1,18 @@
 import { EditScreen } from "@/components/edit-screen";
 import { ServiceStatus } from "@/components/service-status";
+import { getTranslator } from "@/i18n/server";
 import { screenLimits } from "@/lib/screen-limits";
 
 // Limits come from the server's environment at request time.
 export const dynamic = "force-dynamic";
 
-export default function EditPage() {
+export default async function EditPage() {
+  const { t } = await getTranslator();
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Editar imagem</h1>
-        <p className="text-sm text-muted-foreground">Envie uma imagem e diga o que mudar.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("edit.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("edit.subtitle")}</p>
       </div>
       <ServiceStatus />
       <EditScreen limits={screenLimits()} />

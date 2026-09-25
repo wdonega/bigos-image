@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Config } from "../config.ts";
-import { AppError, describeSizeProblems } from "../errors.ts";
+import { AppError, sizeProblemDetails } from "../errors.ts";
 import { PRESET_RATIOS, type Size, checkSize, presetSize } from "../size.ts";
 import { mentionsToTokens } from "../mentions.ts";
 import { randomSeed } from "../workflow/build.ts";
@@ -55,13 +55,13 @@ export async function planJob(
   findUpload: UploadLookup,
 ): Promise<JobPlan> {
   if (req.screen === "edit" && req.images.length !== 1) {
-    throw new AppError("invalid_request", 400, ["Envie exatamente 1 imagem para editar."]);
+    throw new AppError("invalid_request", 400, [{ code: "edit_needs_one_image" }]);
   }
   if (req.screen === "generate" && req.images.length > config.maxRefs) {
-    throw new AppError("too_many_images", 400, [`Use no máximo ${config.maxRefs} imagens de referência.`]);
+    throw new AppError("too_many_images", 400, [{ code: "max_refs", params: { max: config.maxRefs } }]);
   }
   if (req.size.ratio === "original" && req.screen !== "edit") {
-    throw new AppError("invalid_request", 400, ["A opção Original só existe na tela Editar."]);
+    throw new AppError("invalid_request", 400, [{ code: "original_edit_only" }]);
   }
   for (const id of req.images) {
     if (!(await findUpload(id))) throw new AppError("upload_not_found", 400);
@@ -75,7 +75,7 @@ export async function planJob(
         : presetSize(req.size.ratio, req.size.megapixels, config.maxPixels);
     const problems = checkSize(size, config);
     if (problems.length > 0) {
-      throw new AppError("invalid_size", 400, describeSizeProblems(problems, config));
+      throw new AppError("invalid_size", 400, sizeProblemDetails(problems, config));
     }
   }
 

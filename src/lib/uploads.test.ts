@@ -24,13 +24,13 @@ describe("prepareImage", () => {
     expect(out.sentWidth % 32).toBe(0);
     expect(out.sentHeight % 32).toBe(0);
     expect(out.sentWidth / out.sentHeight).toBeCloseTo(4 / 3, 1);
-    expect(out.warnings[0]).toMatch(/reduzida/);
+    expect(out.warnings).toEqual([{ code: "image_reduced", params: { width: out.sentWidth, height: out.sentHeight } }]);
   });
 
   it("enlarges images with a short side below MIN_SIDE and warns", async () => {
     const out = await prepareImage(await image(300, 200, "webp"), limits);
     expect(out).toMatchObject({ sentWidth: 768, sentHeight: 512 });
-    expect(out.warnings[0]).toMatch(/ampliada/);
+    expect(out.warnings).toEqual([{ code: "image_enlarged", params: { width: 768, height: 512 } }]);
   });
 
   it("rejects formats other than PNG, JPG and WebP", async () => {
