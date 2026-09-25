@@ -71,7 +71,7 @@ for (const c of cases.filter((x) => x.name.includes(filter))) {
     const res = await fetch(`${base}/api/jobs`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ screen: c.screen, prompt: c.prompt, images: uploads.map((u) => u.id), size: c.size, seed: 42 }),
+      body: JSON.stringify({ screen: c.screen, prompt: c.prompt, images: uploads.map((u) => u.id), size: c.size }),
     });
     const created = await res.json();
     if (!res.ok) throw new Error(`job: ${JSON.stringify(created)}`);

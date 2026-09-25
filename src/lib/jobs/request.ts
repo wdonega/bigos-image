@@ -25,7 +25,6 @@ export const jobRequestSchema = z.object({
   size: sizeSchema,
   quality: z.enum(["normal", "high"]).default("normal"),
   transparent_background: z.boolean().default(false),
-  seed: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).nullable().default(null),
 });
 
 export type JobRequest = z.infer<typeof jobRequestSchema>;
@@ -88,6 +87,7 @@ export async function planJob(
     size,
     images: req.images,
     steps: config.steps[req.quality],
-    seed: req.seed ?? randomSeed(),
+    // Always random: the seed is not exposed to users (spec §14, decision 18).
+    seed: randomSeed(),
   };
 }

@@ -2,7 +2,6 @@
 
 import { TriangleAlertIcon, WandSparklesIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { AdvancedOptions } from "@/components/advanced-options";
 import { Field } from "@/components/field";
 import { FormError } from "@/components/form-error";
 import { ImageDrop } from "@/components/image-drop";
@@ -28,7 +27,6 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
   const [instruction, setInstruction] = useState("");
   const [size, setSize] = useState<SizeSelection>({ ...DEFAULT_GENERATE_SELECTION, ratio: "original" });
   const [quality, setQuality] = useState<Quality>("normal");
-  const [seed, setSeed] = useState("");
   const [transparent, setTransparent] = useState(false);
   const job = useJobRunner();
   const uploads = useUploads(1);
@@ -60,7 +58,6 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
       size: toRequestSize(size),
       quality,
       transparent_background: transparent,
-      seed: seed === "" ? null : Number(seed),
     });
   }
 
@@ -106,7 +103,6 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
           disabled={job.busy}
           hint="Funciona quando a imagem já tem um objeto ou personagem sobre um fundo simples. Em fotos com cenário completo o fundo costuma continuar."
         />
-        <AdvancedOptions seed={seed} onSeedChange={setSeed} disabled={job.busy} />
         <FormError error={job.error} />
 
         <Button type="submit" size="lg" disabled={!canSubmit}>

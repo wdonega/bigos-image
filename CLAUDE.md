@@ -16,7 +16,7 @@ Aplicação web simples para leigos gerarem e editarem imagens com workflows do 
 - TypeScript full-stack: **Next.js** (App Router) com rotas de API como backend, **Tailwind + shadcn/ui** na interface, **Zod** para validar payloads, **Vitest** para testes, **Playwright** para o fluxo de ponta a ponta (opcional).
 - Node.js LTS atual e **pnpm**. Use as versões estáveis mais recentes das bibliotecas.
 - Imagens: **sharp** para redimensionar entradas grandes e para checar o canal alfa nos testes.
-- Textos da interface e mensagens de erro em **português do Brasil**, sem jargão técnico para o usuário (seed e passos ficam em "Avançado"). Código, nomes de variáveis e commits em inglês.
+- Textos da interface e mensagens de erro em **português do Brasil**, sem jargão técnico para o usuário (a seed é sempre aleatória e não aparece; passos só via Qualidade). Código, nomes de variáveis e commits em inglês.
 
 ## Comandos
 
@@ -51,7 +51,7 @@ Código em `src/lib/` usa imports relativos com extensão `.ts` (para rodar dire
 ## Marcos
 
 1. **Cliente do ComfyUI + texto para imagem de ponta a ponta**, ainda sem interface elaborada. Inclui os spikes dos itens de "A validar em teste" (§14) que afetam esse marco.
-2. **Tela Gerar** com o seletor de tamanho (proporção + resolução, Manual), Qualidade e Avançado. Teste unitário da tabela do §5.
+2. **Tela Gerar** com o seletor de tamanho (proporção + resolução, Manual), Qualidade. Teste unitário da tabela do §5.
 3. **Referências e tela Editar:** grafo dinâmico com até 10 imagens, Original, troca de proporção, redução de imagens grandes.
 4. **Fundo transparente** em todas as telas, preview xadrez, acabamento, mensagens de erro e checklist do §13 da spec.
 

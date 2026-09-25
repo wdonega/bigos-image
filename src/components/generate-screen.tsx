@@ -2,7 +2,6 @@
 
 import { SparklesIcon } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
-import { AdvancedOptions } from "@/components/advanced-options";
 import { Field } from "@/components/field";
 import { FormError } from "@/components/form-error";
 import { JobPanel } from "@/components/job-panel";
@@ -22,7 +21,6 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState<SizeSelection>(DEFAULT_GENERATE_SELECTION);
   const [quality, setQuality] = useState<Quality>("normal");
-  const [seed, setSeed] = useState("");
   const [transparent, setTransparent] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const job = useJobRunner();
@@ -56,7 +54,6 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
       size: toRequestSize(size),
       quality,
       transparent_background: transparent,
-      seed: seed === "" ? null : Number(seed),
     });
   }
 
@@ -81,7 +78,6 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
         <SizePicker value={size} onChange={setSize} limits={limits} disabled={job.busy} />
         <QualityPicker value={quality} onChange={setQuality} disabled={job.busy} />
         <TransparencyToggle checked={transparent} onChange={setTransparent} disabled={job.busy} />
-        <AdvancedOptions seed={seed} onSeedChange={setSeed} disabled={job.busy} />
         <FormError error={job.error} />
 
         <Button type="submit" size="lg" disabled={!canSubmit}>

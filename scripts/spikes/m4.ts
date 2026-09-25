@@ -51,7 +51,6 @@ for (const c of cases.filter((x) => x.name.includes(filter))) {
       images: ids,
       size: c.screen === "edit" ? { ratio: "original" } : { ratio: "1:1", megapixels: 1 },
       transparent_background: true,
-      seed: 42,
     }),
   });
   const { job_id } = await res.json();

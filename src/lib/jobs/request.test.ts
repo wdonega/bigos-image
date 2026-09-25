@@ -23,8 +23,15 @@ describe("planJob — Gerar without references", () => {
   });
 
   it("recomputes preset sizes and maps quality to steps", async () => {
-    const p = await plan({ ...base, size: { ratio: "16:9", megapixels: 2 }, quality: "high", seed: 5 });
-    expect(p).toMatchObject({ size: { width: 1920, height: 1088 }, steps: 40, seed: 5 });
+    const p = await plan({ ...base, size: { ratio: "16:9", megapixels: 2 }, quality: "high" });
+    expect(p).toMatchObject({ size: { width: 1920, height: 1088 }, steps: 40 });
+  });
+
+  it("ignores a seed sent by the client and draws a random one", async () => {
+    const seeds = new Set<number>();
+    for (let i = 0; i < 5; i++) seeds.add((await plan({ ...base, seed: 5 })).seed);
+    expect(seeds.has(5)).toBe(false);
+    expect(seeds.size).toBe(5);
   });
 
   it("accepts a valid Manual size", async () => {

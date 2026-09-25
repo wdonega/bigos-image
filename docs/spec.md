@@ -52,13 +52,13 @@ O usuário vê só duas telas. **O backend escolhe o workflow pela quantidade de
 - **Tamanho**: proporção + resolução (§5). Padrão **1:1 · 1 MP = 1024 × 1024**.
 - **Qualidade**: §8.1.
 - **Fundo transparente**: checkbox, desligado por padrão (§8.2).
-- Avançado (oculto): seed (padrão aleatória).
+- A seed é sempre aleatória e não aparece na interface (decisão 18, §14).
 
 ### Editar
 - **Imagem**: exatamente 1, obrigatória.
 - **Instrução**: obrigatória (ex.: "troque o fundo por uma praia").
 - **Tamanho**: proporção + resolução, com **Original** como padrão (§5 e §7).
-- **Qualidade**, **Fundo transparente** e avançado: iguais à tela Gerar.
+- **Qualidade** e **Fundo transparente**: iguais à tela Gerar.
 
 ## 5. Seletor de tamanho
 
@@ -213,8 +213,8 @@ POST /api/jobs
   //     ou { "ratio": "manual", "width": 1280, "height": 720 }
   //     ou { "ratio": "original" }                     // só em "edit"
   "quality": "normal",                        // ou "high" (Qualidade = passos)
-  "transparent_background": false,
-  "seed": null                                // null = aleatória
+  "transparent_background": false
+  // sem "seed": o backend sorteia uma por execução; um "seed" enviado é ignorado (decisão 18)
 }
 ```
 
@@ -275,6 +275,7 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 15. ComfyUI em `https://comfy.bigode.ai`, **sem login** por decisão do dono (risco em §12).
 16. Menções a imagens: a UI insere `[Imagem N]` no texto (botão @ em cada miniatura) e renumera ao reordenar/remover; o backend converte `[Imagem N]` → `<imageN>` só quando há imagens. `<imageN>` digitado também funciona.
 17. Limite total de pixels das imagens de um pedido (`MAX_REFS_TOTAL_PIXELS`), ver resultados do Marco 3.
+18. **Avançado removido** (a pedido do dono, após o MVP): a seed não aparece mais na interface nem no contrato da API; é sempre aleatória. Quem precisar reproduzir um resultado para depuração usa `scripts/spikes/m1.ts`, que fixa a seed.
 
 **Descobertas (v0.4)**
 - **Exports de API corrigidos à mão (2026-09-25):** os JSONs em `workflows/api/` vieram sem os títulos `@…` e, no edit, com `ResolutionSelector`, `ImageCompare` e um 2º `LoadImage`. Com autorização do dono, os títulos foram adicionados e esses nós removidos direto no JSON (sem reexportar); `width`/`height` do edit ficaram como valores (1024 × 1024). `check-workflows.mjs` passa.
