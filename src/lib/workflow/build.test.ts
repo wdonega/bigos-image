@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildT2I, randomSeed } from "./build";
+import { buildEdit, buildT2I, randomSeed } from "./build";
 import { type ApiGraph, WorkflowError, findNodeId, setInputs } from "./graph";
 import { loadTemplate } from "./templates";
 
@@ -26,6 +26,46 @@ describe("buildT2I", () => {
     const before = JSON.stringify(template);
     buildT2I(template, params);
     expect(JSON.stringify(template)).toBe(before);
+  });
+});
+
+describe("buildEdit", () => {
+  const edit = { prompt: "<image1> na praia", seed: 3, steps: 25 };
+
+  it("Original: switch off, resolution 0, single image", () => {
+    const graph = buildEdit(loadTemplate("edit"), { ...edit, images: ["a.png"], size: null });
+    expect(node(graph, "@custom_size").switch).toBe(false);
+    expect(node(graph, "@prompt")).toMatchObject({ prompt: "<image1> na praia", resolution: 0 });
+    expect(node(graph, "@image_1").image).toBe("a.png");
+    expect(Object.values(graph).filter((n) => n.class_type === "LoadImage")).toHaveLength(1);
+  });
+
+  it("custom size: switch on and latent size written", () => {
+    const graph = buildEdit(loadTemplate("edit"), {
+      ...edit,
+      images: ["a.png"],
+      size: { width: 1376, height: 768 },
+    });
+    expect(node(graph, "@custom_size").switch).toBe(true);
+    expect(node(graph, "@latent_size")).toMatchObject({ width: 1376, height: 768 });
+  });
+
+  it("clones @image_1 for every extra image and links images.image_N in order", () => {
+    const names = Array.from({ length: 10 }, (_, i) => `img${i + 1}.png`);
+    const graph = buildEdit(loadTemplate("edit"), { ...edit, images: names, size: { width: 1024, height: 1024 } });
+    const encoder = node(graph, "@prompt");
+    names.forEach((name, i) => {
+      const n = i + 1;
+      const id = findNodeId(graph, `@image_${n}`);
+      expect(graph[id]).toMatchObject({ class_type: "LoadImage", inputs: { image: name } });
+      expect(encoder[`images.image_${n}`]).toEqual([id, 0]);
+    });
+  });
+
+  it("refuses zero images or more than the encoder accepts", () => {
+    expect(() => buildEdit(loadTemplate("edit"), { ...edit, images: [], size: null })).toThrow(WorkflowError);
+    const many = Array.from({ length: 17 }, (_, i) => `${i}.png`);
+    expect(() => buildEdit(loadTemplate("edit"), { ...edit, images: many, size: null })).toThrow(WorkflowError);
   });
 });
 

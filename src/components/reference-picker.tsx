@@ -1,0 +1,184 @@
+"use client";
+
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  AtSignIcon,
+  ImagePlusIcon,
+  LoaderCircleIcon,
+  TriangleAlertIcon,
+  XIcon,
+} from "lucide-react";
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ACCEPTED_TYPES, type useUploads } from "@/hooks/use-uploads";
+
+type Uploads = ReturnType<typeof useUploads>;
+
+/** Optional reference images for the Gerar screen (spec §4): add, remove, reorder, mention. */
+export function ReferencePicker({
+  uploads,
+  max,
+  disabled,
+  onMention,
+}: {
+  uploads: Uploads;
+  max: number;
+  disabled?: boolean;
+  onMention: (n: number) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const full = uploads.items.length >= max;
+
+  function addFiles(files: File[]) {
+    const images = files.filter((f) => ACCEPTED_TYPES.split(",").includes(f.type));
+    const skipped = uploads.add(images);
+    const wrongType = files.length - images.length;
+    setNotice(
+      skipped > 0
+        ? `Limite de ${max} imagens: ${skipped} ${skipped === 1 ? "ficou" : "ficaram"} de fora.`
+        : wrongType > 0
+          ? "Use imagens PNG, JPG ou WebP."
+          : null,
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-3"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        if (!disabled) addFiles([...e.dataTransfer.files]);
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium">Imagens de referência</p>
+          <p className="text-xs text-muted-foreground">
+            Opcional. {uploads.items.length} de {max}.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled || full}
+          onClick={() => input.current?.click()}
+        >
+          <ImagePlusIcon aria-hidden /> Adicionar imagens
+        </Button>
+        <input
+          ref={input}
+          type="file"
+          accept={ACCEPTED_TYPES}
+          multiple
+          hidden
+          onChange={(e) => {
+            addFiles([...(e.target.files ?? [])]);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {uploads.items.length > 0 && (
+        <ol className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {uploads.items.map((item, index) => (
+            <li key={item.key} className="flex flex-col gap-1">
+              <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
+                <img src={item.previewUrl} alt={`Imagem ${index + 1}`} className="size-full object-cover" />
+                {item.status === "uploading" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                    <LoaderCircleIcon className="size-5 animate-spin" aria-label="Enviando" />
+                  </div>
+                )}
+                {item.status === "error" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-destructive/80 p-1 text-center text-[11px] text-white">
+                    {item.error}
+                  </div>
+                )}
+                <span className="absolute bottom-1 left-1 rounded bg-background/90 px-1.5 py-0.5 text-[11px] font-medium shadow">
+                  Imagem {index + 1}
+                </span>
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 rounded-full bg-background/90 p-0.5 shadow"
+                  aria-label={`Remover imagem ${index + 1}`}
+                  disabled={disabled}
+                  onClick={() => {
+                    uploads.remove(item.key);
+                    setNotice(null);
+                  }}
+                >
+                  <XIcon className="size-3.5" />
+                </button>
+              </div>
+              <div className="flex items-center justify-center">
+                <span className="flex">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Mover imagem ${index + 1} para a esquerda`}
+                    disabled={disabled || index === 0}
+                    onClick={() => uploads.move(item.key, -1)}
+                  >
+                    <ArrowLeftIcon />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Mover imagem ${index + 1} para a direita`}
+                    disabled={disabled || index === uploads.items.length - 1}
+                    onClick={() => uploads.move(item.key, 1)}
+                  >
+                    <ArrowRightIcon />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Citar imagem ${index + 1} no texto`}
+                    title="Citar no texto"
+                    disabled={disabled}
+                    onClick={() => onMention(index + 1)}
+                  >
+                    <AtSignIcon />
+                  </Button>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {uploads.items.some((i) => i.upload?.warnings.length) && (
+        <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+          {uploads.items.map((item, index) =>
+            item.upload?.warnings.map((w) => (
+              <li key={`${item.key}-${w}`}>
+                Imagem {index + 1}: {w}
+              </li>
+            )),
+          )}
+        </ul>
+      )}
+
+      {uploads.items.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Com imagens, a Imagem 1 é a base. Use <AtSignIcon className="inline size-3" aria-hidden /> para citar uma
+          imagem no texto, por exemplo: “o gato da [Imagem 1] no sofá da [Imagem 2]”.
+        </p>
+      )}
+
+      {notice && (
+        <p className="flex items-center gap-1.5 text-sm text-destructive" role="alert">
+          <TriangleAlertIcon className="size-3.5" aria-hidden /> {notice}
+        </p>
+      )}
+    </div>
+  );
+}

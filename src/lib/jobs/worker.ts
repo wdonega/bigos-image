@@ -7,7 +7,8 @@ import { type Config, getConfig } from "../config.ts";
 import { AppError, type ErrorCode } from "../errors.ts";
 import { buildPrompt } from "../prompt.ts";
 import { removeExpired, writeStored } from "../storage.ts";
-import { buildT2I } from "../workflow/build.ts";
+import { type SentImage, fitToBudget, readUploadImage, readUploadMeta } from "../uploads.ts";
+import { buildEdit, buildT2I } from "../workflow/build.ts";
 import { type ApiGraph, findNodeId } from "../workflow/graph.ts";
 import { loadTemplate } from "../workflow/templates.ts";
 import { type JobData, type JobResult, QUEUE_NAME, cancelKey, createRedis } from "./queue.ts";
@@ -47,12 +48,39 @@ export async function finalizeImage(png: Buffer, transparent: boolean) {
   return { png: data, width: info.width, height: info.height };
 }
 
-async function buildGraph(data: JobData): Promise<ApiGraph> {
+async function buildGraph(
+  data: JobData,
+  client: ComfyClient,
+  config: Config,
+  warnings: string[],
+): Promise<ApiGraph> {
   const prompt = buildPrompt(data.prompt, data.transparentBackground);
-  if (data.workflow === "t2i" && data.size) {
+  if (data.workflow === "t2i") {
+    if (!data.size) throw new AppError("invalid_request", 400);
     return buildT2I(loadTemplate("t2i"), { prompt, ...data.size, seed: data.seed, steps: data.steps });
   }
-  throw new AppError("not_supported_yet", 501);
+  const stored: SentImage[] = [];
+  for (const id of data.images) {
+    const png = await readUploadImage(config, id);
+    const meta = await readUploadMeta(config, id);
+    if (!png || !meta) throw new AppError("upload_not_found", 400);
+    stored.push({ png, width: meta.sentWidth, height: meta.sentHeight });
+  }
+  const { images, reduced } = await fitToBudget(stored, config.maxRefsTotalPixels);
+  if (reduced) {
+    warnings.push("As imagens de referência foram reduzidas para caber na memória do gerador.");
+  }
+  const names: string[] = [];
+  for (const [i, image] of images.entries()) {
+    names.push(await client.uploadImage(image.png, `bigos-${data.images[i]}.png`));
+  }
+  return buildEdit(loadTemplate("edit"), {
+    prompt,
+    images: names,
+    size: data.size,
+    seed: data.seed,
+    steps: data.steps,
+  });
 }
 
 async function processJob(
@@ -72,7 +100,8 @@ async function processJob(
 
   try {
     if (await isCancelled()) throw new ComfyError("interrupted", "cancelled before start");
-    const graph = await buildGraph(job.data);
+    const warnings: string[] = [];
+    const graph = await buildGraph(job.data, client, config, warnings);
     const { entry } = await runPrompt(client, graph, {
       timeoutMs: config.jobTimeoutMs,
       knownPromptId: job.data.promptId,
@@ -87,7 +116,7 @@ async function processJob(
       width: image.width,
       height: image.height,
       transparent: job.data.transparentBackground,
-      warnings: [],
+      warnings,
     };
   } catch (err) {
     const code = toErrorCode(err, controller.signal.aborted || (await isCancelled().catch(() => false)));

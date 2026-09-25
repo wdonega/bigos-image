@@ -10,6 +10,7 @@ const env = {
   MIN_SIDE: "512",
   MAX_ASPECT_RATIO: "4",
   MAX_INPUT_PIXELS: "4194304",
+  MAX_REFS_TOTAL_PIXELS: "10485760",
   MAX_UPLOAD_MB: "20",
   RETENTION_HOURS: "24",
   JOB_TIMEOUT_MINUTES: "15",
@@ -28,6 +29,10 @@ describe("parseConfig", () => {
 
   it("fails loudly when a limit is missing", () => {
     expect(() => parseConfig({ ...env, MAX_PIXELS: undefined })).toThrow(/MAX_PIXELS/);
+  });
+
+  it("requires the references budget to fit at least one full input image", () => {
+    expect(() => parseConfig({ ...env, MAX_REFS_TOTAL_PIXELS: "1000000" })).toThrow(/MAX_REFS_TOTAL_PIXELS/);
   });
 
   it("rejects non-numeric limits", () => {

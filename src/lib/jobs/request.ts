@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Config } from "../config.ts";
 import { AppError, describeSizeProblems } from "../errors.ts";
 import { PRESET_RATIOS, type Size, checkSize, presetSize } from "../size.ts";
+import { mentionsToTokens } from "../mentions.ts";
 import { randomSeed } from "../workflow/build.ts";
 
 // Request contract of POST /api/jobs (spec §10).
@@ -42,29 +43,50 @@ export type JobPlan = {
   seed: number;
 };
 
-export function planJob(req: JobRequest, config: Config): JobPlan {
-  if (req.screen === "edit" || req.images.length > 0) {
-    throw new AppError("not_supported_yet", 501);
+/** Looks up a stored upload; injected so planning stays testable without disk. */
+export type UploadLookup = (id: string) => Promise<{ id: string } | null>;
+
+/**
+ * Validates a request and turns it into a plan. The workflow follows the number of images
+ * (spec §3): none → t2i; one or more → edit. The size is always recomputed here (spec §5).
+ */
+export async function planJob(
+  req: JobRequest,
+  config: Config,
+  findUpload: UploadLookup,
+): Promise<JobPlan> {
+  if (req.screen === "edit" && req.images.length !== 1) {
+    throw new AppError("invalid_request", 400, ["Envie exatamente 1 imagem para editar."]);
   }
-  if (req.size.ratio === "original") {
+  if (req.screen === "generate" && req.images.length > config.maxRefs) {
+    throw new AppError("too_many_images", 400, [`Use no máximo ${config.maxRefs} imagens de referência.`]);
+  }
+  if (req.size.ratio === "original" && req.screen !== "edit") {
     throw new AppError("invalid_request", 400, ["A opção Original só existe na tela Editar."]);
   }
-
-  const size =
-    req.size.ratio === "manual"
-      ? { width: req.size.width, height: req.size.height }
-      : presetSize(req.size.ratio, req.size.megapixels, config.maxPixels);
-  const problems = checkSize(size, config);
-  if (problems.length > 0) {
-    throw new AppError("invalid_size", 400, describeSizeProblems(problems, config));
+  for (const id of req.images) {
+    if (!(await findUpload(id))) throw new AppError("upload_not_found", 400);
   }
 
+  let size: Size | null = null;
+  if (req.size.ratio !== "original") {
+    size =
+      req.size.ratio === "manual"
+        ? { width: req.size.width, height: req.size.height }
+        : presetSize(req.size.ratio, req.size.megapixels, config.maxPixels);
+    const problems = checkSize(size, config);
+    if (problems.length > 0) {
+      throw new AppError("invalid_size", 400, describeSizeProblems(problems, config));
+    }
+  }
+
+  const withImages = req.images.length > 0;
   return {
-    workflow: "t2i",
-    prompt: req.prompt,
+    workflow: withImages ? "edit" : "t2i",
+    prompt: withImages ? mentionsToTokens(req.prompt) : req.prompt,
     transparentBackground: req.transparent_background,
     size,
-    images: [],
+    images: req.images,
     steps: config.steps[req.quality],
     seed: req.seed ?? randomSeed(),
   };

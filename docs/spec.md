@@ -238,7 +238,7 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 - **Uploads:** PNG/JPG/WebP; limite de bytes e de dimensão configuráveis.
 - **Erros amigáveis:** mensagens em português para falhas comuns (imagem inválida, tamanho fora do limite, ComfyUI indisponível, fila ocupada).
 - **Versionamento:** cada workflow (JSON de API + arquivo de mapeamento) versionado junto, para que mudar um nó não quebre o backend silenciosamente.
-- **Configuração:** `MAX_REFS` (10), `MAX_PIXELS` (4.194.304), `MAX_INPUT_PIXELS`, passos por qualidade, retenção de arquivos.
+- **Configuração:** `MAX_REFS` (10), `MAX_PIXELS` (4.194.304), `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS` (v0.4), passos por qualidade, retenção de arquivos.
 
 ## 13. Critérios de aceite
 
@@ -273,6 +273,8 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 13. Um único `client_id` por processo do backend (§11).
 14. A função pura de tamanho (§5/§6) e o teste da tabela entram no Marco 1 (o backend precisa dela); o Marco 2 fica com a tela.
 15. ComfyUI em `https://comfy.bigode.ai`, **sem login** por decisão do dono (risco em §12).
+16. Menções a imagens: a UI insere `[Imagem N]` no texto (botão @ em cada miniatura) e renumera ao reordenar/remover; o backend converte `[Imagem N]` → `<imageN>` só quando há imagens. `<imageN>` digitado também funciona.
+17. Limite total de pixels das imagens de um pedido (`MAX_REFS_TOTAL_PIXELS`), ver resultados do Marco 3.
 
 **Descobertas (v0.4)**
 - **Exports de API corrigidos à mão (2026-09-25):** os JSONs em `workflows/api/` vieram sem os títulos `@…` e, no edit, com `ResolutionSelector`, `ImageCompare` e um 2º `LoadImage`. Com autorização do dono, os títulos foram adicionados e esses nós removidos direto no JSON (sem reexportar); `width`/`height` do edit ficaram como valores (1024 × 1024). `check-workflows.mjs` passa.
@@ -290,21 +292,29 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 - **Qualidade (Marco 2):** 1 MP, mesma seed: Normal (25 passos) 17,9 s; Alta (40 passos) 26,6 s (+49%).
 - **Saída no `/history`:** `outputs["<id do @save>"].images[0] = { filename, subfolder, type: "output" }`.
 
+**Resultados dos spikes do Marco 3 (2026-09-25; script `scripts/spikes/m3.ts`, pela API do app)**
+- **`resolution = 0` / Original:** com a `image_1` já ajustada a múltiplo de 32 pelo backend (decisão 9), a saída tem **exatamente** o tamanho enviado: 1000×750 → 992×736; 3000×2000 → reduzida a 2496×1664 (saída igual, 249 s); 300×300 → ampliada a 512×512.
+- **Injeção de imagens:** o grafo dinâmico (clonar `@image_1`, ligar `images.image_N`) funciona com 2 e com 10 imagens; o ComfyUI aceita os ids de nó gerados (`470_image_2` …). Com 10 referências o modelo colocou todos os objetos na cena. **Não precisa de um JSON por quantidade.**
+- **VRAM com referências → divergência, limite novo.** 10 referências de ~4 MP (≈ 42 MP no total) estouram a memória no `TextEncodeQwenImage21` ("Allocation on device 0 would exceed allowed memory"). 10 × 1 MP (10 MP) funciona (267 s); 10 × 2 MP (≈ 20 MP) passa do encoder, mas estoura o `JOB_TIMEOUT_MINUTES` de 15 min (o app interrompe corretamente). **Decisão v0.4:** novo limite `MAX_REFS_TOTAL_PIXELS` (padrão 10.485.760 = 10 × 1 MP) para a soma dos pixels de todas as imagens de um pedido; acima dele o backend reduz todas pelo mesmo fator (múltiplos de 32) e avisa o usuário no resultado. Precisa ser ≥ `MAX_INPUT_PIXELS`, para a Editar (1 imagem) nunca ser afetada.
+- **Referência com proporção diferente do tamanho pedido:** referência 16:9 com saída 9:16 → o modelo recompõe a cena na proporção pedida (sem esticar).
+- **Editar com outra proporção:** o modelo **reenquadra** a cena, não estica: em 1:1 afasta, em 16:9 aproxima e corta, em 9:16 estende parede e chão; o objeto perde parte da fidelidade (é redesenhado). Como o enquadramento é decidido pelo modelo, uma prévia não seria fiel → **basta o aviso** na UI.
+- **Observação aberta (qualidade do modelo, não do pipeline):** com 2 referências (coruja em fundo branco + cafeteria), em qualquer ordem e com prompts em PT e EN, o modelo devolveu a cafeteria sem a coruja; os grafos enviados estavam corretos (conferido no `/history`). Com 10 referências a coruja apareceu. Vale testar mais combinações antes de prometer "juntar duas imagens" na UI.
+
 **A definir**
 - **Rótulos e padrões:** Pequeno / Médio / Grande e o padrão 1 MP são sugestões; "Alta" = 40 passos é proposta.
 - **Original com resolução:** hoje "Original" mantém as dimensões e esconde a resolução. Permitir "proporção da imagem + 1/2/4 MP" (para ampliar mantendo a proporção) é possível, mas fica fora por enquanto.
 
 **A validar em teste**
 - ✅ *(Marco 1: orçamento de pixels; ver resultados acima)* **Limite "2048":** se as notas do template significam 2048 por lado ou 2048² em pixels. Se for por lado, os presets 16:9 e 3:2 de 4 MP (lado de 2720 e 2496) precisam de outro cálculo.
-- **`resolution = 0`:** que realmente não redimensiona (além do múltiplo de 32) com imagens de tamanhos variados.
-- *(nomes confirmados via `/object_info`; grafo dinâmico no Marco 3)* **Injeção de imagens:** nomes reais de `images.image_N` no JSON de API e se o grafo dinâmico de §9.3 funciona; senão, um JSON por quantidade.
+- ✅ *(Marco 3: saída exata com a imagem pré-ajustada)* **`resolution = 0`:** que realmente não redimensiona (além do múltiplo de 32) com imagens de tamanhos variados.
+- ✅ *(Marco 3: grafo dinâmico funciona com até 10)* **Injeção de imagens:** nomes reais de `images.image_N` no JSON de API e se o grafo dinâmico de §9.3 funciona; senão, um JSON por quantidade.
 - ✅ *(removido; `width`/`height` são valores simples nos dois JSONs)* **`ResolutionSelector`:** se removê-lo deixa `width`/`height` como valores simples no export.
-- *(t2i 4 MP ok no Marco 1; edição com 10 referências no Marco 3)* **VRAM:** limites reais de `MAX_PIXELS` e `MAX_INPUT_PIXELS`, incluindo 10 referências e o preset de 4 MP.
+- ✅ *(Marco 3: novo limite `MAX_REFS_TOTAL_PIXELS`)* **VRAM:** limites reais de `MAX_PIXELS` e `MAX_INPUT_PIXELS`, incluindo 10 referências e o preset de 4 MP.
 - ✅ *(Marco 1: qualidade equivalente)* **Prompts em português:** os exemplos dos templates são em inglês; testar e, se a qualidade cair, considerar tradução automática.
-- **Proporção diferente de `image_1`:** comportamento quando a tela Gerar usa referências com proporção distinta do tamanho pedido.
+- ✅ *(Marco 3: recompõe)* **Proporção diferente de `image_1`:** comportamento quando a tela Gerar usa referências com proporção distinta do tamanho pedido.
 - ✅ *(Marco 1: funciona no t2i)* **Alfa ponta a ponta:** se `SaveImageAdvanced` e `/view` preservam o canal alfa e se o prompt embrulhado produz mesmo fundo transparente no t2i (é o único workflow em que o template descreve isso).
 - **Transparência na edição:** se o embrulho funciona no workflow de edição, inclusive com referências. Se não funcionar, o checkbox fica só na tela Gerar ou a Editar passa a usar outra formulação.
-- **Editar com proporção diferente da original:** se o modelo recorta, estica ou desloca o conteúdo. Isso decide se basta o aviso ou se a UI precisa mostrar uma prévia do enquadramento **(proposta)**.
+- ✅ *(Marco 3: reenquadra; basta o aviso)* **Editar com proporção diferente da original:** se o modelo recorta, estica ou desloca o conteúdo. Isso decide se basta o aviso ou se a UI precisa mostrar uma prévia do enquadramento **(proposta)**.
 - ✅ *(Marco 1: sem impacto)* **Embrulho em inglês com prompt em português:** se a mistura afeta a qualidade ou a transparência.
 
 **Futuro (fora do MVP):** autenticação e histórico por usuário.

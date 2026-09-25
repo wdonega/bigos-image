@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const LINKS = [{ href: "/gerar", label: "Gerar" }];
+const LINKS = [
+  { href: "/gerar", label: "Gerar" },
+  { href: "/editar", label: "Editar" },
+];
 
 export function AppHeader() {
   const pathname = usePathname();

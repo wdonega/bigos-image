@@ -33,11 +33,13 @@ pnpm smoke                # ponta a ponta pela API (precisa do app rodando e do 
 node --env-file=.env scripts/spikes/m1.ts [filtro]   # spikes contra o ComfyUI real
 ```
 
+O worker da fila sobe uma vez por processo (`src/instrumentation.ts`) e **não é recarregado pelo HMR**: depois de mudar `src/lib/jobs/worker.ts` ou algo que ele importa, reinicie o `pnpm dev`.
+
 Código em `src/lib/` usa imports relativos com extensão `.ts` (para rodar direto no Node nos scripts); em `src/app/` use `@/lib/...`.
 
 ## Configuração (`.env`, ver `.env.example`)
 
-`COMFY_URL`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`. Nunca deixe limites fixos no código: leia da configuração.
+`COMFY_URL`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`. Nunca deixe limites fixos no código: leia da configuração.
 
 ## Arquitetura (resumo; detalhes na spec)
 

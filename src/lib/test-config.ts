@@ -10,6 +10,7 @@ export const testConfig: Config = {
   minSide: 512,
   maxAspectRatio: 4,
   maxInputPixels: 4_194_304,
+  maxRefsTotalPixels: 10_485_760,
   maxUploadBytes: 20 * 1024 * 1024,
   retentionMs: 24 * 3_600_000,
   jobTimeoutMs: 15 * 60_000,

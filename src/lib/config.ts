@@ -12,6 +12,7 @@ const envSchema = z.object({
   MIN_SIDE: positiveInt,
   MAX_ASPECT_RATIO: z.coerce.number().min(1),
   MAX_INPUT_PIXELS: positiveInt,
+  MAX_REFS_TOTAL_PIXELS: positiveInt,
   MAX_UPLOAD_MB: positiveInt,
   RETENTION_HOURS: positiveInt,
   JOB_TIMEOUT_MINUTES: positiveInt,
@@ -28,6 +29,8 @@ export type Config = {
   minSide: number;
   maxAspectRatio: number;
   maxInputPixels: number;
+  /** Sum of pixels of all images sent to the encoder in one job (VRAM, spec §14). */
+  maxRefsTotalPixels: number;
   maxUploadBytes: number;
   retentionMs: number;
   jobTimeoutMs: number;
@@ -40,6 +43,9 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
     throw new Error(`Invalid configuration (check .env):\n${z.prettifyError(result.error)}`);
   }
   const e = result.data;
+  if (e.MAX_REFS_TOTAL_PIXELS < e.MAX_INPUT_PIXELS) {
+    throw new Error("Invalid configuration (check .env): MAX_REFS_TOTAL_PIXELS must be >= MAX_INPUT_PIXELS");
+  }
   return {
     comfyUrl: e.COMFY_URL.replace(/\/+$/, ""),
     redisUrl: e.REDIS_URL,
@@ -49,6 +55,7 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
     minSide: e.MIN_SIDE,
     maxAspectRatio: e.MAX_ASPECT_RATIO,
     maxInputPixels: e.MAX_INPUT_PIXELS,
+    maxRefsTotalPixels: e.MAX_REFS_TOTAL_PIXELS,
     maxUploadBytes: e.MAX_UPLOAD_MB * 1024 * 1024,
     retentionMs: e.RETENTION_HOURS * 3_600_000,
     jobTimeoutMs: e.JOB_TIMEOUT_MINUTES * 60_000,
