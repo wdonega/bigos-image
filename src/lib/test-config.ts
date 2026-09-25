@@ -15,4 +15,5 @@ export const testConfig: Config = {
   retentionMs: 24 * 3_600_000,
   jobTimeoutMs: 15 * 60_000,
   steps: { normal: 25, high: 40 },
+  llm: null,
 };

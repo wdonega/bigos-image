@@ -5,17 +5,21 @@ import { type FormEvent, useRef, useState } from "react";
 import { Field } from "@/components/field";
 import { FormError } from "@/components/form-error";
 import { JobPanel } from "@/components/job-panel";
+import { PromptEnhancerBar } from "@/components/prompt-enhancer";
 import { type Quality, QualityPicker } from "@/components/quality-picker";
 import { ReferencePicker } from "@/components/reference-picker";
 import { SizePicker } from "@/components/size-picker";
+import { StyleField } from "@/components/style-field";
 import { TransparencyToggle } from "@/components/transparency-toggle";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useJobRunner } from "@/hooks/use-job-runner";
+import { usePromptEnhancer } from "@/hooks/use-prompt-enhancer";
 import { useUploads } from "@/hooks/use-uploads";
 import { useI18n } from "@/i18n/provider";
 import { mentionLabel, renumberMentions } from "@/lib/mentions";
 import type { ScreenLimits } from "@/lib/screen-limits";
+import type { StyleId } from "@/lib/styles";
 import { DEFAULT_GENERATE_SELECTION, type SizeSelection, selectionProblems, toRequestSize } from "@/lib/size-selection";
 
 export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
@@ -24,11 +28,15 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
   const [size, setSize] = useState<SizeSelection>(DEFAULT_GENERATE_SELECTION);
   const [quality, setQuality] = useState<Quality>("normal");
   const [transparent, setTransparent] = useState(false);
+  const [style, setStyle] = useState<StyleId | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const job = useJobRunner();
-  const uploads = useUploads(limits.maxRefs, (order) =>
-    setPrompt((p) => renumberMentions(p, order, t("references.mentionWord"), t("references.removedMention"))),
-  );
+  const enhancer = usePromptEnhancer(prompt, setPrompt);
+  const uploads = useUploads(limits.maxRefs, (order) => {
+    // The accepted English text still points at the old image numbers: fall back to the screen text.
+    enhancer.discard();
+    setPrompt((p) => renumberMentions(p, order, t("references.mentionWord"), t("references.removedMention")));
+  });
 
   const canSubmit =
     prompt.trim().length > 0 &&
@@ -41,7 +49,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
     const text = `${mentionLabel(n, t("references.mentionWord"))} `;
     const start = el?.selectionStart ?? prompt.length;
     const end = el?.selectionEnd ?? prompt.length;
-    setPrompt(prompt.slice(0, start) + text + prompt.slice(end));
+    enhancer.edit(prompt.slice(0, start) + text + prompt.slice(end));
     requestAnimationFrame(() => {
       el?.focus();
       el?.setSelectionRange(start + text.length, start + text.length);
@@ -58,6 +66,8 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
       size: toRequestSize(size),
       quality,
       transparent_background: transparent,
+      style,
+      english_prompt: enhancer.englishPrompt,
     });
   }
 
@@ -71,14 +81,21 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
             rows={5}
             placeholder={t("generate.promptPlaceholder")}
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => enhancer.edit(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(e);
             }}
           />
+          <PromptEnhancerBar
+            enhancer={enhancer}
+            canEnhance={limits.canEnhance}
+            disabled={job.busy}
+            empty={prompt.trim().length === 0}
+          />
         </Field>
 
         <ReferencePicker uploads={uploads} max={limits.maxRefs} disabled={job.busy} onMention={insertMention} />
+        <StyleField value={style} onChange={setStyle} disabled={job.busy} />
         <SizePicker value={size} onChange={setSize} limits={limits} disabled={job.busy} />
         <QualityPicker value={quality} onChange={setQuality} disabled={job.busy} />
         <TransparencyToggle checked={transparent} onChange={setTransparent} disabled={job.busy} />

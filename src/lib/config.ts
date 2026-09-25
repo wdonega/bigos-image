@@ -18,7 +18,14 @@ const envSchema = z.object({
   JOB_TIMEOUT_MINUTES: positiveInt,
   STEPS_NORMAL: positiveInt,
   STEPS_HIGH: positiveInt,
+  // Optional: "Improve text" is hidden when the LLM is not configured.
+  LLM_URL: z.preprocess((v) => (v === "" ? undefined : v), z.url().optional()),
+  LLM_API_KEY: z.string().optional(),
+  LLM_MODEL: z.string().min(1).default("prompt-enhancer"),
 });
+
+/** OpenAI-compatible endpoint (LiteLLM) used by "Improve text". */
+export type LlmConfig = { url: string; apiKey: string; model: string };
 
 export type Config = {
   comfyUrl: string;
@@ -35,6 +42,7 @@ export type Config = {
   retentionMs: number;
   jobTimeoutMs: number;
   steps: { normal: number; high: number };
+  llm: LlmConfig | null;
 };
 
 export function parseConfig(env: Record<string, string | undefined>): Config {
@@ -60,6 +68,9 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
     retentionMs: e.RETENTION_HOURS * 3_600_000,
     jobTimeoutMs: e.JOB_TIMEOUT_MINUTES * 60_000,
     steps: { normal: e.STEPS_NORMAL, high: e.STEPS_HIGH },
+    llm: e.LLM_URL
+      ? { url: e.LLM_URL.replace(/\/+$/, ""), apiKey: e.LLM_API_KEY ?? "", model: e.LLM_MODEL }
+      : null,
   };
 }
 

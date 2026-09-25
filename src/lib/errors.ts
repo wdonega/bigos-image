@@ -17,6 +17,8 @@ export const ERROR_CODES = [
   "out_of_memory",
   "timeout",
   "cancelled",
+  "enhance_unavailable",
+  "enhance_failed",
   "unexpected",
 ] as const;
 
@@ -40,6 +42,8 @@ const DEVELOPER_MESSAGES: Record<ErrorCode, string> = {
   out_of_memory: "ComfyUI ran out of GPU memory",
   timeout: "Generation timed out",
   cancelled: "Generation cancelled",
+  enhance_unavailable: "Prompt enhancer (LLM) unavailable",
+  enhance_failed: "Prompt enhancer returned an unusable reply",
   unexpected: "Unexpected error",
 };
 

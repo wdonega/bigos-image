@@ -18,7 +18,8 @@
     "redis": "docker compose up -d redis",
     "smoke": "node --env-file=.env scripts/smoke.ts",
     "acceptance": "node scripts/acceptance.ts",
-    "icons": "node scripts/generate-icons.ts"
+    "icons": "node scripts/generate-icons.ts",
+    "styles:thumbs": "node scripts/generate-style-thumbnails.ts"
   },
   "dependencies": {
     "bullmq": "^6.3.8",

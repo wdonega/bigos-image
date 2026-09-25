@@ -20,3 +20,8 @@ export function renumberMentions(prompt: string, order: number[], word: string, 
     return index === -1 ? removedLabel : mentionLabel(index + 1, word);
   });
 }
+
+/** Inverse of mentionsToTokens, for showing model text (e.g. an improved prompt) to users. */
+export function tokensToMentions(text: string, word: string): string {
+  return text.replace(/<image(\d{1,2})>/g, (_match, n: string) => mentionLabel(Number(n), word));
+}

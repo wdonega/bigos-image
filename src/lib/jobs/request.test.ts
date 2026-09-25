@@ -13,7 +13,7 @@ describe("planJob — Generate without references", () => {
     const p = await plan(base);
     expect(p).toMatchObject({
       workflow: "t2i",
-      prompt: "um gato",
+      text: "um gato",
       size: { width: 1024, height: 1024 },
       steps: 25,
       transparentBackground: false,
@@ -52,7 +52,37 @@ describe("planJob — Generate without references", () => {
   });
 
   it("keeps the prompt exactly as typed", async () => {
-    expect((await plan({ ...base, prompt: "  [Imagem 1] cru " })).prompt).toBe("  [Imagem 1] cru ");
+    expect((await plan({ ...base, prompt: "  [Imagem 1] cru " })).text).toBe("  [Imagem 1] cru ");
+  });
+});
+
+describe("planJob — style and improved text", () => {
+  it("keeps the style phrase for the final pass and appends it in the fallback", async () => {
+    const p = await plan({ ...base, prompt: "um gato", style: "watercolor" });
+    expect(p).toMatchObject({
+      text: "um gato",
+      style: "watercolor painting, soft washes, paper texture",
+      fallbackPrompt: "um gato. watercolor painting, soft washes, paper texture.",
+    });
+    expect((await plan(base)).style).toBeNull();
+  });
+
+  it("sends the accepted English text instead of the on-screen text", async () => {
+    const p = await plan({
+      ...base,
+      prompt: "gato da [Imagem 1]",
+      english_prompt: "a cat from <image1> on a sofa",
+      images: ["u1"],
+      style: "anime",
+    });
+    expect(p.text).toBe("a cat from <image1> on a sofa");
+    expect(p.fallbackPrompt).toBe(
+      "a cat from <image1> on a sofa. anime style, clean line art, cel shading, vibrant colors.",
+    );
+  });
+
+  it("rejects unknown styles", () => {
+    expect(() => parse({ ...base, style: "nope" })).toThrow();
   });
 });
 
@@ -65,7 +95,7 @@ describe("planJob — references and Edit", () => {
       workflow: "edit",
       images: ["u1", "u2"],
       size: { width: 1024, height: 1024 },
-      prompt: "o gato da <image1> com a <image2>",
+      text: "o gato da <image1> com a <image2>",
     });
   });
 

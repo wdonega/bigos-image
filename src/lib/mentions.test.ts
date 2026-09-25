@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mentionLabel, mentionsToTokens, renumberMentions } from "./mentions";
+import { mentionLabel, mentionsToTokens, renumberMentions, tokensToMentions } from "./mentions";
 
 describe("mentions", () => {
   it("converts Portuguese and English mentions into the model's <imageN> syntax", () => {
@@ -31,5 +31,13 @@ describe("mentions", () => {
   it("builds labels in the given language", () => {
     expect(mentionLabel(4, "Imagem")).toBe("[Imagem 4]");
     expect(mentionLabel(4, "Image")).toBe("[Image 4]");
+  });
+});
+
+describe("tokensToMentions", () => {
+  it("shows <imageN> tokens as localized labels and round-trips", () => {
+    const shown = tokensToMentions("gato da <image1> no sofá da <image2>", "Imagem");
+    expect(shown).toBe("gato da [Imagem 1] no sofá da [Imagem 2]");
+    expect(mentionsToTokens(shown)).toBe("gato da <image1> no sofá da <image2>");
   });
 });

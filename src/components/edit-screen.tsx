@@ -6,15 +6,19 @@ import { Field } from "@/components/field";
 import { FormError } from "@/components/form-error";
 import { ImageDrop } from "@/components/image-drop";
 import { JobPanel } from "@/components/job-panel";
+import { PromptEnhancerBar } from "@/components/prompt-enhancer";
 import { type Quality, QualityPicker } from "@/components/quality-picker";
 import { SizePicker } from "@/components/size-picker";
+import { StyleField } from "@/components/style-field";
 import { TransparencyToggle } from "@/components/transparency-toggle";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useJobRunner } from "@/hooks/use-job-runner";
+import { usePromptEnhancer } from "@/hooks/use-prompt-enhancer";
 import { useUploads } from "@/hooks/use-uploads";
 import { useI18n } from "@/i18n/provider";
 import type { ScreenLimits } from "@/lib/screen-limits";
+import type { StyleId } from "@/lib/styles";
 import {
   DEFAULT_GENERATE_SELECTION,
   type SizeSelection,
@@ -30,7 +34,9 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
   const [size, setSize] = useState<SizeSelection>({ ...DEFAULT_GENERATE_SELECTION, ratio: "original" });
   const [quality, setQuality] = useState<Quality>("normal");
   const [transparent, setTransparent] = useState(false);
+  const [style, setStyle] = useState<StyleId | null>(null);
   const job = useJobRunner();
+  const enhancer = usePromptEnhancer(instruction, setInstruction);
   const uploads = useUploads(1);
   const item = uploads.items[0];
   const upload = item?.upload;
@@ -60,6 +66,8 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
       size: toRequestSize(size),
       quality,
       transparent_background: transparent,
+      style,
+      english_prompt: enhancer.englishPrompt,
     });
   }
 
@@ -76,13 +84,20 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
             rows={4}
             placeholder={t("edit.instructionPlaceholder")}
             value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
+            onChange={(e) => enhancer.edit(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(e);
             }}
           />
+          <PromptEnhancerBar
+            enhancer={enhancer}
+            canEnhance={limits.canEnhance}
+            disabled={job.busy}
+            empty={instruction.trim().length === 0}
+          />
         </Field>
 
+        <StyleField value={style} onChange={setStyle} disabled={job.busy} />
         <SizePicker
           value={size}
           onChange={setSize}

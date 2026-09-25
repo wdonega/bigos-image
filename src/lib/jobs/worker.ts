@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { ComfyClient, ComfyError } from "../comfy/client.ts";
 import { outputImage, runPrompt } from "../comfy/run.ts";
 import { type Config, getConfig } from "../config.ts";
+import { finalizePrompt } from "../enhance.ts";
 import { AppError, type Detail, type ErrorCode } from "../errors.ts";
 import { buildPrompt } from "../prompt.ts";
 import { removeExpired, writeStored } from "../storage.ts";
@@ -62,13 +63,34 @@ export async function finalizeImage(png: Buffer, transparent: boolean) {
   return { png: data, width: info.width, height: info.height };
 }
 
+/** Longest text sent to the final pass: the enhancer model reads at most 512 tokens (spec §14). */
+export const MAX_FINAL_PASS_CHARS = 1000;
+
+/**
+ * Final LLM pass (spec §14, decision 24): English, <imageN> references, style up front. When the
+ * LLM is missing, down or unusable, the generation goes on with the fallback (style appended).
+ */
+export async function resolvePrompt(
+  data: Pick<JobData, "text" | "style" | "fallbackPrompt" | "images">,
+  llm: Config["llm"],
+  finalize: typeof finalizePrompt = finalizePrompt,
+): Promise<string> {
+  if (!llm || data.text.length > MAX_FINAL_PASS_CHARS) return data.fallbackPrompt;
+  try {
+    return await finalize(llm, data.text, data.style, data.images.length);
+  } catch (err) {
+    console.warn("[worker] final prompt pass failed, using the fallback", err instanceof Error ? err.message : err);
+    return data.fallbackPrompt;
+  }
+}
+
 async function buildGraph(
   data: JobData,
   client: ComfyClient,
   config: Config,
   warnings: Detail[],
 ): Promise<ApiGraph> {
-  const prompt = buildPrompt(data.prompt, data.transparentBackground);
+  const prompt = buildPrompt(data.finalPrompt ?? data.fallbackPrompt, data.transparentBackground);
   if (data.workflow === "t2i") {
     if (!data.size) throw new AppError("invalid_request", 400);
     return buildT2I(loadTemplate("t2i"), { prompt, ...data.size, seed: data.seed, steps: data.steps });
@@ -115,6 +137,11 @@ async function processJob(
   try {
     if (await isCancelled()) throw new ComfyError("interrupted", "cancelled before start");
     const warnings: Detail[] = [];
+    if (job.data.finalPrompt === undefined) {
+      const finalPrompt = await resolvePrompt(job.data, config.llm);
+      console.log(`[worker] job ${id} prompt: ${finalPrompt}`);
+      await job.updateData({ ...job.data, finalPrompt });
+    }
     const graph = await buildGraph(job.data, client, config, warnings);
     const { entry } = await runPrompt(client, graph, {
       timeoutMs: config.jobTimeoutMs,

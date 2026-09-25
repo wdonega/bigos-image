@@ -3,6 +3,7 @@ import type { Config } from "../config.ts";
 import { AppError, sizeProblemDetails } from "../errors.ts";
 import { PRESET_RATIOS, type Size, checkSize, presetSize } from "../size.ts";
 import { mentionsToTokens } from "../mentions.ts";
+import { STYLE_IDS, type StyleId, applyStyle, findStyle } from "../styles.ts";
 import { randomSeed } from "../workflow/build.ts";
 
 // Request contract of POST /api/jobs (spec §10).
@@ -25,6 +26,10 @@ export const jobRequestSchema = z.object({
   size: sizeSchema,
   quality: z.enum(["normal", "high"]).default("normal"),
   transparent_background: z.boolean().default(false),
+  style: z.enum(STYLE_IDS as [StyleId, ...StyleId[]]).nullable().default(null),
+  // English text accepted from "Improve text" (POST /api/enhance); sent to the model instead of
+  // `prompt`, which then holds the user's-language version shown on screen.
+  english_prompt: z.string().max(4000).nullable().default(null),
 });
 
 export type JobRequest = z.infer<typeof jobRequestSchema>;
@@ -32,7 +37,17 @@ export type JobRequest = z.infer<typeof jobRequestSchema>;
 /** What the worker needs to build and run the graph; stored as the queue job's data. */
 export type JobPlan = {
   workflow: "t2i" | "edit";
-  prompt: string;
+  /**
+   * Source of the worker's final LLM pass (English, <imageN> references, style up front): the
+   * user's text (or the English accepted in "Improve text") with mentions already as <imageN>.
+   */
+  text: string;
+  /** English phrase of the chosen style, or null. */
+  style: string | null;
+  /** Used when the final pass is unavailable: the text with the style phrase appended. */
+  fallbackPrompt: string;
+  /** Final prompt once the worker computed it; kept so a retried job sends the same text. */
+  finalPrompt?: string;
   transparentBackground: boolean;
   /** null = follow image_1 ("Original", edit only). */
   size: Size | null;
@@ -80,9 +95,13 @@ export async function planJob(
   }
 
   const withImages = req.images.length > 0;
+  const source = req.english_prompt?.trim() ? req.english_prompt : req.prompt;
+  const text = withImages ? mentionsToTokens(source) : source;
   return {
     workflow: withImages ? "edit" : "t2i",
-    prompt: withImages ? mentionsToTokens(req.prompt) : req.prompt,
+    text,
+    style: req.style ? (findStyle(req.style)?.prompt ?? null) : null,
+    fallbackPrompt: applyStyle(text, req.style),
     transparentBackground: req.transparent_background,
     size,
     images: req.images,

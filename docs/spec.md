@@ -52,13 +52,14 @@ O usuário vê só duas telas. **O backend escolhe o workflow pela quantidade de
 - **Tamanho**: proporção + resolução (§5). Padrão **1:1 · 1 MP = 1024 × 1024**.
 - **Qualidade**: §8.1.
 - **Fundo transparente**: checkbox, desligado por padrão (§8.2).
+- **Melhorar texto** e **Estilo**: decisão 23 (§14).
 - A seed é sempre aleatória e não aparece na interface (decisão 18, §14).
 
 ### Editar
 - **Imagem**: exatamente 1, obrigatória.
 - **Instrução**: obrigatória (ex.: "troque o fundo por uma praia").
 - **Tamanho**: proporção + resolução, com **Original** como padrão (§5 e §7).
-- **Qualidade** e **Fundo transparente**: iguais à tela Gerar.
+- **Qualidade**, **Fundo transparente**, **Melhorar texto** e **Estilo**: iguais à tela Gerar.
 
 ## 5. Seletor de tamanho
 
@@ -213,10 +214,14 @@ POST /api/jobs
   //     ou { "ratio": "manual", "width": 1280, "height": 720 }
   //     ou { "ratio": "original" }                     // só em "edit"
   "quality": "normal",                        // ou "high" (Qualidade = passos)
-  "transparent_background": false
+  "transparent_background": false,
+  "style": "watercolor",                      // ou null (decisão 23)
+  "english_prompt": null                      // texto em inglês aceito em "Melhorar texto" (decisão 23)
   // sem "seed": o backend sorteia uma por execução; um "seed" enviado é ignorado (decisão 18)
 }
 ```
+
+`POST /api/enhance` `{ "prompt": "…", "locale": "pt-BR" }` → `{ "english": "…", "summary": "…" }` (decisão 23).
 
 Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O backend valida, calcula o tamanho, escolhe o workflow (§3), preenche os nós (§9) e devolve `job_id` para acompanhamento.
 
@@ -280,6 +285,21 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 20. **Código em inglês e i18n** (após o MVP): rotas `/generate` e `/edit` (as antigas `/gerar` e `/editar` redirecionam com 308); todo o código e comentários em inglês. Textos da interface em `src/i18n/messages/{en,pt-BR}.ts`, chaves em inglês, pt-BR padrão, EN quando o navegador pede ou pelo seletor PT | EN (cookie `locale`). A API devolve só códigos + parâmetros (`errors.*`, `details.*`, `warnings.*`); o front traduz. Menções aceitam `[Imagem N]` e `[Image N]`.
 21. **Ícones e telas de abertura** (após o MVP): `pnpm icons` gera, a partir de `docs/icons/icon_warm.png` e `docs/icons/logo.png`, o `favicon.ico` (16/32/48), favicons PNG, 10 ícones Android (48–512), 2 *maskable* (192/512), 4 `apple-touch-icon` (120/152/167/180) e 19 telas de abertura do iOS (retrato, iPhone SE 1 até iPhone 16 Pro Max e iPads), cada uma com a media query exata do aparelho. Lista única em `src/lib/pwa-assets.ts`, conferida por teste.
 22. **Configurações, tema e idiomas** (após o MVP): engrenagem no cabeçalho com Tema (Claro/Escuro; **escuro é o padrão**) e Idioma com bandeiras. Idiomas: pt-BR, en-US, es-MX e zh-CN (chinês simplificado). Escolha automática pelo navegador, na ordem de preferência dele, por idioma: todo `pt-*` → pt-BR, `es-*` → es-MX, `en-*` → en-US, `zh-*` (inclusive zh-TW/zh-HK) → zh-CN; idioma não suportado → en-US. Preferências salvas em cookies no navegador (`locale`, `theme`, 1 ano) para o servidor já renderizar certo, sem piscar. Traduções es-MX e zh-CN feitas por IA: vale revisão de um falante nativo.
+23. **Melhorar texto e Estilo** (após o MVP; mockups aprovados em 2026-09-25, opção A + "Campo Estilo"):
+    - **Estilo:** campo "Estilo → Nenhum + [Escolher estilo]"; escolhido, "Estilo → nome + [Trocar] + [✕]". Escolher abre a lista completa (busca, categorias, miniaturas). 51 estilos em 10 categorias, baseados no `comfyui-llm-prompt-enhancer` (pinkpixel-dev), nomes com marca mantidos ("Estilo Ghibli", "Castelo animado"). Cada estilo tem uma frase fixa em inglês (`src/lib/styles.ts`), aplicada pela etapa final (decisão 24). Miniaturas em `public/styles/` geradas pelo próprio app com `pnpm styles:thumbs`: o ícone (`docs/icons/icon_warm.png`) redesenhado em cada estilo pela tela Editar, pelo mesmo fluxo do usuário (quadrado e com fundo, melhor que o `logo.png` recortado e transparente).
+    - **Melhorar texto:** botão abaixo do texto; um LLM (LiteLLM, API compatível com OpenAI, modelo `prompt-enhancer`, `LLM_URL`/`LLM_API_KEY`/`LLM_MODEL`) reescreve a ideia como um prompt detalhado em inglês e devolve também um resumo no idioma do usuário. A sugestão aparece para revisão (Usar esta / Descartar; "Ver o texto em inglês"). Ao usar, o campo mostra o resumo e o inglês vai como `english_prompt`; qualquer edição no campo (ou mudança nas referências) descarta o inglês, e "Voltar ao meu texto" restaura o original. Sem `LLM_URL` o botão não aparece.
+    - **Limites do modelo:** 512 tokens de entrada e 300 de saída (`/v1/models`), ~1 s por resposta. Por isso o prompt do sistema é curto, o texto enviado tem no máximo 1000 caracteres.
+    - **Menções:** o texto vai com `<imageN>`. Em testes, o modelo às vezes escreveu `image1` sem os sinais (corrigido automaticamente) e, em 1 de 3 execuções, perdeu uma menção. A resposta é validada (JSON, mesmas menções, nenhuma inventada); se falhar, tenta 1 vez de novo e então devolve `enhance_failed`. Erro de rede/HTTP → `enhance_unavailable`.
+    - **Descoberta (2026-09-25, miniaturas):** com a frase do estilo **no fim** do prompt, o modelo quase não muda o visual quando há uma imagem de referência forte: ~1/3 dos estilos saíram quase iguais ao ícone. Uma instrução que **começa** pelo estilo, no formato "Turn <image1> into <estilo>", funciona bem melhor (ukiyo-e continua fraco em todos os formatos testados). Isso levou à decisão 24.
+24. **Etapa final de prompt em toda geração** (pedido do dono, 2026-09-25): independente das escolhas, o worker passa o texto pelo LLM `prompt-enhancer` antes de montar o grafo:
+    - traduz para inglês **fielmente** (sem acrescentar nem tirar detalhes; o "Melhorar texto" continua sendo a opção de detalhar);
+    - mantém as referências como `<imageN>` (valida: nenhuma perdida, nenhuma inventada; `image1` sem sinais é corrigido);
+    - com estilo, começa pelo estilo: com imagens (inclusive na tela Editar sem menção escrita), "Turn <image1> into <estilo>…"; sem imagens, "A <estilo> of…". Valida que uma palavra-chave do estilo aparece e que nenhuma referência passa do número de imagens do job.
+    - instruções de edição continuam instruções ("troque o fundo por uma praia" → "Replace the background with a beach").
+    - Parte de `english_prompt` quando o usuário aceitou uma sugestão do "Melhorar texto"; senão, do texto digitado.
+    - Roda na fase "Preparando o gerador…" (~1–2 s). O prompt final fica salvo no job, para uma nova tentativa mandar o mesmo texto.
+    - **Sem LLM, texto acima de 1000 caracteres, LLM fora ou resposta inválida (após 1 nova tentativa):** a geração segue com o caminho antigo (menções convertidas e frase do estilo no fim) e registra no log.
+    - Depois dela vem o fundo transparente (§8.2), igual a antes.
 
 **Descobertas (v0.4)**
 - **Exports de API corrigidos à mão (2026-09-25):** os JSONs em `workflows/api/` vieram sem os títulos `@…` e, no edit, com `ResolutionSelector`, `ImageCompare` e um 2º `LoadImage`. Com autorização do dono, os títulos foram adicionados e esses nós removidos direto no JSON (sem reexportar); `width`/`height` do edit ficaram como valores (1024 × 1024). `check-workflows.mjs` passa.
