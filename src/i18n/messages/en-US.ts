@@ -17,6 +17,7 @@ export const enUS = {
     edit: "Edit",
   },
   generate: {
+    emptyHint: "Describe your idea on the side and tap Generate image.",
     title: "Generate image",
     subtitle: "Describe what you want to see and choose the size.",
     promptLabel: "What do you want to create?",
@@ -26,6 +27,7 @@ export const enUS = {
     uploading: "Uploading images…",
   },
   edit: {
+    emptyHint: "Upload an image, say what to change and tap Edit image.",
     title: "Edit image",
     subtitle: "Upload an image and say what to change.",
     imageLabel: "Image",
@@ -90,6 +92,7 @@ export const enUS = {
       "Works when the image already has an object or character on a simple background. In photos with a full scene the background usually stays.",
   },
   job: {
+    retry: "Try again",
     empty: "Your image appears here.",
     sending: "Sending…",
     queuedNow: "In the queue. Starting shortly.",

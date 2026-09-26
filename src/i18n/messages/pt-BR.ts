@@ -18,6 +18,7 @@ export const ptBR: Messages = {
     edit: "Editar",
   },
   generate: {
+    emptyHint: "Escreva a ideia ao lado e toque em Gerar imagem.",
     title: "Gerar imagem",
     subtitle: "Descreva o que você quer ver e escolha o tamanho.",
     promptLabel: "O que você quer criar?",
@@ -27,6 +28,7 @@ export const ptBR: Messages = {
     uploading: "Enviando imagens…",
   },
   edit: {
+    emptyHint: "Envie uma imagem, diga o que mudar e toque em Editar imagem.",
     title: "Editar imagem",
     subtitle: "Envie uma imagem e diga o que mudar.",
     imageLabel: "Imagem",
@@ -91,6 +93,7 @@ export const ptBR: Messages = {
       "Funciona quando a imagem já tem um objeto ou personagem sobre um fundo simples. Em fotos com cenário completo o fundo costuma continuar.",
   },
   job: {
+    retry: "Tentar de novo",
     empty: "Sua imagem aparece aqui.",
     sending: "Enviando…",
     queuedNow: "Na fila. Começa em instantes.",

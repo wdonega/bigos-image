@@ -5,8 +5,8 @@ export type Theme = (typeof THEMES)[number];
 export const DEFAULT_THEME: Theme = "dark";
 export const THEME_COOKIE = "theme";
 
-/** Browser/status bar color per theme: brand orange on light, the dark background on dark. */
-export const THEME_BAR_COLORS: Record<Theme, string> = { light: "#ffc87c", dark: "#0a0a0a" };
+/** Browser/status bar color per theme: the page background. */
+export const THEME_BAR_COLORS: Record<Theme, string> = { light: "#fbf6ee", dark: "#120f0d" };
 
 export function isTheme(value: unknown): value is Theme {
   return typeof value === "string" && (THEMES as readonly string[]).includes(value);

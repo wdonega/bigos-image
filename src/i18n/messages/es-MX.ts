@@ -18,6 +18,7 @@ export const esMX: Messages = {
     edit: "Editar",
   },
   generate: {
+    emptyHint: "Escribe tu idea al lado y toca Crear imagen.",
     title: "Crear imagen",
     subtitle: "Describe lo que quieres ver y elige el tamaño.",
     promptLabel: "¿Qué quieres crear?",
@@ -27,6 +28,7 @@ export const esMX: Messages = {
     uploading: "Subiendo imágenes…",
   },
   edit: {
+    emptyHint: "Sube una imagen, di qué cambiar y toca Editar imagen.",
     title: "Editar imagen",
     subtitle: "Sube una imagen y di qué quieres cambiar.",
     imageLabel: "Imagen",
@@ -91,6 +93,7 @@ export const esMX: Messages = {
       "Funciona cuando la imagen ya tiene un objeto o personaje sobre un fondo sencillo. En fotos con un escenario completo, el fondo suele quedarse.",
   },
   job: {
+    retry: "Intentar de nuevo",
     empty: "Tu imagen aparecerá aquí.",
     sending: "Enviando…",
     queuedNow: "En la fila. Empieza en un momento.",

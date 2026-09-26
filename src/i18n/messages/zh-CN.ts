@@ -19,6 +19,7 @@ export const zhCN: Messages = {
     edit: "编辑",
   },
   generate: {
+    emptyHint: "在旁边写下你的想法，然后点击“生成图片”。",
     title: "生成图片",
     subtitle: "描述你想看到的画面，然后选择尺寸。",
     promptLabel: "你想创作什么？",
@@ -28,6 +29,7 @@ export const zhCN: Messages = {
     uploading: "正在上传图片…",
   },
   edit: {
+    emptyHint: "上传一张图片，说明要修改的内容，然后点击“编辑图片”。",
     title: "编辑图片",
     subtitle: "上传一张图片，并说明要修改什么。",
     imageLabel: "图片",
@@ -90,6 +92,7 @@ export const zhCN: Messages = {
     editHint: "当图片中的物体或角色位于简单背景上时有效。对于完整场景的照片，背景通常会保留。",
   },
   job: {
+    retry: "重试",
     empty: "生成的图片会显示在这里。",
     sending: "正在发送…",
     queuedNow: "已排队，马上开始。",

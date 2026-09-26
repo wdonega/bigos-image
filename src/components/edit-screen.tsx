@@ -1,10 +1,11 @@
 "use client";
 
-import { TriangleAlertIcon, WandSparklesIcon } from "lucide-react";
+import { TriangleAlertIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { Field } from "@/components/field";
+import { Field, PROMPT_CARD, PROMPT_TEXTAREA, SUBMIT_BUTTON } from "@/components/field";
 import { FormError } from "@/components/form-error";
 import { ImageDrop } from "@/components/image-drop";
+import { EditIcon } from "@/components/icons";
 import { JobPanel } from "@/components/job-panel";
 import { PromptEnhancerBar } from "@/components/prompt-enhancer";
 import { type Quality, QualityPicker } from "@/components/quality-picker";
@@ -79,22 +80,25 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
         </Field>
 
         <Field label={t("edit.instructionLabel")} htmlFor="instruction">
-          <Textarea
-            id="instruction"
-            rows={4}
-            placeholder={t("edit.instructionPlaceholder")}
-            value={instruction}
-            onChange={(e) => enhancer.edit(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(e);
-            }}
-          />
-          <PromptEnhancerBar
-            enhancer={enhancer}
-            canEnhance={limits.canEnhance}
-            disabled={job.busy}
-            empty={instruction.trim().length === 0}
-          />
+          <div className={PROMPT_CARD}>
+            <Textarea
+              className={PROMPT_TEXTAREA}
+              id="instruction"
+              rows={4}
+              placeholder={t("edit.instructionPlaceholder")}
+              value={instruction}
+              onChange={(e) => enhancer.edit(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(e);
+              }}
+            />
+            <PromptEnhancerBar
+              enhancer={enhancer}
+              canEnhance={limits.canEnhance}
+              disabled={job.busy}
+              empty={instruction.trim().length === 0}
+            />
+          </div>
         </Field>
 
         <StyleField value={style} onChange={setStyle} disabled={job.busy} />
@@ -121,13 +125,20 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
         />
         <FormError error={job.error} />
 
-        <Button type="submit" size="lg" className="h-12 text-base sm:h-9 sm:text-sm" disabled={!canSubmit}>
-          <WandSparklesIcon aria-hidden />
+        <Button type="submit" size="lg" className={SUBMIT_BUTTON} disabled={!canSubmit}>
+          <EditIcon />
           {job.busy ? t("edit.submitting") : t("edit.submit")}
         </Button>
       </form>
 
-      <JobPanel jobId={job.jobId} view={job.view} onCancel={job.cancel} cancelling={job.cancelling} />
+      <JobPanel
+        jobId={job.jobId}
+        view={job.view}
+        onCancel={job.cancel}
+        onRetry={job.retry}
+        cancelling={job.cancelling}
+        emptyHint={t("edit.emptyHint")}
+      />
     </div>
   );
 }

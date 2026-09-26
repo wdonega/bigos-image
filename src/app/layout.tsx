@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { AppHeader } from "@/components/app-header";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { I18nProvider } from "@/i18n/provider";
@@ -24,6 +24,12 @@ import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-sans",
+  subsets: ["latin"],
+});
+
+// Display face for titles (the app's personality); Geist stays for everything else.
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
@@ -67,7 +73,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang={locale}
-      className={cn(geistSans.variable, geistMono.variable, "h-full antialiased", theme === "dark" && "dark")}
+      className={cn(geistSans.variable, bricolage.variable, geistMono.variable, "h-full antialiased", theme === "dark" && "dark")}
       style={{ colorScheme: theme }}
     >
       <body className="flex min-h-full flex-col bg-background font-sans">

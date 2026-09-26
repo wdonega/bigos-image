@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,30 +49,30 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #fbf6ee;
+  --foreground: #231c17;
+  --card: #ffffff;
+  --card-foreground: #231c17;
+  --popover: #ffffff;
+  --popover-foreground: #231c17;
+  --primary: #a65a17;
+  --primary-foreground: #ffffff;
+  --secondary: #f1e8dc;
+  --secondary-foreground: #231c17;
+  --muted: #f1e8dc;
+  --muted-foreground: #6b5e53;
+  --accent: #f1e8dc;
+  --accent-foreground: #231c17;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: #e6dacb;
+  --input: #d9ccbd;
+  --ring: #a65a17;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.875rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -84,24 +84,24 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #120f0d;
+  --foreground: #f5efe6;
+  --card: #1c1815;
+  --card-foreground: #f5efe6;
+  --popover: #1c1815;
+  --popover-foreground: #f5efe6;
+  --primary: #ffb870;
+  --primary-foreground: #1a1208;
+  --secondary: #2b241e;
+  --secondary-foreground: #f5efe6;
+  --muted: #251f1a;
+  --muted-foreground: #a89f94;
+  --accent: #2b241e;
+  --accent-foreground: #f5efe6;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: #2e2823;
+  --input: #3a322b;
+  --ring: #ffb870;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -142,4 +142,37 @@
     linear-gradient(-45deg, transparent 75%, #d4d4d4 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+/* The result panel's cat (components/icons.tsx). Motion stays gentle and stops (or slows) with
+   reduced motion. */
+@keyframes cat-zzz {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
+@keyframes cat-blink {
+  0%, 88%, 100% { transform: scaleY(1); }
+  92% { transform: scaleY(0.1); }
+}
+@keyframes cat-look {
+  0%, 100% { transform: translateX(-3px); }
+  45%, 55% { transform: translateX(3px); }
+}
+@keyframes cat-wag {
+  from { transform: rotate(-14deg); }
+  to { transform: rotate(12deg); }
+}
+@keyframes result-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.cat-zzz { animation: cat-zzz 2.4s ease-in-out infinite; }
+.cat-blink { transform-box: fill-box; transform-origin: center; animation: cat-blink 2.6s ease-in-out infinite; }
+.cat-look { transform-box: fill-box; animation: cat-look 3s ease-in-out infinite; }
+.cat-follow { transition: transform 600ms cubic-bezier(0.23, 1, 0.32, 1); }
+.cat-tail { transform-box: fill-box; transform-origin: 0% 100%; animation: cat-wag 0.9s ease-in-out infinite alternate; }
+.result-in { animation: result-in 300ms cubic-bezier(0.23, 1, 0.32, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .cat-zzz, .cat-blink, .cat-tail { animation: none; }
+  .cat-look { animation-duration: 8s; }
+  .result-in { animation-name: none; }
 }

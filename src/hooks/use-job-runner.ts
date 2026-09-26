@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useJob } from "@/hooks/use-job";
 import { ApiError, TERMINAL, cancelJob, createJob } from "@/lib/client/api";
 
@@ -10,10 +10,12 @@ export function useJobRunner() {
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const lastRequest = useRef<unknown>(null);
   const view = useJob(jobId);
   const running = jobId !== null && (view === null || !TERMINAL.has(view.status));
 
   async function submit(request: unknown) {
+    lastRequest.current = request;
     setSubmitting(true);
     setError(null);
     try {
@@ -32,5 +34,10 @@ export function useJobRunner() {
     setCancelling(false);
   }
 
-  return { jobId, view, running, busy: running || submitting, error, submit, cancel, cancelling };
+  /** Sends the last request again ("Try again" after a failure). */
+  function retry() {
+    if (lastRequest.current !== null) void submit(lastRequest.current);
+  }
+
+  return { jobId, view, running, busy: running || submitting, error, submit, retry, cancel, cancelling };
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { CloudOffIcon, LoaderCircleIcon } from "lucide-react";
+import { CloudOffIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { CatWaking } from "@/components/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useI18n } from "@/i18n/provider";
 
@@ -36,11 +37,13 @@ export function ServiceStatus({ wakeSeconds }: { wakeSeconds: number }) {
   if (!health) {
     if (!slow) return null;
     return (
-      <Alert role="status">
-        <LoaderCircleIcon className="animate-spin" aria-hidden />
-        <AlertTitle>{t("service.connecting")}</AlertTitle>
-        <AlertDescription>{t("service.connectingHint", { seconds: wakeSeconds })}</AlertDescription>
-      </Alert>
+      <div role="status" className="flex items-center gap-4 rounded-2xl border bg-card p-3 pr-4">
+        <CatWaking className="w-16 text-muted-foreground" />
+        <div className="flex flex-col gap-0.5">
+          <p className="text-sm font-medium">{t("service.connecting")}</p>
+          <p className="text-sm text-muted-foreground">{t("service.connectingHint", { seconds: wakeSeconds })}</p>
+        </div>
+      </div>
     );
   }
   if (health.comfy && health.queue) return null;

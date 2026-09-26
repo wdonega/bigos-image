@@ -10,6 +10,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { ReferenceIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ACCEPTED_TYPES, type useUploads } from "@/hooks/use-uploads";
 import { useI18n } from "@/i18n/provider";
@@ -57,8 +58,9 @@ export function ReferencePicker({
         if (!disabled) addFiles([...e.dataTransfer.files]);
       }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div>
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-input p-3">
+        <ReferenceIcon className="size-5 text-primary" />
+        <div className="flex-1">
           <p className="text-sm font-medium">{t("references.title")}</p>
           <p className="text-xs text-muted-foreground">
             {t("references.counter", { count: uploads.items.length, max })}
@@ -68,7 +70,7 @@ export function ReferencePicker({
           type="button"
           variant="outline"
           size="sm"
-          className="h-10 sm:h-7"
+          className="h-10 rounded-full sm:h-8"
           disabled={disabled || full}
           onClick={() => input.current?.click()}
         >

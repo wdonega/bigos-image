@@ -1,5 +1,6 @@
 "use client";
 
+import { TransparentIcon } from "@/components/icons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useI18n } from "@/i18n/provider";
 
@@ -18,17 +19,9 @@ export function TransparencyToggle({
 }) {
   const { t } = useI18n();
   return (
-    <label htmlFor="transparent" className="flex cursor-pointer items-start gap-3 rounded-lg border p-3">
-      <Checkbox
-        id="transparent"
-        aria-labelledby="transparent-label"
-        aria-describedby="transparent-hint"
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={(value) => onChange(value === true)}
-        className="mt-0.5 size-5 sm:size-4"
-      />
-      <div className="flex flex-col gap-1">
+    <label htmlFor="transparent" className="flex cursor-pointer items-center gap-3 rounded-2xl border bg-card p-3.5">
+      <TransparentIcon className="size-5 text-muted-foreground" />
+      <div className="flex flex-1 flex-col gap-0.5">
         <span id="transparent-label" className="text-sm font-medium">
           {t("transparency.label")}
         </span>
@@ -36,6 +29,15 @@ export function TransparencyToggle({
           {hint ?? t("transparency.hint")}
         </p>
       </div>
+      <Checkbox
+        id="transparent"
+        aria-labelledby="transparent-label"
+        aria-describedby="transparent-hint"
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(value) => onChange(value === true)}
+        className="size-5"
+      />
     </label>
   );
 }

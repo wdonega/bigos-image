@@ -1,9 +1,9 @@
 "use client";
 
-import { SparklesIcon } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
-import { Field } from "@/components/field";
+import { Field, PROMPT_CARD, PROMPT_TEXTAREA, SUBMIT_BUTTON } from "@/components/field";
 import { FormError } from "@/components/form-error";
+import { GenerateIcon } from "@/components/icons";
 import { JobPanel } from "@/components/job-panel";
 import { PromptEnhancerBar } from "@/components/prompt-enhancer";
 import { type Quality, QualityPicker } from "@/components/quality-picker";
@@ -75,23 +75,26 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
     <div className="grid gap-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
       <form onSubmit={submit} className="flex flex-col gap-6">
         <Field label={t("generate.promptLabel")} htmlFor="prompt">
-          <Textarea
-            id="prompt"
-            ref={promptRef}
-            rows={5}
-            placeholder={t("generate.promptPlaceholder")}
-            value={prompt}
-            onChange={(e) => enhancer.edit(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(e);
-            }}
-          />
-          <PromptEnhancerBar
-            enhancer={enhancer}
-            canEnhance={limits.canEnhance}
-            disabled={job.busy}
-            empty={prompt.trim().length === 0}
-          />
+          <div className={PROMPT_CARD}>
+            <Textarea
+              className={PROMPT_TEXTAREA}
+              id="prompt"
+              ref={promptRef}
+              rows={5}
+              placeholder={t("generate.promptPlaceholder")}
+              value={prompt}
+              onChange={(e) => enhancer.edit(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(e);
+              }}
+            />
+            <PromptEnhancerBar
+              enhancer={enhancer}
+              canEnhance={limits.canEnhance}
+              disabled={job.busy}
+              empty={prompt.trim().length === 0}
+            />
+          </div>
         </Field>
 
         <ReferencePicker uploads={uploads} max={limits.maxRefs} disabled={job.busy} onMention={insertMention} />
@@ -101,13 +104,20 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
         <TransparencyToggle checked={transparent} onChange={setTransparent} disabled={job.busy} />
         <FormError error={job.error} />
 
-        <Button type="submit" size="lg" className="h-12 text-base sm:h-9 sm:text-sm" disabled={!canSubmit}>
-          <SparklesIcon aria-hidden />
+        <Button type="submit" size="lg" className={SUBMIT_BUTTON} disabled={!canSubmit}>
+          <GenerateIcon />
           {job.busy ? t("generate.submitting") : uploads.ready ? t("generate.submit") : t("generate.uploading")}
         </Button>
       </form>
 
-      <JobPanel jobId={job.jobId} view={job.view} onCancel={job.cancel} cancelling={job.cancelling} />
+      <JobPanel
+        jobId={job.jobId}
+        view={job.view}
+        onCancel={job.cancel}
+        onRetry={job.retry}
+        cancelling={job.cancelling}
+        emptyHint={t("generate.emptyHint")}
+      />
     </div>
   );
 }

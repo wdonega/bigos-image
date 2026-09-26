@@ -1,10 +1,9 @@
 "use client";
 
-import { DownloadIcon, ImageIcon, LoaderCircleIcon, XIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DownloadIcon, RotateCcwIcon, XIcon } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { CatSad, CatSleeping, CatWatching } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useI18n } from "@/i18n/provider";
 import type { JobView } from "@/lib/client/api";
 import { cn } from "@/lib/utils";
@@ -26,20 +25,53 @@ function statusText(view: JobView | null, t: ReturnType<typeof useI18n>["t"]): s
   }
 }
 
+/** Big centered message used by every state except the result. */
+function PanelState({
+  cat,
+  title,
+  hint,
+  children,
+  role,
+}: {
+  cat: ReactNode;
+  title: string;
+  hint?: string;
+  children?: ReactNode;
+  role?: "status" | "alert";
+}) {
+  return (
+    <div role={role} className="flex flex-1 flex-col items-center justify-center gap-5 p-8 text-center">
+      {cat}
+      <div className="flex flex-col gap-1.5">
+        <p className="font-heading text-xl font-medium">{title}</p>
+        {hint && <p className="max-w-sm text-sm text-muted-foreground">{hint}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function JobPanel({
   jobId,
   view,
   onCancel,
+  onRetry,
   cancelling,
+  emptyHint,
 }: {
   jobId: string | null;
   view: JobView | null;
   onCancel: () => void;
+  onRetry: () => void;
   cancelling: boolean;
+  emptyHint: string;
 }) {
   const { t, detail } = useI18n();
   const busy = jobId !== null && (view === null || ["queued", "waiting", "running"].includes(view.status));
+  const progress = view?.status === "running" ? view.progress : null;
   const panel = useRef<HTMLDivElement>(null);
+  // The result fades in once the image has loaded, not when the status changes (no empty frame).
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
 
   // On phones the panel sits below a long form: bring it into view when a job starts.
   useEffect(() => {
@@ -49,12 +81,20 @@ export function JobPanel({
   }, [jobId]);
 
   return (
-    <div ref={panel} className="flex min-h-80 scroll-mt-4 flex-col gap-3">
+    <div
+      ref={panel}
+      className="flex min-h-96 scroll-mt-4 flex-col overflow-hidden rounded-3xl border bg-card/60 lg:min-h-[36rem]"
+    >
       {view?.status === "done" ? (
-        <>
+        <div
+          className={cn(
+            "flex flex-1 flex-col gap-3 p-4 sm:p-5",
+            loadedUrl === view.imageUrl ? "result-in" : "opacity-0",
+          )}
+        >
           <div
             className={cn(
-              "flex items-center justify-center overflow-hidden rounded-xl border",
+              "flex flex-1 items-center justify-center overflow-hidden rounded-2xl",
               view.transparent ? "bg-checkerboard" : "bg-muted/40",
             )}
           >
@@ -65,6 +105,7 @@ export function JobPanel({
               alt={t("job.resultAlt")}
               width={view.width}
               height={view.height}
+              onLoad={() => setLoadedUrl(view.imageUrl)}
               className="h-auto max-h-[70vh] w-auto max-w-full object-contain"
             />
           </div>
@@ -75,7 +116,7 @@ export function JobPanel({
                 height: view.height,
               })}
             </span>
-            <Button asChild className="h-11 sm:h-8">
+            <Button asChild className="h-11 rounded-xl px-4 sm:h-10">
               <a href={`${view.imageUrl}?download`} download>
                 <DownloadIcon aria-hidden /> {t("job.download")}
               </a>
@@ -86,39 +127,47 @@ export function JobPanel({
               {detail("warnings", w)}
             </p>
           ))}
-        </>
-      ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed p-8 text-center">
-          {busy ? (
-            <>
-              <LoaderCircleIcon className="size-8 animate-spin text-muted-foreground" aria-hidden />
-              <p className="text-sm" aria-live="polite">
-                {statusText(view, t)}
-              </p>
-              <Progress
-                value={view?.status === "running" && view.progress !== null ? view.progress * 100 : null}
-                className="w-full max-w-xs"
-              />
-              <Button variant="outline" size="sm" className="h-10 sm:h-7" onClick={onCancel} disabled={cancelling}>
-                <XIcon aria-hidden /> {t("job.cancel")}
-              </Button>
-            </>
-          ) : view?.status === "cancelled" ? (
-            <p className="text-sm text-muted-foreground">{t("job.cancelled")}</p>
-          ) : (
-            <>
-              <ImageIcon className="size-8 text-muted-foreground" aria-hidden />
-              <p className="text-sm text-muted-foreground">{t("job.empty")}</p>
-            </>
-          )}
         </div>
-      )}
-
-      {view?.status === "failed" && (
-        <Alert variant="destructive">
-          <AlertTitle>{t("job.failedTitle")}</AlertTitle>
-          <AlertDescription>{t(`errors.${view.error.code}`)}</AlertDescription>
-        </Alert>
+      ) : busy ? (
+        <PanelState
+          role="status"
+          cat={<CatWatching progress={progress} className="w-48 text-foreground/80" />}
+          title={statusText(view, t)}
+        >
+          <div
+            role="progressbar"
+            aria-label={t("job.running")}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress === null ? undefined : Math.round(progress * 100)}
+            className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
+              style={{ width: `${Math.round((progress ?? 0) * 100)}%` }}
+            />
+          </div>
+          <Button variant="outline" className="h-10 rounded-full px-4" onClick={onCancel} disabled={cancelling}>
+            <XIcon aria-hidden /> {t("job.cancel")}
+          </Button>
+        </PanelState>
+      ) : view?.status === "failed" ? (
+        <PanelState
+          role="alert"
+          cat={<CatSad className="text-muted-foreground" />}
+          title={t("job.failedTitle")}
+          hint={t(`errors.${view.error.code}`)}
+        >
+          <Button className="h-10 rounded-xl px-4" onClick={onRetry}>
+            <RotateCcwIcon aria-hidden /> {t("job.retry")}
+          </Button>
+        </PanelState>
+      ) : (
+        <PanelState
+          cat={<CatSleeping className="text-muted-foreground/70" />}
+          title={view?.status === "cancelled" ? t("job.cancelled") : t("job.empty")}
+          hint={emptyHint}
+        />
       )}
     </div>
   );

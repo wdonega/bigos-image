@@ -1,7 +1,8 @@
 "use client";
 
-import { PaletteIcon, SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
+import { StyleIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -29,13 +30,13 @@ export function StyleField({
   return (
     <div className="flex flex-col gap-2">
       <span className="text-sm font-medium">{t("stylePicker.label")}</span>
-      <div className="flex items-center gap-3 rounded-lg border bg-card p-2">
+      <div className="flex items-center gap-3 rounded-2xl border bg-card p-2">
         {style ? (
           // eslint-disable-next-line @next/next/no-img-element -- static sample, no optimization needed
-          <img src={thumb(style.id)} alt="" className="size-12 shrink-0 rounded-md bg-muted object-cover" />
+          <img src={thumb(style.id)} alt="" className="size-12 shrink-0 rounded-xl bg-muted object-cover" />
         ) : (
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-md border border-dashed text-muted-foreground">
-            <PaletteIcon className="size-5" aria-hidden />
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-dashed text-muted-foreground">
+            <StyleIcon className="size-5" />
           </span>
         )}
         <div className="min-w-0 flex-1">
