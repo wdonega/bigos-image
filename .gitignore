@@ -15,3 +15,6 @@ test-results/
 # next / typescript
 next-env.d.ts
 *.tsbuildinfo
+
+# intellij
+.idea/*
