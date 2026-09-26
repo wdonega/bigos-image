@@ -8,7 +8,7 @@ name: bigos-image-dev
 services:
   app:
     build: .
-    image: ${BIGOS_IMAGE:-bigos-image:latest}
+    image: ${BIGOS_IMAGE:-ghcr.io/wdonega/bigos-image:latest}
     env_file:
       - path: .env
         required: false

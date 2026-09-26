@@ -28,7 +28,7 @@ pnpm test                 # testes unitários (Vitest)
 pnpm typecheck            # next typegen + tsc
 pnpm lint                 # ESLint
 pnpm build && pnpm start  # produção (servidor Node persistente; não é serverless)
-docker compose -f docker-compose-dev.yml build   # gera a imagem Docker (bigos-image:latest)
+docker compose -f docker-compose-dev.yml build   # gera a imagem Docker (ghcr.io/wdonega/bigos-image:latest)
 COMFY_URL=… docker compose up -d                 # roda a imagem gerada + Redis (só COMFY_URL é obrigatória)
 pnpm check:workflows      # valida workflows/api/*.json
 pnpm smoke                # ponta a ponta pela API (precisa do app rodando e do ComfyUI)

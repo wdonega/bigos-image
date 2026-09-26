@@ -1,4 +1,5 @@
-# Runs Bigos Image from a built image (build it with docker-compose-dev.yml).
+# Runs Bigos Image from the published image (GitHub Actions → ghcr.io/wdonega/bigos-image;
+# a local build from docker-compose-dev.yml gets the same name).
 #   COMFY_URL=https://comfy.example docker compose up -d
 # Only COMFY_URL is required; everything else has a default (src/lib/config.ts, .env.example).
 # Values can also come from a .env file next to this compose file.
@@ -6,7 +7,7 @@ name: bigos-image
 
 services:
   app:
-    image: ${BIGOS_IMAGE:-bigos-image:latest}
+    image: ${BIGOS_IMAGE:-ghcr.io/wdonega/bigos-image:latest}
     environment:
       # Where the models run: the ComfyUI server (never exposed to the browser).
       COMFY_URL: ${COMFY_URL:?set COMFY_URL to the ComfyUI server, e.g. https://comfy.example}
