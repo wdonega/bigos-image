@@ -5,11 +5,7 @@ import { enhancePrompt } from "@/lib/enhance";
 import { AppError, errorResponse } from "@/lib/errors";
 
 const bodySchema = z.object({
-  // Short on purpose: the enhancer model reads at most 512 tokens (spec §14).
-  prompt: z
-    .string()
-    .max(1000)
-    .refine((s) => s.trim().length > 0),
+  prompt: z.string().refine((s) => s.trim().length > 0),
   locale: z.enum(LOCALES),
 });
 
@@ -22,6 +18,9 @@ export async function POST(request: Request) {
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) throw new AppError("invalid_request", 400);
     const { prompt, locale } = parsed.data;
+    if (prompt.length > llm.maxInputChars) {
+      throw new AppError("invalid_request", 400, [{ code: "text_too_long", params: { max: llm.maxInputChars } }]);
+    }
     return Response.json(await enhancePrompt(llm, prompt, locale));
   } catch (err) {
     return errorResponse(err);

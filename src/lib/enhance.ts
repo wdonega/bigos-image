@@ -4,8 +4,8 @@ import { mentionNumbers, repairMentions } from "./mentions.ts";
 
 // "Improve text": a small LLM behind LiteLLM (OpenAI-compatible API) rewrites the user's idea as a
 // more detailed prompt, in the user's own language, straight into the text field (translation to
-// English happens later, in the final pass of every generation). The model has a tiny context
-// (512 input / 300 output tokens), so the instructions stay short.
+// English happens later, in the final pass of every generation). Token limits come from the
+// config (LLM_MAX_OUTPUT_TOKENS); the instructions stay short for a small model.
 
 export type EnhanceResult = { text: string };
 
@@ -17,7 +17,12 @@ const LANGUAGE_NAMES: Record<string, string> = {
 };
 
 const TOKEN = /<image(\d{1,2})>/g;
-const MAX_ATTEMPTS = 2;
+/** An image mention as shown on screen, in any language ("[Imagem 1]", "[图片 2]"). */
+const MENTION_LABEL = /\[\s*(?:imagem|imagen|image|图片)\s*\d{1,2}\s*\]/giu;
+
+/** Tries per request: the final pass has a fallback; "Improve text" has none, so it tries more. */
+const FINAL_ATTEMPTS = 2;
+const ENHANCE_ATTEMPTS = 3;
 const TIMEOUT_MS = 30_000;
 
 /** Distinct image tokens (<image1>, <image2>…) in a text, sorted. */
@@ -30,37 +35,44 @@ export function repairTokens(text: string): string {
   return text.replace(/(?<![<\w])image\s?(\d{1,2})(?![\w>])/gi, (_m, n: string) => `<image${Number(n)}>`);
 }
 
-export function systemPrompt(locale: string, hasImages: boolean): string {
+/** `mentions`: the image mentions exactly as the user wrote them ("[Imagem 1]"), listed so a small model keeps them. */
+export function systemPrompt(locale: string, mentions: string[]): string {
   const language = LANGUAGE_NAMES[locale] ?? "English";
   return [
     "You improve prompts for an image generator.",
-    `Rewrite the user idea as ONE more detailed prompt in ${language} (subject, setting, lighting, composition). Maximum 40 words. Keep the user's intent; do not add an art style.`,
-    hasImages
-      ? "The idea mentions input images in square brackets, like [Imagem 1]: copy every such mention exactly, including the brackets."
+    `Rewrite the user idea as ONE more detailed prompt in ${language} (subject, setting, lighting, composition). Maximum 60 words. Keep the user's intent; do not add an art style.`,
+    mentions.length > 0
+      ? `The prompt MUST contain these exact mentions of input images, brackets included: ${mentions.join(", ")}.`
       : "",
-    'Reply ONLY with JSON: {"text":"<improved prompt>"}',
+    // Plain text, not JSON: the small model often breaks JSON quoting.
+    "Reply with the improved prompt only: no quotes, no title, no explanation.",
   ]
     .filter(Boolean)
     .join(" ");
 }
 
+/** The model's text: plain, or {"text": …} if it answered in JSON anyway; wrapping quotes removed. */
+function replyText(content: string): string {
+  let text = content.trim();
+  if (text.startsWith("{")) {
+    try {
+      const data = JSON.parse(text) as { text?: unknown };
+      if (typeof data.text === "string") text = data.text;
+    } catch {
+      text = text.replace(/^\{\s*"?text"?\s*:\s*/u, "").replace(/\s*\}\s*"?$/u, "");
+    }
+  }
+  return text.replace(/^["“”']+|["“”']+$/gu, "").trim();
+}
+
 /**
- * Parses the model's reply; null when it is not usable (bad JSON, empty, a mentioned image lost or
- * one invented). `expected`: the image numbers the user mentioned.
+ * Parses the model's reply; null when it is not usable (empty, a mentioned image lost or one
+ * invented). `expected`: the image numbers the user mentioned.
  */
 export function parseReply(content: string, expected: number[]): EnhanceResult | null {
-  const start = content.indexOf("{");
-  const end = content.lastIndexOf("}");
-  if (start === -1 || end <= start) return null;
-  let data: unknown;
-  try {
-    data = JSON.parse(content.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-  const { text } = (data ?? {}) as { text?: unknown };
-  if (typeof text !== "string" || !text.trim()) return null;
-  const improved = repairMentions(text.trim());
+  const text = replyText(content);
+  if (!text) return null;
+  const improved = repairMentions(text);
   if (mentionNumbers(improved).join() !== expected.join()) return null;
   return { text: improved };
 }
@@ -76,9 +88,10 @@ async function complete<T>(
   messages: ChatMessage[],
   parse: (content: string) => T | null,
   fetchImpl: typeof fetch,
+  attempts: number,
 ): Promise<T> {
-  const body = JSON.stringify({ model: llm.model, temperature: 0.3, max_tokens: 300, messages });
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+  const body = JSON.stringify({ model: llm.model, temperature: 0.3, max_tokens: llm.maxOutputTokens, messages });
+  for (let attempt = 0; attempt < attempts; attempt++) {
     let res: Response;
     try {
       res = await fetchImpl(`${llm.url}/v1/chat/completions`, {
@@ -113,14 +126,16 @@ export function enhancePrompt(
   fetchImpl: typeof fetch = fetch,
 ): Promise<EnhanceResult> {
   const expected = mentionNumbers(prompt);
+  const mentions = [...new Set(prompt.match(MENTION_LABEL) ?? [])];
   return complete(
     llm,
     [
-      { role: "system", content: systemPrompt(locale, expected.length > 0) },
+      { role: "system", content: systemPrompt(locale, mentions) },
       { role: "user", content: prompt },
     ],
     (content) => parseReply(content, expected),
     fetchImpl,
+    ENHANCE_ATTEMPTS,
   );
 }
 
@@ -201,5 +216,6 @@ export function finalizePrompt(
     ],
     (content) => parseFinalReply(content, expected, imageCount, style),
     fetchImpl,
+    FINAL_ATTEMPTS,
   );
 }

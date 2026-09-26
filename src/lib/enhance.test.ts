@@ -11,7 +11,7 @@ import {
   systemPrompt,
 } from "./enhance";
 
-const llm = { url: "https://llm.test", apiKey: "k", model: "prompt-enhancer" };
+const llm = { url: "https://llm.test", apiKey: "k", model: "prompt-enhancer", maxOutputTokens: 800, maxInputChars: 4000 };
 const reply = (content: string) =>
   Response.json({ choices: [{ message: { content } }] });
 
@@ -23,13 +23,18 @@ describe("enhance helpers", () => {
   });
 
   it("writes in the user's language and mentions image tokens only when present", () => {
-    expect(systemPrompt("pt-BR", false)).not.toContain("[Imagem 1]");
-    expect(systemPrompt("pt-BR", true)).toContain("[Imagem 1]");
-    expect(systemPrompt("zh-CN", false)).toContain("in Simplified Chinese");
+    expect(systemPrompt("pt-BR", [])).not.toContain("[Imagem");
+    expect(systemPrompt("pt-BR", ["[Imagem 1]", "[Imagem 2]"])).toContain(
+      "these exact mentions of input images, brackets included: [Imagem 1], [Imagem 2].",
+    );
+    expect(systemPrompt("zh-CN", [])).toContain("in Simplified Chinese");
   });
 
-  it("parses JSON wrapped in extra text", () => {
-    expect(parseReply('Sure: {"text":"Um gato laranja"} done', [])).toEqual({ text: "Um gato laranja" });
+  it("reads plain text, stray quotes and (broken) JSON", () => {
+    expect(parseReply("Um gato laranja", [])).toEqual({ text: "Um gato laranja" });
+    expect(parseReply('"Um gato laranja"', [])).toEqual({ text: "Um gato laranja" });
+    expect(parseReply('{"text":"Um gato laranja"}', [])).toEqual({ text: "Um gato laranja" });
+    expect(parseReply('{\n"text: "Um gato laranja"\n}"', [])).toEqual({ text: "Um gato laranja" });
   });
 
   it("rejects replies that lose or invent image mentions, repairing missing brackets", () => {
@@ -41,29 +46,29 @@ describe("enhance helpers", () => {
     expect(parseReply('{"text":"[Imagem 3] gato"}', [])).toBeNull();
   });
 
-  it("rejects bad JSON and empty fields", () => {
-    expect(parseReply("no json", [])).toBeNull();
+  it("rejects empty replies", () => {
+    expect(parseReply("  ", [])).toBeNull();
     expect(parseReply('{"text":""}', [])).toBeNull();
   });
 });
 
 describe("enhancePrompt", () => {
   it("calls the OpenAI-compatible endpoint with the configured model", async () => {
-    const fetchMock = vi.fn(async () => reply('{"text":"Um gato detalhado"}'));
+    const fetchMock = vi.fn(async () => reply("Um gato detalhado"));
     const out = await enhancePrompt(llm, "um gato", "pt-BR", fetchMock as unknown as typeof fetch);
     expect(out).toEqual({ text: "Um gato detalhado" });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://llm.test/v1/chat/completions");
-    expect(JSON.parse(String(init.body))).toMatchObject({ model: "prompt-enhancer", max_tokens: 300 });
+    expect(JSON.parse(String(init.body))).toMatchObject({ model: "prompt-enhancer", max_tokens: 800 });
     expect((init.headers as Record<string, string>).authorization).toBe("Bearer k");
   });
 
-  it("retries once when the reply is unusable, then fails with a code", async () => {
-    const bad = vi.fn(async () => reply("not json"));
-    await expect(enhancePrompt(llm, "x", "pt-BR", bad as unknown as typeof fetch)).rejects.toMatchObject({
-      code: "enhance_failed",
-    });
-    expect(bad).toHaveBeenCalledTimes(2);
+  it("retries when a mention is lost, then fails with a code", async () => {
+    const bad = vi.fn(async () => reply("um gato sem a menção"));
+    await expect(
+      enhancePrompt(llm, "o gato da [Imagem 1]", "pt-BR", bad as unknown as typeof fetch),
+    ).rejects.toMatchObject({ code: "enhance_failed" });
+    expect(bad).toHaveBeenCalledTimes(3);
   });
 
   it("maps network errors to enhance_unavailable", async () => {

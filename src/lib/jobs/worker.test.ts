@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
-import { MAX_FINAL_PASS_CHARS, MIN_TRANSPARENT_SHARE, finalizeImage, resolvePrompt, transparentShare } from "./worker";
+import { MIN_TRANSPARENT_SHARE, finalizeImage, resolvePrompt, transparentShare } from "./worker";
 
 async function rgbaPng(alpha: number) {
   return sharp({
@@ -45,7 +45,7 @@ describe("resolvePrompt", () => {
     fallbackPrompt: "um gato. watercolor painting.",
     images: ["u1"],
   };
-  const llm = { url: "https://llm.test", apiKey: "k", model: "prompt-enhancer" };
+  const llm = { url: "https://llm.test", apiKey: "k", model: "prompt-enhancer", maxOutputTokens: 800, maxInputChars: 4000 };
 
   it("uses the LLM's final prompt", async () => {
     const finalize = vi.fn(async () => "Watercolor painting of a cat");
@@ -56,7 +56,7 @@ describe("resolvePrompt", () => {
   it("falls back without an LLM, with long texts or when the LLM fails", async () => {
     const finalize = vi.fn(async () => "never");
     expect(await resolvePrompt(data, null, finalize)).toBe(data.fallbackPrompt);
-    const long = { ...data, text: "x".repeat(MAX_FINAL_PASS_CHARS + 1) };
+    const long = { ...data, text: "x".repeat(llm.maxInputChars + 1) };
     expect(await resolvePrompt(long, llm, finalize)).toBe(data.fallbackPrompt);
     expect(finalize).not.toHaveBeenCalled();
     const failing = vi.fn(async () => {

@@ -63,9 +63,6 @@ export async function finalizeImage(png: Buffer, transparent: boolean) {
   return { png: data, width: info.width, height: info.height };
 }
 
-/** Longest text sent to the final pass: the enhancer model reads at most 512 tokens (spec §14). */
-export const MAX_FINAL_PASS_CHARS = 1000;
-
 /**
  * Final LLM pass (spec §14, decision 24): English, <imageN> references, style up front. When the
  * LLM is missing, down or unusable, the generation goes on with the fallback (style appended).
@@ -75,7 +72,7 @@ export async function resolvePrompt(
   llm: Config["llm"],
   finalize: typeof finalizePrompt = finalizePrompt,
 ): Promise<string> {
-  if (!llm || data.text.length > MAX_FINAL_PASS_CHARS) return data.fallbackPrompt;
+  if (!llm || data.text.length > llm.maxInputChars) return data.fallbackPrompt;
   try {
     return await finalize(llm, data.text, data.style, data.images.length);
   } catch (err) {

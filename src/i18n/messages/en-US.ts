@@ -232,6 +232,7 @@ export const enUS = {
     edit_needs_one_image: "Send exactly 1 image to edit.",
     max_refs: "Use at most {max} reference images.",
     max_upload_mb: "The limit is {max} MB per image.",
+    text_too_long: "The text can have at most {max} characters.",
   },
   warnings: {
     image_reduced: "Your image was large and was reduced to {width} × {height} px.",

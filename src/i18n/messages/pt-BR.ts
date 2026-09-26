@@ -234,6 +234,7 @@ export const ptBR: Messages = {
     edit_needs_one_image: "Envie exatamente 1 imagem para editar.",
     max_refs: "Use no máximo {max} imagens de referência.",
     max_upload_mb: "O limite é {max} MB por imagem.",
+    text_too_long: "O texto pode ter no máximo {max} caracteres.",
   },
   warnings: {
     image_reduced: "Sua imagem era grande e foi reduzida para {width} × {height} px.",

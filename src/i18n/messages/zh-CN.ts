@@ -232,6 +232,7 @@ export const zhCN: Messages = {
     edit_needs_one_image: "编辑时请上传且仅上传 1 张图片。",
     max_refs: "最多使用 {max} 张参考图片。",
     max_upload_mb: "每张图片最大 {max} MB。",
+    text_too_long: "文字最多 {max} 个字符。",
   },
   warnings: {
     image_reduced: "图片较大，已缩小为 {width} × {height} 像素。",

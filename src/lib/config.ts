@@ -24,10 +24,21 @@ const envSchema = z.object({
   LLM_URL: z.preprocess((v) => (v === "" ? undefined : v), z.url().optional()),
   LLM_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().min(1).default("prompt-enhancer"),
+  // Keep within the model's limits in LiteLLM (max_output_tokens / max_input_tokens).
+  LLM_MAX_OUTPUT_TOKENS: positiveInt.default(800),
+  LLM_MAX_INPUT_CHARS: positiveInt.default(4000),
 });
 
 /** OpenAI-compatible endpoint (LiteLLM) used by "Improve text". */
-export type LlmConfig = { url: string; apiKey: string; model: string };
+export type LlmConfig = {
+  url: string;
+  apiKey: string;
+  model: string;
+  /** max_tokens sent with each request. */
+  maxOutputTokens: number;
+  /** Longest user text sent to the LLM; longer texts skip it (the final pass falls back). */
+  maxInputChars: number;
+};
 
 export type Config = {
   comfyUrl: string;
@@ -74,7 +85,13 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
     jobTimeoutMs: e.JOB_TIMEOUT_MINUTES * 60_000,
     steps: { normal: e.STEPS_NORMAL, high: e.STEPS_HIGH },
     llm: e.LLM_URL
-      ? { url: e.LLM_URL.replace(/\/+$/, ""), apiKey: e.LLM_API_KEY ?? "", model: e.LLM_MODEL }
+      ? {
+          url: e.LLM_URL.replace(/\/+$/, ""),
+          apiKey: e.LLM_API_KEY ?? "",
+          model: e.LLM_MODEL,
+          maxOutputTokens: e.LLM_MAX_OUTPUT_TOKENS,
+          maxInputChars: e.LLM_MAX_INPUT_CHARS,
+        }
       : null,
   };
 }

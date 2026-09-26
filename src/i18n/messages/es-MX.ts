@@ -234,6 +234,7 @@ export const esMX: Messages = {
     edit_needs_one_image: "Sube exactamente 1 imagen para editar.",
     max_refs: "Usa como máximo {max} imágenes de referencia.",
     max_upload_mb: "El límite es de {max} MB por imagen.",
+    text_too_long: "El texto puede tener como máximo {max} caracteres.",
   },
   warnings: {
     image_reduced: "Tu imagen era grande y se redujo a {width} × {height} px.",
