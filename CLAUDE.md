@@ -22,12 +22,14 @@ Aplicação web simples para leigos gerarem e editarem imagens com workflows do 
 
 ```bash
 pnpm install              # dependências
-pnpm redis                # sobe o Redis da fila (docker compose)
+pnpm redis                # sobe o Redis da fila (docker-compose-dev.yml)
 pnpm dev                  # app em http://localhost:3000 (o worker da fila sobe junto)
 pnpm test                 # testes unitários (Vitest)
 pnpm typecheck            # next typegen + tsc
 pnpm lint                 # ESLint
 pnpm build && pnpm start  # produção (servidor Node persistente; não é serverless)
+docker compose -f docker-compose-dev.yml build   # gera a imagem Docker (bigos-image:latest)
+COMFY_URL=… docker compose up -d                 # roda a imagem gerada + Redis (só COMFY_URL é obrigatória)
 pnpm check:workflows      # valida workflows/api/*.json
 pnpm smoke                # ponta a ponta pela API (precisa do app rodando e do ComfyUI)
 pnpm acceptance           # critérios do §13 contra o app e o ComfyUI reais (~4 min de GPU)
@@ -40,7 +42,7 @@ O worker da fila sobe uma vez por processo (`src/instrumentation.ts`) e **não �
 
 Código em `src/lib/` usa imports relativos com extensão `.ts` (para rodar direto no Node nos scripts); em `src/app/` use `@/lib/...`.
 
-## Configuração (`.env`, ver `.env.example`)
+## Configuração (`.env`, ver `.env.example`; só `COMFY_URL` e `REDIS_URL` são obrigatórias, o resto tem padrão em `src/lib/config.ts`)
 
 `COMFY_URL`, `COMFY_WAKE_SECONDS`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`, e opcionais `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_MAX_OUTPUT_TOKENS`, `LLM_MAX_INPUT_CHARS` (Melhorar texto e etapa final; a chave só no `.env`). Nunca deixe limites fixos no código: leia da configuração.
 

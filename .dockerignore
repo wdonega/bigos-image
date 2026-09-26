@@ -1,0 +1,13 @@
+node_modules
+.next
+storage
+.env
+.env.*
+!.env.example
+.git
+.idea
+.claude
+*.tsbuildinfo
+docs
+Dockerfile
+docker-compose*.yml

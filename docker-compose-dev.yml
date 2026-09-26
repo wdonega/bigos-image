@@ -1,0 +1,44 @@
+# Builds the Bigos Image app image and runs it with Redis, using the local .env.
+#   docker compose -f docker-compose-dev.yml build            # just build the image
+#   docker compose -f docker-compose-dev.yml up -d --build    # build and run
+#   docker compose -f docker-compose-dev.yml up -d redis      # only Redis, for `pnpm dev` (pnpm redis)
+# Deploying the built image: docker-compose.yml.
+name: bigos-image-dev
+
+services:
+  app:
+    build: .
+    image: ${BIGOS_IMAGE:-bigos-image:latest}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Inside the compose network, not the host's Redis/storage from .env.
+      REDIS_URL: redis://redis:6379
+      STORAGE_DIR: /data
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - storage:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Job queue (spec §12). BullMQ requires maxmemory-policy noeviction.
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  storage:
+  redis-data:

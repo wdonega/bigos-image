@@ -2,22 +2,26 @@ import { z } from "zod";
 
 const positiveInt = z.coerce.number().int().positive();
 
-// Every limit comes from the environment (see .env.example); none is hardcoded.
+// Every limit comes from the environment (see .env.example); none is hardcoded in the code that
+// uses it. Only COMFY_URL and REDIS_URL are required; the rest default to the values in
+// .env.example, so a deployment only sets what differs (docker-compose.yml).
 const envSchema = z.object({
   COMFY_URL: z.url(),
   REDIS_URL: z.string().min(1),
-  STORAGE_DIR: z.string().min(1),
-  MAX_REFS: positiveInt,
-  MAX_PIXELS: positiveInt,
-  MIN_SIDE: positiveInt,
-  MAX_ASPECT_RATIO: z.coerce.number().min(1),
-  MAX_INPUT_PIXELS: positiveInt,
-  MAX_REFS_TOTAL_PIXELS: positiveInt,
-  MAX_UPLOAD_MB: positiveInt,
-  RETENTION_HOURS: positiveInt,
-  JOB_TIMEOUT_MINUTES: positiveInt,
-  STEPS_NORMAL: positiveInt,
-  STEPS_HIGH: positiveInt,
+  STORAGE_DIR: z.string().min(1).default("storage"),
+  MAX_REFS: positiveInt.default(10),
+  // 2048 × 2048
+  MAX_PIXELS: positiveInt.default(4_194_304),
+  MIN_SIDE: positiveInt.default(512),
+  MAX_ASPECT_RATIO: z.coerce.number().min(1).default(4),
+  MAX_INPUT_PIXELS: positiveInt.default(4_194_304),
+  // 10 × 1 MP
+  MAX_REFS_TOTAL_PIXELS: positiveInt.default(10_485_760),
+  MAX_UPLOAD_MB: positiveInt.default(20),
+  RETENTION_HOURS: positiveInt.default(24),
+  JOB_TIMEOUT_MINUTES: positiveInt.default(15),
+  STEPS_NORMAL: positiveInt.default(25),
+  STEPS_HIGH: positiveInt.default(40),
   // The ComfyUI machine wakes on LAN: how long to wait for it before calling it unavailable.
   COMFY_WAKE_SECONDS: positiveInt.default(30),
   // Optional: "Improve text" is hidden when the LLM is not configured.

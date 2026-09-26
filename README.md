@@ -11,7 +11,19 @@ pnpm redis                  # sobe o Redis (docker compose)
 pnpm dev                    # http://localhost:3000 → telas Gerar e Editar
 ```
 
-Produção: `pnpm build && pnpm start` (servidor Node persistente; o worker da fila roda no mesmo processo).
+Produção sem Docker: `pnpm build && pnpm start` (servidor Node persistente; o worker da fila roda no mesmo processo).
+
+## Docker
+
+```bash
+docker compose -f docker-compose-dev.yml build          # gera a imagem bigos-image:latest
+COMFY_URL=https://comfy.exemplo docker compose up -d    # roda a imagem + Redis em http://localhost:3000
+```
+
+- `docker-compose-dev.yml` **gera** a imagem (e pode rodá-la com o `.env` local: `up -d --build`; `pnpm redis` sobe só o Redis dele para o `pnpm dev`).
+- `docker-compose.yml` **usa** a imagem já gerada. Só `COMFY_URL` é obrigatória (onde está o ComfyUI com os modelos). Opcionais: `LLM_URL` e `LLM_API_KEY` (liga o "Melhorar texto"), `PORT` (3000) e `BIGOS_IMAGE` (nome da imagem, `bigos-image:latest`). Todo o resto usa os padrões do `.env.example`.
+- Dados: resultados e uploads no volume `storage`, fila no volume `redis-data`.
+- O healthcheck do container não chama o ComfyUI, para não acordar a máquina da GPU (Wake-on-LAN).
 
 Verificação: `pnpm test` (unitários), `pnpm typecheck`, `pnpm lint`, `pnpm check:workflows`, e com o app rodando `pnpm smoke` (1 geração) ou `pnpm acceptance` (critérios do §13, ~4 min de GPU).
 

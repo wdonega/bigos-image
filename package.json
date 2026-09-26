@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:workflows": "node scripts/check-workflows.mjs",
-    "redis": "docker compose up -d redis",
+    "redis": "docker compose -f docker-compose-dev.yml up -d redis",
     "smoke": "node --env-file=.env scripts/smoke.ts",
     "acceptance": "node scripts/acceptance.ts",
     "icons": "node scripts/generate-icons.ts",

@@ -1,13 +1,42 @@
-# Job queue storage (spec §12). BullMQ requires maxmemory-policy noeviction.
+# Runs Bigos Image from a built image (build it with docker-compose-dev.yml).
+#   COMFY_URL=https://comfy.example docker compose up -d
+# Only COMFY_URL is required; everything else has a default (src/lib/config.ts, .env.example).
+# Values can also come from a .env file next to this compose file.
+name: bigos-image
+
 services:
+  app:
+    image: ${BIGOS_IMAGE:-bigos-image:latest}
+    environment:
+      # Where the models run: the ComfyUI server (never exposed to the browser).
+      COMFY_URL: ${COMFY_URL:?set COMFY_URL to the ComfyUI server, e.g. https://comfy.example}
+      REDIS_URL: redis://redis:6379
+      # Optional "Improve text" (OpenAI-compatible API, e.g. LiteLLM); empty = feature hidden.
+      LLM_URL: ${LLM_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-prompt-enhancer}
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - storage:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Job queue (spec §12). BullMQ requires maxmemory-policy noeviction.
   redis:
     image: redis:8-alpine
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
-    ports:
-      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
 
 volumes:
+  storage:
   redis-data:

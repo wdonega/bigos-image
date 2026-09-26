@@ -27,8 +27,15 @@ describe("parseConfig", () => {
     expect(config.steps).toEqual({ normal: 25, high: 40 });
   });
 
-  it("fails loudly when a limit is missing", () => {
-    expect(() => parseConfig({ ...env, MAX_PIXELS: undefined })).toThrow(/MAX_PIXELS/);
+  it("fails loudly when a required setting is missing", () => {
+    expect(() => parseConfig({ ...env, COMFY_URL: undefined })).toThrow(/COMFY_URL/);
+    expect(() => parseConfig({ ...env, REDIS_URL: undefined })).toThrow(/REDIS_URL/);
+  });
+
+  it("falls back to the documented defaults for everything else", () => {
+    const config = parseConfig({ COMFY_URL: env.COMFY_URL, REDIS_URL: env.REDIS_URL });
+    expect(config).toEqual(parseConfig(env));
+    expect(config.llm).toBeNull();
   });
 
   it("requires the references budget to fit at least one full input image", () => {

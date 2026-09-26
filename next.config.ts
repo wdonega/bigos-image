@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Docker image: a self-contained server (Dockerfile sets NEXT_OUTPUT). Local `pnpm start` keeps
+  // the regular build.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   // BullMQ loads Lua scripts from disk at runtime; bundling breaks that.
   serverExternalPackages: ["bullmq", "ioredis"],
   // Routes were renamed to English; keep old links and installed PWAs working.
