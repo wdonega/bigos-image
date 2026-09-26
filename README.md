@@ -115,3 +115,7 @@ docs/spec.md        especificação e registro de decisões (§14)
 ```
 
 Detalhes de produto, regras de tamanho, mapeamento dos nós e decisões estão em [`docs/spec.md`](docs/spec.md); como exportar os workflows em [`workflows/README.md`](workflows/README.md).
+
+## Licença
+
+[AGPL-3.0](LICENSE).
