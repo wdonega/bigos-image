@@ -293,7 +293,7 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
 24. **Etapa final de prompt em toda geração** (pedido do dono, 2026-09-25): independente das escolhas, o worker passa o texto pelo LLM `prompt-enhancer` antes de montar o grafo:
     - traduz para inglês **fielmente** (sem acrescentar nem tirar detalhes; o "Melhorar texto" continua sendo a opção de detalhar);
     - mantém as referências como `<imageN>` (valida: nenhuma perdida, nenhuma inventada; `image1` sem sinais é corrigido);
-    - com estilo, começa pelo estilo: com imagens (inclusive na tela Editar sem menção escrita), "Turn <image1> into <estilo>…"; sem imagens, "A <estilo> of…". Valida que uma palavra-chave do estilo aparece e que nenhuma referência passa do número de imagens do job.
+    - com estilo, começa pelo estilo: com imagens (inclusive na tela Editar sem menção escrita), "Turn <image1> into <estilo>…"; sem imagens, "A <estilo> of…". Valida que uma palavra-chave do estilo aparece **nos primeiros 100 caracteres** (no fim ele quase não muda a imagem) e que nenhuma referência passa do número de imagens do job.
     - instruções de edição continuam instruções ("troque o fundo por uma praia" → "Replace the background with a beach").
     - Parte do texto que está na tela (inclusive se ele veio do "Melhorar texto").
     - Roda na fase "Preparando o gerador…" (~1–2 s). O prompt final fica salvo no job, para uma nova tentativa mandar o mesmo texto.

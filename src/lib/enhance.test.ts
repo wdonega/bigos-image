@@ -112,6 +112,9 @@ describe("final pass", () => {
 
   it("rejects replies that lose the style or change the references", () => {
     expect(parseFinalReply('{"en":"A cat from <image1>"}', ["<image1>"], 1, watercolor)).toBeNull();
+    // Style only at the end: rejected.
+    const tail = `A cat from <image1> sitting on a sofa by a big window with plants, soft morning light, cozy room, wooden floor, watercolor painting`;
+    expect(parseFinalReply(JSON.stringify({ en: tail }), ["<image1>"], 1, watercolor)).toBeNull();
     expect(parseFinalReply('{"en":"Watercolor cat"}', ["<image1>"], 1, watercolor)).toBeNull();
     expect(parseFinalReply('{"en":"Watercolor cat <image1> <image2>"}', ["<image1>"], 1, watercolor)).toBeNull();
     expect(parseFinalReply('{"en":"Watercolor cat <image1>"}', [], 0, watercolor)).toBeNull();

@@ -20,6 +20,9 @@ const TOKEN = /<image(\d{1,2})>/g;
 /** An image mention as shown on screen, in any language ("[Imagem 1]", "[图片 2]"). */
 const MENTION_LABEL = /\[\s*(?:imagem|imagen|image|图片)\s*\d{1,2}\s*\]/giu;
 
+/** How far into the final prompt the style must appear. */
+const STYLE_HEAD_CHARS = 100;
+
 /** Tries per request: the final pass has a fallback; "Improve text" has none, so it tries more. */
 const FINAL_ATTEMPTS = 2;
 const ENHANCE_ATTEMPTS = 3;
@@ -192,9 +195,10 @@ export function parseFinalReply(
   // "Turn <image1> into…" may add <image1>; a reference to an image the job does not have may not.
   if (tokens.some((t) => Number(t.slice(6, -1)) > imageCount)) return null;
   if (style) {
+    // The style must lead the prompt: at the end it barely changes the image (spec §14, decision 24).
     const words = styleKeywords(style);
-    const lower = english.toLowerCase();
-    if (words.length > 0 && !words.some((w) => lower.includes(w))) return null;
+    const head = english.slice(0, STYLE_HEAD_CHARS).toLowerCase();
+    if (words.length > 0 && !words.some((w) => head.includes(w))) return null;
   }
   return english;
 }
