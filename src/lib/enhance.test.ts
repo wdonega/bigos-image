@@ -22,40 +22,36 @@ describe("enhance helpers", () => {
     expect(repairTokens("keep <image1> and myimage1")).toBe("keep <image1> and myimage1");
   });
 
-  it("only talks about image tokens when the prompt has them", () => {
-    expect(systemPrompt("pt-BR", false)).not.toContain("<image1>");
-    expect(systemPrompt("pt-BR", true)).toContain("<image1>");
-    expect(systemPrompt("zh-CN", false)).toContain("Simplified Chinese");
+  it("writes in the user's language and mentions image tokens only when present", () => {
+    expect(systemPrompt("pt-BR", false)).not.toContain("[Imagem 1]");
+    expect(systemPrompt("pt-BR", true)).toContain("[Imagem 1]");
+    expect(systemPrompt("zh-CN", false)).toContain("in Simplified Chinese");
   });
 
   it("parses JSON wrapped in extra text", () => {
-    expect(parseReply('Sure: {"en":"A cat","summary":"Um gato"} done', [])).toEqual({
-      english: "A cat",
-      summary: "Um gato",
-    });
+    expect(parseReply('Sure: {"text":"Um gato laranja"} done', [])).toEqual({ text: "Um gato laranja" });
   });
 
-  it("rejects replies that lose or invent image tokens", () => {
-    const expected = ["<image1>", "<image2>"];
-    expect(parseReply('{"en":"cat <image1>","summary":"gato <image1> <image2>"}', expected)).toBeNull();
-    expect(parseReply('{"en":"cat image1 sofa image2","summary":"gato <image1> <image2>"}', expected)).toEqual({
-      english: "cat <image1> sofa <image2>",
-      summary: "gato <image1> <image2>",
+  it("rejects replies that lose or invent image mentions, repairing missing brackets", () => {
+    const expected = [1, 2];
+    expect(parseReply('{"text":"gato da [Imagem 1]"}', expected)).toBeNull();
+    expect(parseReply('{"text":"gato da Imagem 1 no sofá da [Imagem 2]"}', expected)).toEqual({
+      text: "gato da [Imagem 1] no sofá da [Imagem 2]",
     });
-    expect(parseReply('{"en":"<image3> cat","summary":"gato"}', [])).toBeNull();
+    expect(parseReply('{"text":"[Imagem 3] gato"}', [])).toBeNull();
   });
 
   it("rejects bad JSON and empty fields", () => {
     expect(parseReply("no json", [])).toBeNull();
-    expect(parseReply('{"en":"","summary":"x"}', [])).toBeNull();
+    expect(parseReply('{"text":""}', [])).toBeNull();
   });
 });
 
 describe("enhancePrompt", () => {
   it("calls the OpenAI-compatible endpoint with the configured model", async () => {
-    const fetchMock = vi.fn(async () => reply('{"en":"A detailed cat","summary":"Um gato detalhado"}'));
+    const fetchMock = vi.fn(async () => reply('{"text":"Um gato detalhado"}'));
     const out = await enhancePrompt(llm, "um gato", "pt-BR", fetchMock as unknown as typeof fetch);
-    expect(out).toEqual({ english: "A detailed cat", summary: "Um gato detalhado" });
+    expect(out).toEqual({ text: "Um gato detalhado" });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://llm.test/v1/chat/completions");
     expect(JSON.parse(String(init.body))).toMatchObject({ model: "prompt-enhancer", max_tokens: 300 });

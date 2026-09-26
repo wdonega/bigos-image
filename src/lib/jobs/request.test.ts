@@ -67,18 +67,10 @@ describe("planJob — style and improved text", () => {
     expect((await plan(base)).style).toBeNull();
   });
 
-  it("sends the accepted English text instead of the on-screen text", async () => {
-    const p = await plan({
-      ...base,
-      prompt: "gato da [Imagem 1]",
-      english_prompt: "a cat from <image1> on a sofa",
-      images: ["u1"],
-      style: "anime",
-    });
-    expect(p.text).toBe("a cat from <image1> on a sofa");
-    expect(p.fallbackPrompt).toBe(
-      "a cat from <image1> on a sofa. anime style, clean line art, cel shading, vibrant colors.",
-    );
+  it("converts mentions before the final pass and in the fallback", async () => {
+    const p = await plan({ ...base, prompt: "gato da [Imagem 1]", images: ["u1"], style: "anime" });
+    expect(p.text).toBe("gato da <image1>");
+    expect(p.fallbackPrompt).toBe("gato da <image1>. anime style, clean line art, cel shading, vibrant colors.");
   });
 
   it("rejects unknown styles", () => {

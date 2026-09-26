@@ -2,75 +2,47 @@
 
 import { useState } from "react";
 import { useI18n } from "@/i18n/provider";
-import { ApiError, type Enhanced, enhancePrompt } from "@/lib/client/api";
-import { tokensToMentions } from "@/lib/mentions";
-
-type Phase = "idle" | "loading" | "suggest" | "applied";
+import { ApiError, enhancePrompt } from "@/lib/client/api";
 
 /**
- * "Improve text" around a prompt field: asks for a suggestion, lets the user accept it (the field
- * then shows the version in their language and the English one goes to the generator) or go back.
- * Any edit to the field after accepting drops the English version: what is on screen is what is sent.
+ * "Improve text": replaces the field's text with a more detailed version (same language) and
+ * offers one step of undo. It can be used again on the improved text. Typing drops the undo.
  */
 export function usePromptEnhancer(prompt: string, setPrompt: (value: string) => void) {
-  const { t, locale } = useI18n();
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [suggestion, setSuggestion] = useState<Enhanced | null>(null);
-  const [original, setOriginal] = useState("");
+  const { locale } = useI18n();
+  const [loading, setLoading] = useState(false);
+  /** Text before the last improvement; null when there is nothing to undo. */
+  const [previous, setPrevious] = useState<string | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
-  const word = t("references.mentionWord");
 
   async function enhance() {
-    if (!prompt.trim() || phase === "loading") return;
-    setPhase("loading");
+    if (!prompt.trim() || loading) return;
+    setLoading(true);
     setError(null);
     try {
-      const result = await enhancePrompt(prompt, locale);
-      setSuggestion({ english: result.english, summary: tokensToMentions(result.summary, word) });
-      setPhase("suggest");
+      const { text } = await enhancePrompt(prompt, locale);
+      setPrevious(prompt);
+      setPrompt(text);
     } catch (err) {
       setError(err instanceof ApiError ? err : new ApiError("unexpected"));
-      setPhase("idle");
+    } finally {
+      setLoading(false);
     }
   }
 
-  function apply() {
-    if (!suggestion) return;
-    setOriginal(prompt);
-    setPrompt(suggestion.summary);
-    setPhase("applied");
-  }
-
-  function discard() {
-    setSuggestion(null);
-    setPhase("idle");
-  }
-
   function undo() {
-    setPrompt(original);
-    discard();
+    if (previous === null) return;
+    setPrompt(previous);
+    setPrevious(null);
   }
 
   /** Call from the field's onChange. */
   function edit(value: string) {
     setPrompt(value);
-    if (phase === "applied") discard();
+    setPrevious(null);
   }
 
-  return {
-    phase,
-    suggestion,
-    error,
-    enhance,
-    apply,
-    discard,
-    undo,
-    edit,
-    /** English shown to users, with image mentions as readable labels. */
-    englishForDisplay: suggestion ? tokensToMentions(suggestion.english, "Image") : "",
-    /** Value for `english_prompt` in the job request. */
-    englishPrompt: phase === "applied" && suggestion ? suggestion.english : null,
-  };
+  return { loading, error, canUndo: previous !== null, enhance, undo, edit, forget: () => setPrevious(null) };
 }
 
 export type PromptEnhancer = ReturnType<typeof usePromptEnhancer>;

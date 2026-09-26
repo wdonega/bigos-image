@@ -1,11 +1,13 @@
 import type { LlmConfig } from "./config.ts";
 import { AppError } from "./errors.ts";
+import { mentionNumbers, repairMentions } from "./mentions.ts";
 
-// "Improve text": a small LLM behind LiteLLM (OpenAI-compatible API) rewrites the user's idea as
-// a detailed English prompt, plus a summary in the user's language so lay users can review it.
-// The model has a tiny context (512 input / 300 output tokens), so the instructions stay short.
+// "Improve text": a small LLM behind LiteLLM (OpenAI-compatible API) rewrites the user's idea as a
+// more detailed prompt, in the user's own language, straight into the text field (translation to
+// English happens later, in the final pass of every generation). The model has a tiny context
+// (512 input / 300 output tokens), so the instructions stay short.
 
-export type EnhanceResult = { english: string; summary: string };
+export type EnhanceResult = { text: string };
 
 const LANGUAGE_NAMES: Record<string, string> = {
   "pt-BR": "Brazilian Portuguese",
@@ -32,18 +34,21 @@ export function systemPrompt(locale: string, hasImages: boolean): string {
   const language = LANGUAGE_NAMES[locale] ?? "English";
   return [
     "You improve prompts for an image generator.",
-    "Rewrite the user idea as ONE detailed English prompt (subject, setting, lighting, composition; max 60 words). Do not add an art style.",
+    `Rewrite the user idea as ONE more detailed prompt in ${language} (subject, setting, lighting, composition). Maximum 40 words. Keep the user's intent; do not add an art style.`,
     hasImages
-      ? "The idea refers to input images as <image1>, <image2>: every one of them MUST appear in both outputs, unchanged."
+      ? "The idea mentions input images in square brackets, like [Imagem 1]: copy every such mention exactly, including the brackets."
       : "",
-    `Reply ONLY with JSON: {"en":"<english prompt>","summary":"<same prompt in ${language}, max 35 words>"}`,
+    'Reply ONLY with JSON: {"text":"<improved prompt>"}',
   ]
     .filter(Boolean)
     .join(" ");
 }
 
-/** Parses the model's reply; null when it is not usable (bad JSON, empty, lost image tokens). */
-export function parseReply(content: string, expected: string[]): EnhanceResult | null {
+/**
+ * Parses the model's reply; null when it is not usable (bad JSON, empty, a mentioned image lost or
+ * one invented). `expected`: the image numbers the user mentioned.
+ */
+export function parseReply(content: string, expected: number[]): EnhanceResult | null {
   const start = content.indexOf("{");
   const end = content.lastIndexOf("}");
   if (start === -1 || end <= start) return null;
@@ -53,15 +58,11 @@ export function parseReply(content: string, expected: string[]): EnhanceResult |
   } catch {
     return null;
   }
-  const { en, summary } = (data ?? {}) as { en?: unknown; summary?: unknown };
-  if (typeof en !== "string" || typeof summary !== "string" || !en.trim() || !summary.trim()) return null;
-  const english = repairTokens(en.trim());
-  const localized = repairTokens(summary.trim());
-  const keepsTokens = (text: string) => expected.every((t) => text.includes(t));
-  if (!keepsTokens(english) || !keepsTokens(localized)) return null;
-  // Tokens the user never wrote would point the model at the wrong images.
-  if (imageTokens(english).some((t) => !expected.includes(t))) return null;
-  return { english, summary: localized };
+  const { text } = (data ?? {}) as { text?: unknown };
+  if (typeof text !== "string" || !text.trim()) return null;
+  const improved = repairMentions(text.trim());
+  if (mentionNumbers(improved).join() !== expected.join()) return null;
+  return { text: improved };
 }
 
 type ChatMessage = { role: "system" | "user"; content: string };
@@ -104,14 +105,14 @@ async function complete<T>(
   throw new AppError("enhance_failed", 502);
 }
 
-/** "Improve text" (button): `prompt` must already carry <imageN> tokens (see mentions.ts). */
+/** "Improve text" (button): `prompt` is the user's text, image mentions as on screen ("[Imagem 1]"). */
 export function enhancePrompt(
   llm: LlmConfig,
   prompt: string,
   locale: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<EnhanceResult> {
-  const expected = imageTokens(prompt);
+  const expected = mentionNumbers(prompt);
   return complete(
     llm,
     [

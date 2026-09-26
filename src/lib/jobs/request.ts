@@ -27,9 +27,6 @@ export const jobRequestSchema = z.object({
   quality: z.enum(["normal", "high"]).default("normal"),
   transparent_background: z.boolean().default(false),
   style: z.enum(STYLE_IDS as [StyleId, ...StyleId[]]).nullable().default(null),
-  // English text accepted from "Improve text" (POST /api/enhance); sent to the model instead of
-  // `prompt`, which then holds the user's-language version shown on screen.
-  english_prompt: z.string().max(4000).nullable().default(null),
 });
 
 export type JobRequest = z.infer<typeof jobRequestSchema>;
@@ -39,7 +36,7 @@ export type JobPlan = {
   workflow: "t2i" | "edit";
   /**
    * Source of the worker's final LLM pass (English, <imageN> references, style up front): the
-   * user's text (or the English accepted in "Improve text") with mentions already as <imageN>.
+   * user's text with mentions already as <imageN>.
    */
   text: string;
   /** English phrase of the chosen style, or null. */
@@ -95,8 +92,7 @@ export async function planJob(
   }
 
   const withImages = req.images.length > 0;
-  const source = req.english_prompt?.trim() ? req.english_prompt : req.prompt;
-  const text = withImages ? mentionsToTokens(source) : source;
+  const text = withImages ? mentionsToTokens(req.prompt) : req.prompt;
   return {
     workflow: withImages ? "edit" : "t2i",
     text,

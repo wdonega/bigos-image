@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { mentionLabel, mentionsToTokens, renumberMentions, tokensToMentions } from "./mentions";
+import {
+  mentionLabel,
+  mentionNumbers,
+  mentionsToTokens,
+  renumberMentions,
+  repairMentions,
+} from "./mentions";
 
 describe("mentions", () => {
   it("converts Portuguese and English mentions into the model's <imageN> syntax", () => {
@@ -34,10 +40,15 @@ describe("mentions", () => {
   });
 });
 
-describe("tokensToMentions", () => {
-  it("shows <imageN> tokens as localized labels and round-trips", () => {
-    const shown = tokensToMentions("gato da <image1> no sofá da <image2>", "Imagem");
-    expect(shown).toBe("gato da [Imagem 1] no sofá da [Imagem 2]");
-    expect(mentionsToTokens(shown)).toBe("gato da <image1> no sofá da <image2>");
+describe("mentionNumbers / repairMentions", () => {
+  it("lists mentioned image numbers in any language", () => {
+    expect(mentionNumbers("[Imagem 2] e [imagen 1] e [图片 2]")).toEqual([1, 2]);
+    expect(mentionNumbers("sem menções")).toEqual([]);
+  });
+
+  it("puts back missing brackets and leaves correct mentions alone", () => {
+    expect(repairMentions("o gato da Imagem 1 no sofá da [Imagem 2]")).toBe("o gato da [Imagem 1] no sofá da [Imagem 2]");
+    expect(repairMentions("el perro de imagen 3")).toBe("el perro de [imagen 3]");
+    expect(repairMentions("[Image 1] and [Image 2]")).toBe("[Image 1] and [Image 2]");
   });
 });

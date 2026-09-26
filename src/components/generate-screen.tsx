@@ -33,8 +33,8 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
   const job = useJobRunner();
   const enhancer = usePromptEnhancer(prompt, setPrompt);
   const uploads = useUploads(limits.maxRefs, (order) => {
-    // The accepted English text still points at the old image numbers: fall back to the screen text.
-    enhancer.discard();
+    // Undo would bring back the old image numbers.
+    enhancer.forget();
     setPrompt((p) => renumberMentions(p, order, t("references.mentionWord"), t("references.removedMention")));
   });
 
@@ -67,7 +67,6 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
       quality,
       transparent_background: transparent,
       style,
-      english_prompt: enhancer.englishPrompt,
     });
   }
 

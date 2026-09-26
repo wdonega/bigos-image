@@ -21,7 +21,15 @@ export function renumberMentions(prompt: string, order: number[], word: string, 
   });
 }
 
-/** Inverse of mentionsToTokens, for showing model text (e.g. an improved prompt) to users. */
-export function tokensToMentions(text: string, word: string): string {
-  return text.replace(/<image(\d{1,2})>/g, (_match, n: string) => mentionLabel(Number(n), word));
+/** Numbers of the images mentioned in a text (any language), distinct and sorted. */
+export function mentionNumbers(text: string): number[] {
+  return [...new Set([...text.matchAll(MENTION)].map((m) => Number(m[1])))].sort((a, b) => a - b);
+}
+
+/** An LLM sometimes drops the brackets ("da Imagem 1"): put them back, keeping its word. */
+export function repairMentions(text: string): string {
+  return text.replace(
+    /(?<![[\p{L}])(imagem|imagen|image|图片)\s*(\d{1,2})(?![\d\]])/giu,
+    (_m, word: string, n: string) => `[${word} ${Number(n)}]`,
+  );
 }

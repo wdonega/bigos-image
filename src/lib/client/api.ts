@@ -62,7 +62,7 @@ export async function uploadImage(file: File): Promise<UploadedImage> {
   return send<UploadedImage>("/api/uploads", { method: "POST", body: form });
 }
 
-export type Enhanced = { english: string; summary: string };
+export type Enhanced = { text: string };
 
 export function enhancePrompt(prompt: string, locale: string): Promise<Enhanced> {
   return send<Enhanced>("/api/enhance", {

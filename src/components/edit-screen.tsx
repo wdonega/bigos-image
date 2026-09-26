@@ -68,7 +68,6 @@ export function EditScreen({ limits }: { limits: ScreenLimits }) {
       quality,
       transparent_background: transparent,
       style,
-      english_prompt: enhancer.englishPrompt,
     });
   }
 
