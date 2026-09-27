@@ -4,6 +4,7 @@ import { AppError, sizeProblemDetails } from "../errors.ts";
 import { PRESET_RATIOS, type Size, checkSize, presetSize } from "../size.ts";
 import { mentionsToTokens } from "../mentions.ts";
 import { STYLE_IDS, type StyleId, applyStyle, findStyle } from "../styles.ts";
+import { VIDEO_DURATIONS, VIDEO_RATIOS, buildVideoPrompt, tokensToSubjects, videoFrames, videoSize } from "../video.ts";
 import { randomSeed } from "../workflow/build.ts";
 
 // Request contract of POST /api/jobs (spec §10).
@@ -16,24 +17,44 @@ const sizeSchema = z.union([
   z.object({ ratio: z.literal("original") }),
 ]);
 
-export const jobRequestSchema = z.object({
+const promptSchema = z
+  .string()
+  .max(4000)
+  .refine((s) => s.trim().length > 0);
+const styleSchema = z.enum(STYLE_IDS as [StyleId, ...StyleId[]]).nullable().default(null);
+const qualitySchema = z.enum(["normal", "high"]).default("normal");
+
+const imageRequestSchema = z.object({
   screen: z.enum(["generate", "edit"]),
-  prompt: z
-    .string()
-    .max(4000)
-    .refine((s) => s.trim().length > 0),
+  prompt: promptSchema,
   images: z.array(z.string().min(1)).default([]),
   size: sizeSchema,
-  quality: z.enum(["normal", "high"]).default("normal"),
+  quality: qualitySchema,
   transparent_background: z.boolean().default(false),
-  style: z.enum(STYLE_IDS as [StyleId, ...StyleId[]]).nullable().default(null),
+  style: styleSchema,
 });
 
+// Video (spec §14, decision 28): proportion + duration + quality; references are optional.
+const videoRequestSchema = z.object({
+  screen: z.literal("video"),
+  prompt: promptSchema,
+  images: z.array(z.string().min(1)).default([]),
+  ratio: z.enum(VIDEO_RATIOS),
+  duration: z.literal(VIDEO_DURATIONS),
+  quality: qualitySchema,
+  style: styleSchema,
+});
+
+export const jobRequestSchema = z.union([imageRequestSchema, videoRequestSchema]);
+
 export type JobRequest = z.infer<typeof jobRequestSchema>;
+type ImageRequest = z.infer<typeof imageRequestSchema>;
+type VideoRequest = z.infer<typeof videoRequestSchema>;
 
 /** What the worker needs to build and run the graph; stored as the queue job's data. */
 export type JobPlan = {
-  workflow: "t2i" | "edit";
+  /** The graph: images by number of images (spec §3); video with references uses Ref2VA. */
+  workflow: "t2i" | "edit" | "video_fl2va" | "video_ref2va";
   /**
    * Source of the worker's final LLM pass (English, <imageN> references, style up front): the
    * user's text with mentions already as <imageN>.
@@ -50,8 +71,11 @@ export type JobPlan = {
   size: Size | null;
   /** Upload ids, in order: image_1 first. */
   images: string[];
+  /** Sampling steps (images only; video steps are fixed by its LoRA in the graph). */
   steps: number;
   seed: number;
+  /** Video only: frames at 24 fps (H3's 17k + 5 grid) and the requested seconds. */
+  video?: { frames: number; seconds: number };
 };
 
 /** Looks up a stored upload; injected so planning stays testable without disk. */
@@ -66,6 +90,43 @@ export async function planJob(
   config: Config,
   findUpload: UploadLookup,
 ): Promise<JobPlan> {
+  return req.screen === "video" ? planVideo(req, config, findUpload) : planImage(req, config, findUpload);
+}
+
+async function checkUploads(ids: string[], findUpload: UploadLookup) {
+  for (const id of ids) {
+    if (!(await findUpload(id))) throw new AppError("upload_not_found", 400);
+  }
+}
+
+async function planVideo(req: VideoRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {
+  if (req.images.length > config.video.maxRefs) {
+    throw new AppError("too_many_images", 400, [{ code: "max_refs", params: { max: config.video.maxRefs } }]);
+  }
+  await checkUploads(req.images, findUpload);
+  const references = req.images.length;
+  const text = references > 0 ? mentionsToTokens(req.prompt) : req.prompt;
+  return {
+    workflow: references > 0 ? "video_ref2va" : "video_fl2va",
+    text,
+    style: req.style ? (findStyle(req.style)?.prompt ?? null) : null,
+    // Without the LLM: the text as written, style appended, sound left to the model.
+    fallbackPrompt: buildVideoPrompt({
+      description: tokensToSubjects(applyStyle(text, req.style)),
+      soundscape: "",
+      music: "",
+      references,
+    }),
+    transparentBackground: false,
+    size: videoSize(req.ratio, config.video.pixels[req.quality]),
+    images: req.images,
+    steps: 0,
+    seed: randomSeed(),
+    video: { frames: videoFrames(req.duration), seconds: req.duration },
+  };
+}
+
+async function planImage(req: ImageRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {
   if (req.screen === "edit" && req.images.length !== 1) {
     throw new AppError("invalid_request", 400, [{ code: "edit_needs_one_image" }]);
   }
@@ -75,9 +136,7 @@ export async function planJob(
   if (req.size.ratio === "original" && req.screen !== "edit") {
     throw new AppError("invalid_request", 400, [{ code: "original_edit_only" }]);
   }
-  for (const id of req.images) {
-    if (!(await findUpload(id))) throw new AppError("upload_not_found", 400);
-  }
+  await checkUploads(req.images, findUpload);
 
   let size: Size | null = null;
   if (req.size.ratio !== "original") {

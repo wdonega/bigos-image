@@ -1,0 +1,307 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "MiniMax H3 FL2VA INT8"
+    }
+  },
+  "2": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Qwen3-VL Text Encoder"
+    }
+  },
+  "3": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Video VAE"
+    }
+  },
+  "4": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Audio VAE"
+    }
+  },
+  "5": {
+    "inputs": {
+      "start_second": 0,
+      "end_second": 8,
+      "duration_seconds": 8,
+      "start_frame": 0,
+      "end_frame": 192,
+      "duration_frames": 192,
+      "timeline_data": "{\"mainTrackEnabled\":true,\"audioTrackEnabled\":true,\"motionTrackEnabled\":true,\"propHeight\":230,\"globalPropHeight\":301,\"showFilenames\":true,\"showPromptZones\":true,\"overrideAudio\":false,\"inpaint_audio\":true,\"global_prompt\":\"An immersive cinematic science-fiction journey toward a colossal black hole. An unobstructed forward-facing viewpoint travels rapidly through deep space toward its dark circular shadow.\\n\\nA brilliant accretion disk of white-hot and amber gas surrounds the darkness. Fine luminous textures flow around the black hole within one continuous disk. Gravitational lensing bends light from its far side into smooth arcs above and below the central shadow. The disk has a bright inner edge and softer outer regions.\\n\\nClear black space surrounds the disk, with sparse distant stars. The central shadow remains completely dark and sharply defined throughout the approach. Rich cinematic contrast, immense scale, detailed glowing gas, and restrained lens flare.\\n\\nThe viewpoint is already moving rapidly when the scene begins. Forward acceleration increases continuously. One uninterrupted forward-moving shot, aimed toward the same black hole, with a subtle banking movement and increasingly noticeable camera vibration as the viewpoint approaches.\\n\\nThe mood is overwhelming, dangerous, and awe-inspiring.\",\"retake_global_prompt\":\"\",\"overall_soundscape\":\"Cinematic science-fiction sound design: a deep mechanical rumble builds into a powerful rising roar, layered with vibrating metal, electrical resonance, and increasingly intense low-frequency pulses. The sound becomes overwhelming near the black hole, then cuts instantly to silence with the final black frame. No voices or music.\",\"non_diegetic_music\":\"N/A\",\"prompt_override\":\"\",\"prompt_override_on\":false,\"retakeMode\":false,\"retakeStart\":45,\"retakeLength\":45,\"retakePrompt\":\"\",\"retakeStrength\":1,\"retakeVideo\":null,\"normalStartFrame\":0,\"normalDurationFrames\":192,\"reference_mode\":\"OFF\",\"prompt_format\":\"minimax\",\"analyzeProvider\":\"ollama\",\"analyzeBaseUrl\":\"\",\"analyzeModel\":\"\",\"summary\":\"Two adult friends talk in a single eight-second beach close-up.\",\"task_type_override\":\"\",\"subjectSlotCount\":3,\"subjects\":[{\"images\":[],\"description\":\"\",\"shortName\":\"\",\"kind\":\"person\",\"retention\":\"fully_preserved\",\"retentionNote\":\"\"},{\"images\":[],\"description\":\"\",\"shortName\":\"\",\"kind\":\"person\",\"retention\":\"fully_preserved\",\"retentionNote\":\"\"},{\"images\":[],\"description\":\"\",\"shortName\":\"\",\"kind\":\"person\",\"retention\":\"fully_preserved\",\"retentionNote\":\"\"}],\"segments\":[{\"id\":\"1789644358848u5t06\",\"start\":0,\"length\":192,\"prompt\":\"Begin already rushing toward a massive black hole, its glowing accretion disk clearly visible ahead. The black hole initially occupies roughly one-third of the frame.\\n\\nAccelerate continuously toward it. The dark circular shadow expands steadily as increasingly detailed ribbons of incandescent gas become visible within the disk. The space between the camera and the black hole remains clear, giving an uninterrupted view of the approaching darkness.\\n\\nThe camera banks slightly while continuing straight toward the same target. Light from the surrounding disk bends into smooth, connected arcs. The entire structure grows larger as the viewpoint draws dangerously close.\\n\\nDuring the final three seconds, intensify the acceleration and subtle camera vibration. The black shadow expands until it dominates almost the entire image. The bright disk and its lensed arcs slide toward the edges of the frame as the camera closes in, maintaining a clearly defined dark center.\\n\\nEnd with an abrupt cut to black at the moment of closest approach. Maintain continuous forward momentum throughout the shot.\",\"type\":\"text\",\"isEndFrame\":false}],\"motionSegments\":[],\"audioSegments\":[]}",
+      "local_prompts": "Begin already rushing toward a massive black hole, its glowing accretion disk clearly visible ahead. The black hole initially occupies roughly one-third of the frame.\n\nAccelerate continuously toward it. The dark circular shadow expands steadily as increasingly detailed ribbons of incandescent gas become visible within the disk. The space between the camera and the black hole remains clear, giving an uninterrupted view of the approaching darkness.\n\nThe camera banks slightly while continuing straight toward the same target. Light from the surrounding disk bends into smooth, connected arcs. The entire structure grows larger as the viewpoint draws dangerously close.\n\nDuring the final three seconds, intensify the acceleration and subtle camera vibration. The black shadow expands until it dominates almost the entire image. The bright disk and its lensed arcs slide toward the edges of the frame as the camera closes in, maintaining a clearly defined dark center.\n\nEnd with an abrupt cut to black at the moment of closest approach. Maintain continuous forward momentum throughout the shot.",
+      "segment_lengths": "192",
+      "guide_strength": "",
+      "use_custom_audio": true,
+      "use_custom_motion": true,
+      "inpaint_audio": true,
+      "frame_rate": 24,
+      "display_mode": "seconds",
+      "custom_width": 1376,
+      "custom_height": 768,
+      "resize_method": "crop",
+      "divisible_by": 32,
+      "img_compression": 0,
+      "override_audio": false,
+      "ref_image_size": "match",
+      "shift_video": 12,
+      "shift_audio": 3,
+      "ref_image_notes": "",
+      "minimax_settings_ui": "",
+      "timeline_ui": "",
+      "minimax_prompt_preview": "",
+      "clip": [
+        "2",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "model": [
+        "386",
+        0
+      ],
+      "model_ref2va": [
+        "387",
+        0
+      ],
+      "audio_vae": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3DirectorCS",
+    "_meta": {
+      "title": "MiniMax H3 Director - FL2VA + Ref2VA"
+    }
+  },
+  "16": {
+    "inputs": {
+      "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "MiniMax H3 Ref2VA INT8"
+    }
+  },
+  "386": {
+    "inputs": {
+      "lora_name": "minimax_h3_taomate_fl2va_3step_ema_comfyui.safetensors",
+      "strength_model": 1,
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "TaoMate 3-Step LoRA · strength 1.0"
+    }
+  },
+  "387": {
+    "inputs": {
+      "lora_name": "minimax_h3_taomate_fl2va_3step_ema_comfyui.safetensors",
+      "strength_model": 1,
+      "model": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "TaoMate 3-Step - Ref2VA (experimental)"
+    }
+  },
+  "388": {
+    "inputs": {
+      "noise_seed": 8303
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "Video Seed"
+    }
+  },
+  "389": {
+    "inputs": {
+      "sampler_name": "res_multistep"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "Video Sampler"
+    }
+  },
+  "390": {
+    "inputs": {
+      "sigmas": "1.0, 0.961165, 0.853333, 0.0"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "Three-Step Sigma Schedule"
+    }
+  },
+  "391": {
+    "inputs": {
+      "model": [
+        "395",
+        0
+      ],
+      "conditioning": [
+        "5",
+        1
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Video Guider"
+    }
+  },
+  "392": {
+    "inputs": {
+      "noise": [
+        "388",
+        0
+      ],
+      "guider": [
+        "391",
+        0
+      ],
+      "sampler": [
+        "389",
+        0
+      ],
+      "sigmas": [
+        "390",
+        0
+      ],
+      "latent_image": [
+        "5",
+        2
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "Video Sampling"
+    }
+  },
+  "393": {
+    "inputs": {
+      "attention": "comfy kitchen attention",
+      "model": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "ModelAttentionBackend",
+    "_meta": {
+      "title": "Comfy Kitchen Attention"
+    }
+  },
+  "395": {
+    "inputs": {
+      "chunks": 4,
+      "seq_threshold": 4096,
+      "model": [
+        "398",
+        0
+      ]
+    },
+    "class_type": "MiniMaxChunkFeedForward",
+    "_meta": {
+      "title": "Feed-Forward Chunks"
+    }
+  },
+  "398": {
+    "inputs": {
+      "head_chunks": 4,
+      "model": [
+        "393",
+        0
+      ]
+    },
+    "class_type": "MiniMaxLowVRAMAttention",
+    "_meta": {
+      "title": "Attention Head Groups"
+    }
+  },
+  "401": {
+    "inputs": {
+      "samples": [
+        "392",
+        0
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "Decode Audio"
+    }
+  },
+  "402": {
+    "inputs": {
+      "samples": [
+        "392",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Decode Video"
+    }
+  },
+  "403": {
+    "inputs": {
+      "frame_rate": [
+        "5",
+        4
+      ],
+      "loop_count": 0,
+      "filename_prefix": "MiniMax_H3_3Step_Director/MiniMax_H3_3Step_Director",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 18,
+      "save_metadata": true,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "402",
+        0
+      ],
+      "audio": [
+        "401",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Output"
+    }
+  }
+}

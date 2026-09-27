@@ -39,11 +39,19 @@ export function repairTokens(text: string): string {
 }
 
 /** `mentions`: the image mentions exactly as the user wrote them ("[Imagem 1]"), listed so a small model keeps them. */
-export function systemPrompt(locale: string, mentions: string[]): string {
+/** What "Improve text" details: a still image, or a video (which also has motion and sound). */
+export type EnhanceKind = "image" | "video";
+
+const DETAILS: Record<EnhanceKind, string> = {
+  image: "subject, setting, lighting, composition",
+  video: "subject, action over time, camera movement, setting, lighting, sounds",
+};
+
+export function systemPrompt(locale: string, mentions: string[], kind: EnhanceKind = "image"): string {
   const language = LANGUAGE_NAMES[locale] ?? "English";
   return [
-    "You improve prompts for an image generator.",
-    `Rewrite the user idea as ONE more detailed prompt in ${language} (subject, setting, lighting, composition). Maximum 60 words. Keep the user's intent; do not add an art style.`,
+    `You improve prompts for ${kind === "video" ? "a video" : "an image"} generator.`,
+    `Rewrite the user idea as ONE more detailed prompt in ${language} (${DETAILS[kind]}). Maximum ${kind === "video" ? 80 : 60} words. Keep the user's intent; do not add an art style.`,
     mentions.length > 0
       ? `The prompt MUST contain these exact mentions of input images, brackets included: ${mentions.join(", ")}.`
       : "",
@@ -127,13 +135,14 @@ export function enhancePrompt(
   prompt: string,
   locale: string,
   fetchImpl: typeof fetch = fetch,
+  kind: EnhanceKind = "image",
 ): Promise<EnhanceResult> {
   const expected = mentionNumbers(prompt);
   const mentions = [...new Set(prompt.match(MENTION_LABEL) ?? [])];
   return complete(
     llm,
     [
-      { role: "system", content: systemPrompt(locale, mentions) },
+      { role: "system", content: systemPrompt(locale, mentions, kind) },
       { role: "user", content: prompt },
     ],
     (content) => parseReply(content, expected),
@@ -219,6 +228,86 @@ export function finalizePrompt(
       { role: "user", content: text },
     ],
     (content) => parseFinalReply(content, expected, imageCount, style),
+    fetchImpl,
+    FINAL_ATTEMPTS,
+  );
+}
+
+// Final pass for video (spec §14, decision 28): besides the English description, H3 writes the
+// soundtrack itself, so the pass also derives the sounds (and music, only if asked) from the text.
+// Plain labeled lines, not JSON: the small model breaks JSON quoting.
+
+export type VideoPromptText = { description: string; soundscape: string; music: string };
+
+export function finalVideoSystemPrompt(imageCount: number, style: string | null): string {
+  const images = imageCount > 0;
+  return [
+    "You prepare prompts for a video generator that also creates the soundtrack.",
+    "Translate the user idea to English, faithfully: keep its meaning and details, add nothing new.",
+    images
+      ? `The idea refers to ${imageCount} input image(s) as <image1>${imageCount > 1 ? ", <image2>" : ""}: keep every such reference exactly, in the right place.`
+      : "",
+    style ? `Art style: ${style}. Begin DESCRIPTION with that style.` : "",
+    "Reply with exactly three lines:",
+    "DESCRIPTION: <what happens in the video, in English>",
+    "SOUND: <the sounds this scene makes: ambience, effects, voices if any; NONE if the user asked for silence>",
+    "MUSIC: <background music only if the user asked for music, else N/A>",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** Reads the three labeled lines; null when the description is missing or loses/invents references or the style. */
+export function parseVideoReply(
+  content: string,
+  expected: string[],
+  imageCount: number,
+  style: string | null,
+): VideoPromptText | null {
+  const field = (label: string) => {
+    // Labels may come bold ("**SOUND:**"); a field runs until the next label or the end.
+    const match = content.match(
+      new RegExp(`^\\s*\\**${label}\\**\\s*:\\**\\s*([\\s\\S]*?)(?=^\\s*\\**(?:DESCRIPTION|SOUND|MUSIC)\\**\\s*:|$(?![\\s\\S]))`, "im"),
+    );
+    return match ? match[1].trim() : "";
+  };
+  const description = repairTokens(field("DESCRIPTION"));
+  if (!description) return null;
+  const tokens = imageTokens(description);
+  if (expected.some((t) => !tokens.includes(t))) return null;
+  if (tokens.some((t) => Number(t.slice(6, -1)) > imageCount)) return null;
+  if (style) {
+    const words = styleKeywords(style);
+    const head = description.slice(0, STYLE_HEAD_CHARS).toLowerCase();
+    if (words.length > 0 && !words.some((w) => head.includes(w))) return null;
+  }
+  // The model sometimes tacks the "NONE" option onto a real list ("waves, wind; NONE").
+  const sound = field("SOUND").replace(/[;,]\s*none\.?$/i, "").trim();
+  const music = field("MUSIC");
+  return {
+    description,
+    // NONE: the user asked for silence, which the guide writes as N/A.
+    soundscape: /^none\.?$/i.test(sound) ? "N/A" : sound,
+    music: /^(n\/a|none)\.?$/i.test(music) ? "" : music,
+  };
+}
+
+/** `text` carries <imageN> tokens; `style` is the style's English phrase or null. */
+export function finalizeVideoPrompt(
+  llm: LlmConfig,
+  text: string,
+  style: string | null,
+  imageCount: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<VideoPromptText> {
+  const expected = imageTokens(text);
+  return complete(
+    llm,
+    [
+      { role: "system", content: finalVideoSystemPrompt(imageCount, style) },
+      { role: "user", content: text },
+    ],
+    (content) => parseVideoReply(content, expected, imageCount, style),
     fetchImpl,
     FINAL_ATTEMPTS,
   );

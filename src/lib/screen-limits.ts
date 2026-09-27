@@ -1,7 +1,7 @@
 import { getConfig } from "./config.ts";
 import type { SizeLimits } from "./size.ts";
 
-export type ScreenLimits = SizeLimits & { maxRefs: number; maxUploadBytes: number; canEnhance: boolean };
+export type ScreenLimits = SizeLimits & { maxRefs: number; maxUploadBytes: number; canEnhance: boolean; maxVideoRefs: number };
 
 /** The subset of server config the screens need (sent to the browser; no secrets). */
 export function screenLimits(): ScreenLimits {
@@ -13,5 +13,6 @@ export function screenLimits(): ScreenLimits {
     maxRefs: c.maxRefs,
     maxUploadBytes: c.maxUploadBytes,
     canEnhance: c.llm !== null,
+    maxVideoRefs: c.video.maxRefs,
   };
 }

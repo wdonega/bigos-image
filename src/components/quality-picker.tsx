@@ -10,17 +10,18 @@ export function QualityPicker({
   value,
   onChange,
   disabled,
+  hints,
 }: {
   value: Quality;
   onChange: (next: Quality) => void;
   disabled?: boolean;
+  /** Overrides the image hints (on video, Quality is sharpness, not steps). */
+  hints?: Record<Quality, string>;
 }) {
   const { t } = useI18n();
+  const hint = hints ? hints[value] : t(value === "high" ? "quality.highHint" : "quality.normalHint");
   return (
-    <Field
-      label={t("quality.label")}
-      hint={t(value === "high" ? "quality.highHint" : "quality.normalHint")}
-    >
+    <Field label={t("quality.label")} hint={hint}>
       <ToggleGroup
         type="single"
         variant="outline"

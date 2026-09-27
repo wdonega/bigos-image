@@ -18,10 +18,13 @@ export function StyleField({
   value,
   onChange,
   disabled,
+  noneHint,
 }: {
   value: StyleId | null;
   onChange: (value: StyleId | null) => void;
   disabled?: boolean;
+  /** Text under "None" (the Video screen talks about the video, not the image). */
+  noneHint?: string;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -42,7 +45,7 @@ export function StyleField({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{style ? t(`styles.${style.id}`) : t("stylePicker.none")}</p>
           <p className="line-clamp-2 text-xs text-muted-foreground">
-            {style ? t(`styleCategories.${style.category}`) : t("stylePicker.noneHint")}
+            {style ? t(`styleCategories.${style.category}`) : (noneHint ?? t("stylePicker.noneHint"))}
           </p>
         </div>
         {style ? (

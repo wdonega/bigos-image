@@ -17,6 +17,7 @@ export const zhCN: Messages = {
   nav: {
     generate: "生成",
     edit: "编辑",
+    video: "视频",
   },
   generate: {
     emptyHint: "在旁边写下你的想法，然后点击“生成图片”。",
@@ -38,6 +39,24 @@ export const zhCN: Messages = {
     submit: "编辑图片",
     submitting: "正在编辑…",
     aspectWarning: "所选比例与原图不同，图片的部分内容可能会被裁剪或移位。",
+  },
+  video: {
+    emptyTitle: "你的视频会显示在这里。",
+    styleNoneHint: "视频会按照文字描述的风格生成。",
+    title: "创建视频",
+    subtitle: "描述场景，选择时长和比例。视频带有声音。",
+    promptLabel: "视频里发生了什么？",
+    promptPlaceholder: "例如：一只金毛犬在日落时沿着海滩奔跑，浪花飞溅",
+    submit: "创建视频",
+    submitting: "正在创建…",
+    emptyHint: "在旁边描述场景，然后点击“创建视频”。",
+    runningHint: "生成一个视频需要几分钟。可以让此页面保持打开。",
+    referencesHelp: "可选：应该出现的人物、地点或物品的照片。用 @ 在文字中提及它们，例如：“[图片 1] 在玩 [图片 2] 里的球”。",
+    duration: "时长",
+    durationHint: "视频越长，生成所需时间越长。",
+    seconds: "{seconds} 秒",
+    qualityNormalHint: "约 720p。适合大多数情况。",
+    qualityHighHint: "约 1080p：更清晰，但耗时约为 3 倍。",
   },
   imageDrop: {
     choose: "选择或拖入一张图片",
@@ -92,6 +111,9 @@ export const zhCN: Messages = {
     editHint: "当图片中的物体或角色位于简单背景上时有效。对于完整场景的照片，背景通常会保留。",
   },
   job: {
+    resultVideoAlt: "生成的视频",
+    resultInfoVideo: "{width} × {height} 像素 · 带声音的 MP4",
+    downloadVideo: "下载 MP4",
     retry: "重试",
     empty: "生成的图片会显示在这里。",
     sending: "正在发送…",

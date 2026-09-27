@@ -3,7 +3,9 @@
 - `templates-ui/`: os dois templates originais do Comfy-Org (formato de UI, com subgraph). **Só referência.**
 - `api/`: os workflows **exportados em API format**, que o backend realmente usa. Você gera esses arquivos (veja abaixo).
 
-Arquivos esperados em `api/`: `api/t2i_api.json` e `api/edit_api.json`.
+Arquivos esperados em `api/`: `api/t2i_api.json`, `api/edit_api.json`, `api/video_fl2va_api.json` e `api/video_ref2va_api.json`.
+
+Os dois de vídeo (MiniMax H3, spec §14 decisão 28) foram derivados do `api/video_api.json` (o workflow com o nó `MiniMaxH3DirectorCS`, mantido só como referência): o Director foi trocado pelos nós nativos `MiniMaxH3ImageToVideo` (sem referências) e `MiniMaxH3ReferenceToVideo` (com referências), mais `MiniMaxH3SigmaShift`.
 
 ## Como exportar
 
@@ -33,6 +35,15 @@ node scripts/check-workflows.mjs
 | `@custom_size` | `ComfySwitchNode` | `switch` | | ✓ |
 | `@image_1` | `LoadImage` | `image` (o backend clona este nó para `image_2` a `image_10`) | | ✓ |
 | `@save` | `SaveImageAdvanced` | — (formato PNG fixo) | ✓ | ✓ |
+
+Vídeo:
+
+| Título | `class_type` | Inputs que o backend escreve | fl2va | ref2va |
+|--------|--------------|------------------------------|:-----:|:------:|
+| `@video` | `MiniMaxH3ImageToVideo` / `MiniMaxH3ReferenceToVideo` | `prompt`, `width`, `height`, `length` | ✓ | ✓ |
+| `@seed` | `RandomNoise` | `noise_seed` | ✓ | ✓ |
+| `@image_1` | `LoadImage` | `image` (clonado para `image_2` a `image_9`, ligados em `ref_images.ref_image_N`) | | ✓ |
+| `@save` | `VHS_VideoCombine` | — (mp4 h264 + áudio) | ✓ | ✓ |
 
 `width` e `height` moram no mesmo nó (`@latent_size`), e `seed`/`steps`/`cfg` no mesmo nó (`@sampler`).
 

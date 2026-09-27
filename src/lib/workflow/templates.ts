@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { ApiGraph } from "./graph.ts";
 
-export type WorkflowName = "t2i" | "edit";
+export type WorkflowName = "t2i" | "edit" | "video_fl2va" | "video_ref2va";
 
 const cache = new Map<WorkflowName, ApiGraph>();
 

@@ -47,6 +47,17 @@ export function EditIcon(props: IconProps) {
   );
 }
 
+/** Video: a camera with a sparkle. */
+export function VideoIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="2.5" y="7" width="13" height="11" rx="2" />
+      <path d="m15.5 11 5-3v9l-5-3" />
+      <path d="M8.5 2.2l.7 1.7 1.7.7-1.7.7-.7 1.7-.7-1.7-1.7-.7 1.7-.7Z" />
+    </Icon>
+  );
+}
+
 /** Reference images: a photo with cat ears. */
 export function ReferenceIcon(props: IconProps) {
   return (

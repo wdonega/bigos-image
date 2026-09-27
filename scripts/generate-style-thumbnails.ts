@@ -50,10 +50,10 @@ for (const [i, style] of todo.entries()) {
   for (;;) {
     const view = (await (await fetch(`${base}/api/jobs/${created.job_id}`)).json()) as {
       status: string;
-      imageUrl?: string;
+      url?: string;
     };
     if (view.status === "done") {
-      const png = Buffer.from(await (await fetch(`${base}${view.imageUrl}`)).arrayBuffer());
+      const png = Buffer.from(await (await fetch(`${base}${view.url}`)).arrayBuffer());
       writeFileSync(`${OUT}/${style.id}.webp`, await sharp(png).resize(SIDE, SIDE).webp({ quality: 80 }).toBuffer());
       break;
     }

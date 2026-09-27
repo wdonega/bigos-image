@@ -16,6 +16,7 @@ export const esMX: Messages = {
   nav: {
     generate: "Crear",
     edit: "Editar",
+    video: "Video",
   },
   generate: {
     emptyHint: "Escribe tu idea al lado y toca Crear imagen.",
@@ -38,6 +39,24 @@ export const esMX: Messages = {
     submitting: "Editando…",
     aspectWarning:
       "La proporción elegida es distinta a la de la imagen original. Algunas partes pueden recortarse o cambiar de lugar.",
+  },
+  video: {
+    emptyTitle: "Tu video aparece aquí.",
+    styleNoneHint: "El video sale en el estilo que describa tu texto.",
+    title: "Crear video",
+    subtitle: "Describe la escena, elige la duración y la proporción. El video sale con sonido.",
+    promptLabel: "¿Qué pasa en el video?",
+    promptPlaceholder: "Ej.: un golden retriever corriendo en la playa al atardecer, olas rompiendo",
+    submit: "Crear video",
+    submitting: "Creando…",
+    emptyHint: "Describe la escena al lado y toca Crear video.",
+    runningHint: "Un video tarda algunos minutos. Puedes dejar esta página abierta.",
+    referencesHelp: "Opcional: fotos de los personajes, lugares u objetos que deben aparecer. Usa @ para mencionarlas en el texto, por ejemplo: “[Imagen 1] juega con la pelota de [Imagen 2]”.",
+    duration: "Duración",
+    durationHint: "Los videos más largos tardan más en estar listos.",
+    seconds: "{seconds} s",
+    qualityNormalHint: "Cerca de 720p. Bueno para la mayoría de los casos.",
+    qualityHighHint: "Cerca de 1080p: más nítido, pero tarda unas 3 veces más.",
   },
   imageDrop: {
     choose: "Elige o arrastra una imagen",
@@ -93,6 +112,9 @@ export const esMX: Messages = {
       "Funciona cuando la imagen ya tiene un objeto o personaje sobre un fondo sencillo. En fotos con un escenario completo, el fondo suele quedarse.",
   },
   job: {
+    resultVideoAlt: "Video generado",
+    resultInfoVideo: "{width} × {height} px · MP4 con sonido",
+    downloadVideo: "Descargar MP4",
     retry: "Intentar de nuevo",
     empty: "Tu imagen aparecerá aquí.",
     sending: "Enviando…",

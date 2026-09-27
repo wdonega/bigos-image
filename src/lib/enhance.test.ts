@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  finalVideoSystemPrompt,
+  parseVideoReply,
   enhancePrompt,
   finalSystemPrompt,
   finalizePrompt,
@@ -127,5 +129,43 @@ describe("final pass", () => {
     expect(out).toBe("Watercolor painting of a cat on <image1>");
     const body = JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body));
     expect(body.messages[1]).toEqual({ role: "user", content: "um gato na <image1>" });
+  });
+});
+
+describe("video final pass", () => {
+  const watercolor = "watercolor painting, soft washes, paper texture";
+
+  it("asks for three labeled lines, references and the style only when present", () => {
+    const withAll = finalVideoSystemPrompt(2, watercolor);
+    expect(withAll).toContain("DESCRIPTION:");
+    expect(withAll).toContain("<image1>, <image2>");
+    expect(withAll).toContain(`Art style: ${watercolor}. Begin DESCRIPTION with that style.`);
+    expect(finalVideoSystemPrompt(0, null)).not.toMatch(/<image1>|Art style/);
+  });
+
+  it("reads the three fields, including multi-line and bold labels", () => {
+    const reply = "**DESCRIPTION:** A dog runs on the beach.\nIt jumps into the waves.\nSOUND: waves, barking; NONE\nMUSIC: N/A";
+    expect(parseVideoReply(reply, [], 0, null)).toEqual({
+      description: "A dog runs on the beach.\nIt jumps into the waves.",
+      soundscape: "waves, barking",
+      music: "",
+    });
+  });
+
+  it("maps a silence request to N/A and keeps asked-for music", () => {
+    expect(parseVideoReply("DESCRIPTION: Two friends talk.\nSOUND: NONE\nMUSIC: soft jazz", [], 0, null)).toEqual({
+      description: "Two friends talk.",
+      soundscape: "N/A",
+      music: "soft jazz",
+    });
+  });
+
+  it("rejects lost references, invented ones and a style that is not up front", () => {
+    expect(parseVideoReply("DESCRIPTION: A cat paints.\nSOUND: x\nMUSIC: N/A", ["<image1>"], 1, null)).toBeNull();
+    expect(parseVideoReply("DESCRIPTION: <image2> paints.\nSOUND: x\nMUSIC: N/A", [], 1, null)).toBeNull();
+    const late =
+      "DESCRIPTION: A cat from <image1> paints a picture by the big window of a quiet little room full of plants, soft morning light on the wooden floor, in watercolor painting\nSOUND: x\nMUSIC: N/A";
+    expect(parseVideoReply(late, ["<image1>"], 1, watercolor)).toBeNull();
+    expect(parseVideoReply("no labels at all", [], 0, null)).toBeNull();
   });
 });

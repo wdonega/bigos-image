@@ -2,14 +2,15 @@ import { randomUUID } from "node:crypto";
 import { type Job, UnrecoverableError, Worker } from "bullmq";
 import sharp from "sharp";
 import { ComfyClient, ComfyError } from "../comfy/client.ts";
-import { outputImage, runPrompt } from "../comfy/run.ts";
+import { outputImage, outputVideo, runPrompt } from "../comfy/run.ts";
 import { type Config, getConfig } from "../config.ts";
-import { finalizePrompt } from "../enhance.ts";
+import { finalizePrompt, finalizeVideoPrompt } from "../enhance.ts";
 import { AppError, type Detail, type ErrorCode } from "../errors.ts";
 import { buildPrompt } from "../prompt.ts";
 import { removeExpired, writeStored } from "../storage.ts";
 import { type SentImage, fitToBudget, readUploadImage, readUploadMeta } from "../uploads.ts";
-import { buildEdit, buildT2I } from "../workflow/build.ts";
+import { buildVideoPrompt, tokensToSubjects } from "../video.ts";
+import { buildEdit, buildT2I, buildVideo } from "../workflow/build.ts";
 import { type ApiGraph, findNodeId } from "../workflow/graph.ts";
 import { loadTemplate } from "../workflow/templates.ts";
 import { type JobData, type JobResult, QUEUE_NAME, cancelKey, createRedis } from "./queue.ts";
@@ -20,8 +21,8 @@ const shared: Shared = (holder.__bigosWorker ??= {});
 
 const CLEANUP_EVERY_MS = 3_600_000;
 
-export function resultName(jobId: string): string {
-  return `${jobId}.png`;
+export function resultName(jobId: string, media: "image" | "video" = "image"): string {
+  return `${jobId}.${media === "video" ? "mp4" : "png"}`;
 }
 
 function toErrorCode(err: unknown, cancelled: boolean): ErrorCode {
@@ -81,12 +82,55 @@ export async function resolvePrompt(
   }
 }
 
+/**
+ * Video final pass (spec §14, decision 28): the LLM writes the English description, the sounds and
+ * the music; the MiniMax prompt layout is ours. Falls back like images do.
+ */
+export async function resolveVideoPrompt(
+  data: Pick<JobData, "text" | "style" | "fallbackPrompt" | "images">,
+  llm: Config["llm"],
+  finalize: typeof finalizeVideoPrompt = finalizeVideoPrompt,
+): Promise<string> {
+  if (!llm || data.text.length > llm.maxInputChars) return data.fallbackPrompt;
+  try {
+    const parts = await finalize(llm, data.text, data.style, data.images.length);
+    return buildVideoPrompt({
+      description: tokensToSubjects(parts.description),
+      soundscape: parts.soundscape,
+      music: parts.music,
+      references: data.images.length,
+    });
+  } catch (err) {
+    console.warn("[worker] final video prompt pass failed, using the fallback", err instanceof Error ? err.message : err);
+    return data.fallbackPrompt;
+  }
+}
+
+const isVideo = (data: Pick<JobData, "workflow">) =>
+  data.workflow === "video_fl2va" || data.workflow === "video_ref2va";
+
 async function buildGraph(
   data: JobData,
   client: ComfyClient,
   config: Config,
   warnings: Detail[],
 ): Promise<ApiGraph> {
+  if (isVideo(data)) {
+    if (!data.size || !data.video) throw new AppError("invalid_request", 400);
+    const names: string[] = [];
+    for (const id of data.images) {
+      const png = await readUploadImage(config, id);
+      if (!png) throw new AppError("upload_not_found", 400);
+      names.push(await client.uploadImage(png, `bigos-${id}.png`));
+    }
+    return buildVideo(loadTemplate(data.workflow), {
+      prompt: data.finalPrompt ?? data.fallbackPrompt,
+      ...data.size,
+      frames: data.video.frames,
+      seed: data.seed,
+      images: names,
+    });
+  }
   const prompt = buildPrompt(data.finalPrompt ?? data.fallbackPrompt, data.transparentBackground);
   if (data.workflow === "t2i") {
     if (!data.size) throw new AppError("invalid_request", 400);
@@ -139,18 +183,35 @@ async function processJob(
     }
     const warnings: Detail[] = [];
     if (job.data.finalPrompt === undefined) {
-      const finalPrompt = await resolvePrompt(job.data, config.llm);
+      const finalPrompt = isVideo(job.data)
+        ? await resolveVideoPrompt(job.data, config.llm)
+        : await resolvePrompt(job.data, config.llm);
       console.log(`[worker] job ${id} prompt: ${finalPrompt}`);
       await job.updateData({ ...job.data, finalPrompt });
     }
     const graph = await buildGraph(job.data, client, config, warnings);
+    let bestShare = 0;
     const { entry } = await runPrompt(client, graph, {
-      timeoutMs: config.jobTimeoutMs,
+      timeoutMs: isVideo(job.data) ? config.video.timeoutMs : config.jobTimeoutMs,
       knownPromptId: job.data.promptId,
       onPromptId: (promptId) => job.updateData({ ...job.data, promptId }),
-      onProgress: (progress) => void job.updateProgress(progress).catch(() => {}),
+      onProgress: (progress) => {
+        // Nodes after the sampler (video decode) report their own 0→100%: never move the bar back.
+        if (progress.phase === "running") {
+          const share = progress.max > 0 ? progress.value / progress.max : 0;
+          if (share < bestShare) return;
+          bestShare = share;
+        }
+        void job.updateProgress(progress).catch(() => {});
+      },
       signal: controller.signal,
     });
+    if (isVideo(job.data)) {
+      const mp4 = await client.view(outputVideo(entry, findNodeId(graph, "@save")));
+      await writeStored(config, "results", resultName(id, "video"), mp4);
+      const size = job.data.size ?? { width: 0, height: 0 };
+      return { ...size, transparent: false, warnings, media: "video" };
+    }
     const raw = await client.view(outputImage(entry, findNodeId(graph, "@save")));
     const image = await finalizeImage(raw, job.data.transparentBackground);
     if (job.data.transparentBackground && (await transparentShare(image.png)) < MIN_TRANSPARENT_SHARE) {
@@ -163,6 +224,7 @@ async function processJob(
       height: image.height,
       transparent: job.data.transparentBackground,
       warnings,
+      media: "image",
     };
   } catch (err) {
     const code = toErrorCode(err, controller.signal.aborted || (await isCancelled().catch(() => false)));

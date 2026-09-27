@@ -9,7 +9,14 @@ import type { JobPlan } from "./request.ts";
 export const QUEUE_NAME = "bigos-generations";
 
 export type JobData = JobPlan & { promptId?: string };
-export type JobResult = { width: number; height: number; transparent: boolean; warnings: Detail[] };
+export type JobResult = {
+  width: number;
+  height: number;
+  transparent: boolean;
+  warnings: Detail[];
+  /** Missing on jobs finished before videos existed: an image. */
+  media?: "image" | "video";
+};
 
 export type JobView =
   | { id: string; status: "queued"; ahead: number }
@@ -18,7 +25,9 @@ export type JobView =
   | {
       id: string;
       status: "done";
-      imageUrl: string;
+      media: "image" | "video";
+      /** The PNG (images) or MP4 (videos). */
+      url: string;
       width: number;
       height: number;
       transparent: boolean;
@@ -116,7 +125,8 @@ export function getJobView(id: string): Promise<JobView | null> {
       return {
         id,
         status: "done",
-        imageUrl: `/api/jobs/${id}/image`,
+        media: r.media ?? "image",
+        url: `/api/jobs/${id}/${r.media === "video" ? "video" : "image"}`,
         width: r.width,
         height: r.height,
         transparent: r.transparent,

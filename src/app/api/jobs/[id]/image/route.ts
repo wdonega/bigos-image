@@ -8,7 +8,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/jobs/[id]/im
   try {
     const { id } = await ctx.params;
     const view = await getJobView(id);
-    if (view?.status !== "done") throw new AppError("job_not_found", 404);
+    if (view?.status !== "done" || view.media !== "image") throw new AppError("job_not_found", 404);
     const png = await readStored(getConfig(), "results", resultName(id));
     if (!png) throw new AppError("job_not_found", 404);
 

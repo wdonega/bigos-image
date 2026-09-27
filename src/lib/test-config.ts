@@ -17,4 +17,5 @@ export const testConfig: Config = {
   steps: { normal: 25, high: 40 },
   llm: null,
   comfyWakeMs: 30_000,
+  video: { pixels: { normal: 921_600, high: 2_073_600 }, maxRefs: 9, timeoutMs: 40 * 60_000 },
 };

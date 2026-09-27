@@ -22,6 +22,12 @@ const envSchema = z.object({
   JOB_TIMEOUT_MINUTES: positiveInt.default(15),
   STEPS_NORMAL: positiveInt.default(25),
   STEPS_HIGH: positiveInt.default(40),
+  // Video (MiniMax H3): pixels per Quality (≈720p / ≈1080p at 16:9), references, time limit.
+  VIDEO_PIXELS_NORMAL: positiveInt.default(921_600),
+  VIDEO_PIXELS_HIGH: positiveInt.default(2_073_600),
+  // ComfyUI's MiniMaxH3ReferenceToVideo takes at most 9 reference images.
+  MAX_VIDEO_REFS: positiveInt.max(9).default(9),
+  VIDEO_JOB_TIMEOUT_MINUTES: positiveInt.default(40),
   // The ComfyUI machine wakes on LAN: how long to wait for it before calling it unavailable.
   COMFY_WAKE_SECONDS: positiveInt.default(30),
   // Optional: "Improve text" is hidden when the LLM is not configured.
@@ -61,6 +67,7 @@ export type Config = {
   retentionMs: number;
   jobTimeoutMs: number;
   steps: { normal: number; high: number };
+  video: { pixels: { normal: number; high: number }; maxRefs: number; timeoutMs: number };
   llm: LlmConfig | null;
 };
 
@@ -88,6 +95,11 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
     retentionMs: e.RETENTION_HOURS * 3_600_000,
     jobTimeoutMs: e.JOB_TIMEOUT_MINUTES * 60_000,
     steps: { normal: e.STEPS_NORMAL, high: e.STEPS_HIGH },
+    video: {
+      pixels: { normal: e.VIDEO_PIXELS_NORMAL, high: e.VIDEO_PIXELS_HIGH },
+      maxRefs: e.MAX_VIDEO_REFS,
+      timeoutMs: e.VIDEO_JOB_TIMEOUT_MINUTES * 60_000,
+    },
     llm: e.LLM_URL
       ? {
           url: e.LLM_URL.replace(/\/+$/, ""),

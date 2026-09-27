@@ -10,6 +10,7 @@ const dir = process.argv[2] ?? "workflows/api";
 const PROMPT = ["prompt", "negative_prompt"];
 const LATENT = ["width", "height"];
 const SAMPLER = ["seed", "steps", "cfg", "sampler_name", "scheduler"];
+const VIDEO = ["prompt", "width", "height", "length"];
 
 // title -> [class_type, inputs the backend writes (must be values, not links)]
 const EXPECTED = {
@@ -27,9 +28,21 @@ const EXPECTED = {
     "@image_1": ["LoadImage", ["image"]],
     "@save": ["SaveImageAdvanced", []],
   },
+  // Video (spec §14, decision 28): the Director node replaced by ComfyUI's native MiniMax H3 nodes.
+  "video_fl2va_api.json": {
+    "@video": ["MiniMaxH3ImageToVideo", VIDEO],
+    "@seed": ["RandomNoise", ["noise_seed"]],
+    "@save": ["VHS_VideoCombine", []],
+  },
+  "video_ref2va_api.json": {
+    "@video": ["MiniMaxH3ReferenceToVideo", VIDEO],
+    "@seed": ["RandomNoise", ["noise_seed"]],
+    "@image_1": ["LoadImage", ["image"]],
+    "@save": ["VHS_VideoCombine", []],
+  },
 };
 
-const FORBIDDEN = ["ResolutionSelector", "ImageCompare"];
+const FORBIDDEN = ["ResolutionSelector", "ImageCompare", "MiniMaxH3DirectorCS"];
 
 let failed = false;
 const ok = (m) => console.log(`  ✓ ${m}`);

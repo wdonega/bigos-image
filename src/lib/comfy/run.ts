@@ -158,6 +158,15 @@ export async function runPrompt(
 }
 
 /** The first image saved by the node with this id (the @save node). */
+/** The video written by VHS_VideoCombine, which reports it under `gifs` (spec §14, m5 spike). */
+export function outputVideo(entry: HistoryEntry, saveNodeId: string): ImageRef {
+  const video = entry.outputs?.[saveNodeId]?.gifs?.[0];
+  if (!video) {
+    throw new ComfyError("failed", `No video in history outputs of node ${saveNodeId}`, entry.outputs);
+  }
+  return video;
+}
+
 export function outputImage(entry: HistoryEntry, saveNodeId: string): ImageRef {
   const image = entry.outputs?.[saveNodeId]?.images?.[0];
   if (!image) {

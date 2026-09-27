@@ -64,10 +64,10 @@ export async function uploadImage(file: File): Promise<UploadedImage> {
 
 export type Enhanced = { text: string };
 
-export function enhancePrompt(prompt: string, locale: string): Promise<Enhanced> {
+export function enhancePrompt(prompt: string, locale: string, kind: "image" | "video" = "image"): Promise<Enhanced> {
   return send<Enhanced>("/api/enhance", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ prompt, locale }),
+    body: JSON.stringify({ prompt, locale, kind }),
   });
 }

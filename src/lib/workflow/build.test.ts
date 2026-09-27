@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEdit, buildT2I, randomSeed } from "./build";
+import { buildEdit, buildT2I, randomSeed, buildVideo, MAX_VIDEO_REFS } from "./build";
 import { type ApiGraph, WorkflowError, findNodeId, setInputs } from "./graph";
 import { loadTemplate } from "./templates";
 
@@ -96,5 +96,34 @@ describe("randomSeed", () => {
     const seeds = new Set(Array.from({ length: 20 }, randomSeed));
     expect(seeds.size).toBe(20);
     for (const s of seeds) expect(Number.isSafeInteger(s) && s >= 0).toBe(true);
+  });
+});
+
+describe("buildVideo", () => {
+  const video = { prompt: "detailed_description: a dog", width: 1280, height: 736, frames: 124, seed: 7 };
+
+  it("text to video: writes prompt, size, frames and seed on the native graph", () => {
+    const graph = buildVideo(loadTemplate("video_fl2va"), { ...video, images: [] });
+    const node = graph[findNodeId(graph, "@video")];
+    expect(node.class_type).toBe("MiniMaxH3ImageToVideo");
+    expect(node.inputs).toMatchObject({ prompt: video.prompt, width: 1280, height: 736, length: 124 });
+    expect(graph[findNodeId(graph, "@seed")].inputs.noise_seed).toBe(7);
+    expect(Object.values(graph).some((n) => n.class_type === "MiniMaxH3DirectorCS")).toBe(false);
+  });
+
+  it("references: clones @image_1 and links each one to ref_images.ref_image_N", () => {
+    const graph = buildVideo(loadTemplate("video_ref2va"), { ...video, images: ["a.png", "b.png", "c.png"] });
+    const node = graph[findNodeId(graph, "@video")];
+    expect(node.class_type).toBe("MiniMaxH3ReferenceToVideo");
+    for (const [i, name] of ["a.png", "b.png", "c.png"].entries()) {
+      const id = findNodeId(graph, `@image_${i + 1}`);
+      expect(graph[id].inputs.image).toBe(name);
+      expect(node.inputs[`ref_images.ref_image_${i + 1}`]).toEqual([id, 0]);
+    }
+  });
+
+  it("rejects more references than the node takes", () => {
+    const names = Array.from({ length: MAX_VIDEO_REFS + 1 }, (_, i) => `${i}.png`);
+    expect(() => buildVideo(loadTemplate("video_ref2va"), { ...video, images: names })).toThrow(WorkflowError);
   });
 });

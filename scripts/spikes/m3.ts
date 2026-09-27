@@ -75,7 +75,7 @@ for (const c of cases.filter((x) => x.name.includes(filter))) {
     });
     const created = await res.json();
     if (!res.ok) throw new Error(`job: ${JSON.stringify(created)}`);
-    let view: { status: string; imageUrl?: string; error?: unknown };
+    let view: { status: string; url?: string; error?: unknown };
     for (;;) {
       view = await (await fetch(`${base}/api/jobs/${created.job_id}`)).json();
       if (["done", "failed", "cancelled"].includes(view.status)) break;
@@ -86,7 +86,7 @@ for (const c of cases.filter((x) => x.name.includes(filter))) {
       console.log(`${c.name}: ${view.status} ${JSON.stringify(view.error)} (${seconds}s)`);
       continue;
     }
-    const png = Buffer.from(await (await fetch(`${base}${view.imageUrl}`)).arrayBuffer());
+    const png = Buffer.from(await (await fetch(`${base}${view.url}`)).arrayBuffer());
     writeFileSync(path.join(outDir, `${c.name}.png`), png);
     const meta = await sharp(png).metadata();
     const got = `${meta.width}x${meta.height}`;

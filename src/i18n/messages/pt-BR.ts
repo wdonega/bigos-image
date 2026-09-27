@@ -16,6 +16,7 @@ export const ptBR: Messages = {
   nav: {
     generate: "Gerar",
     edit: "Editar",
+    video: "Vídeo",
   },
   generate: {
     emptyHint: "Escreva a ideia ao lado e toque em Gerar imagem.",
@@ -38,6 +39,24 @@ export const ptBR: Messages = {
     submitting: "Editando…",
     aspectWarning:
       "A proporção escolhida é diferente da imagem original. Partes da imagem podem ser cortadas ou reposicionadas.",
+  },
+  video: {
+    emptyTitle: "Seu vídeo aparece aqui.",
+    styleNoneHint: "O vídeo sai no estilo que o texto descrever.",
+    title: "Criar vídeo",
+    subtitle: "Descreva a cena, escolha a duração e a proporção. O vídeo sai com som.",
+    promptLabel: "O que acontece no vídeo?",
+    promptPlaceholder: "Ex.: um golden retriever correndo na praia ao pôr do sol, ondas batendo",
+    submit: "Criar vídeo",
+    submitting: "Criando…",
+    emptyHint: "Descreva a cena ao lado e toque em Criar vídeo.",
+    runningHint: "Um vídeo leva alguns minutos. Pode deixar esta página aberta.",
+    referencesHelp: "Opcional: fotos dos personagens, lugares ou objetos que devem aparecer. Use @ para citá-las no texto, por exemplo: “[Imagem 1] brinca com a bola da [Imagem 2]”.",
+    duration: "Duração",
+    durationHint: "Vídeos mais longos demoram mais para ficar prontos.",
+    seconds: "{seconds} s",
+    qualityNormalHint: "Cerca de 720p. Bom para a maioria dos casos.",
+    qualityHighHint: "Cerca de 1080p: mais nítido, mas demora umas 3 vezes mais.",
   },
   imageDrop: {
     choose: "Escolha ou arraste uma imagem",
@@ -93,6 +112,9 @@ export const ptBR: Messages = {
       "Funciona quando a imagem já tem um objeto ou personagem sobre um fundo simples. Em fotos com cenário completo o fundo costuma continuar.",
   },
   job: {
+    resultVideoAlt: "Vídeo gerado",
+    resultInfoVideo: "{width} × {height} px · MP4 com som",
+    downloadVideo: "Baixar MP4",
     retry: "Tentar de novo",
     empty: "Sua imagem aparece aqui.",
     sending: "Enviando…",

@@ -23,9 +23,12 @@ export function ReferencePicker({
   max,
   disabled,
   onMention,
+  help,
 }: {
   uploads: Uploads;
   max: number;
+  /** Overrides the default help line (the Video screen explains references differently). */
+  help?: string;
   disabled?: boolean;
   onMention: (n: number) => void;
 }) {
@@ -178,7 +181,7 @@ export function ReferencePicker({
       )}
 
       {uploads.items.length > 0 && (
-        <p className="text-xs text-muted-foreground">{t("references.help")}</p>
+        <p className="text-xs text-muted-foreground">{help ?? t("references.help")}</p>
       )}
 
       {notice && (

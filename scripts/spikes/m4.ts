@@ -54,7 +54,7 @@ for (const c of cases.filter((x) => x.name.includes(filter))) {
     }),
   });
   const { job_id } = await res.json();
-  let view: { status: string; imageUrl?: string; error?: unknown };
+  let view: { status: string; url?: string; error?: unknown };
   for (;;) {
     view = await (await fetch(`${base}/api/jobs/${job_id}`)).json();
     if (["done", "failed", "cancelled"].includes(view.status)) break;
@@ -65,7 +65,7 @@ for (const c of cases.filter((x) => x.name.includes(filter))) {
     console.log(`${c.name}: ${view.status} ${JSON.stringify(view.error)}`);
     continue;
   }
-  const png = Buffer.from(await (await fetch(`${base}${view.imageUrl}`)).arrayBuffer());
+  const png = Buffer.from(await (await fetch(`${base}${view.url}`)).arrayBuffer());
   writeFileSync(path.join(outDir, `${c.name}.png`), png);
   const fraction = await alphaBelow16(png);
   console.log(`${c.name}: alpha<16 = ${fraction === null ? "no alpha" : `${(fraction * 100).toFixed(1)}%`} (${seconds}s)`);

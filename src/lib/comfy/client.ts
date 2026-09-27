@@ -22,7 +22,8 @@ export type HistoryEntry = {
     completed?: boolean;
     messages?: [string, Record<string, unknown>][];
   };
-  outputs?: Record<string, { images?: ImageRef[] }>;
+  /** Images from SaveImage nodes; `gifs` holds videos from VHS_VideoCombine. */
+  outputs?: Record<string, { images?: ImageRef[]; gifs?: ImageRef[] }>;
 };
 
 export type ComfyClientOptions = {

@@ -17,6 +17,7 @@
     "check:workflows": "node scripts/check-workflows.mjs",
     "redis": "docker compose -f docker-compose-dev.yml up -d redis",
     "smoke": "node --env-file=.env scripts/smoke.ts",
+    "smoke:video": "node scripts/smoke-video.ts",
     "acceptance": "node scripts/acceptance.ts",
     "icons": "node scripts/generate-icons.ts",
     "styles:thumbs": "node scripts/generate-style-thumbnails.ts"

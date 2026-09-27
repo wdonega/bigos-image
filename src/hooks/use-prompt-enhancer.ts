@@ -8,7 +8,11 @@ import { ApiError, enhancePrompt } from "@/lib/client/api";
  * "Improve text": replaces the field's text with a more detailed version (same language) and
  * offers one step of undo. It can be used again on the improved text. Typing drops the undo.
  */
-export function usePromptEnhancer(prompt: string, setPrompt: (value: string) => void) {
+export function usePromptEnhancer(
+  prompt: string,
+  setPrompt: (value: string) => void,
+  kind: "image" | "video" = "image",
+) {
   const { locale } = useI18n();
   const [loading, setLoading] = useState(false);
   /** Text before the last improvement; null when there is nothing to undo. */
@@ -20,7 +24,7 @@ export function usePromptEnhancer(prompt: string, setPrompt: (value: string) => 
     setLoading(true);
     setError(null);
     try {
-      const { text } = await enhancePrompt(prompt, locale);
+      const { text } = await enhancePrompt(prompt, locale, kind);
       setPrevious(prompt);
       setPrompt(text);
     } catch (err) {

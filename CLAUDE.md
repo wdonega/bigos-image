@@ -32,6 +32,7 @@ docker compose -f docker-compose-dev.yml build   # gera a imagem Docker (ghcr.io
 COMFY_URL=… docker compose up -d                 # roda a imagem gerada + Redis (só COMFY_URL é obrigatória)
 pnpm check:workflows      # valida workflows/api/*.json
 pnpm smoke                # ponta a ponta pela API (precisa do app rodando e do ComfyUI)
+pnpm smoke:video          # 1 vídeo de 5 s de ponta a ponta (--refs: com uma referência)
 pnpm acceptance           # critérios do §13 contra o app e o ComfyUI reais (~4 min de GPU)
 pnpm icons                # regera favicon/ícones/PWA a partir de docs/icons/icon_warm.png
 pnpm styles:thumbs        # gera as miniaturas que faltam em public/styles/ (app rodando + ComfyUI; --force refaz todas)
@@ -44,7 +45,7 @@ Código em `src/lib/` usa imports relativos com extensão `.ts` (para rodar dire
 
 ## Configuração (`.env`, ver `.env.example`; só `COMFY_URL` e `REDIS_URL` são obrigatórias, o resto tem padrão em `src/lib/config.ts`)
 
-`COMFY_URL`, `COMFY_WAKE_SECONDS`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`, e opcionais `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_MAX_OUTPUT_TOKENS`, `LLM_MAX_INPUT_CHARS` (Melhorar texto e etapa final; a chave só no `.env`). Nunca deixe limites fixos no código: leia da configuração.
+`COMFY_URL`, `COMFY_WAKE_SECONDS`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`, `VIDEO_PIXELS_NORMAL`, `VIDEO_PIXELS_HIGH`, `MAX_VIDEO_REFS`, `VIDEO_JOB_TIMEOUT_MINUTES`, e opcionais `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_MAX_OUTPUT_TOKENS`, `LLM_MAX_INPUT_CHARS` (Melhorar texto e etapa final; a chave só no `.env`). Nunca deixe limites fixos no código: leia da configuração.
 
 ## Arquitetura (resumo; detalhes na spec)
 

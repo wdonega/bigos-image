@@ -8,6 +8,7 @@ Gerador e editor de imagens simples, para quem não entende de IA, em cima do **
 
 - **Gerar:** texto para imagem, com até 10 **imagens de referência** (reordenáveis, citáveis no texto como `[Imagem 1]`).
 - **Editar:** envie uma imagem e diga o que mudar; o tamanho pode seguir o original.
+- **Vídeo:** descreva a cena e escolha duração (5–15 s), proporção e qualidade; sai um MP4 **com som** (MiniMax H3), com referências opcionais (personagens, lugares).
 - **Tamanho sem jargão:** proporção (1:1, 4:3, 16:9…) + resolução (Pequeno/Médio/Grande) ou Manual; o backend recalcula e valida tudo.
 - **51 estilos** (aquarela, anime, pixel art, cyberpunk…) com miniaturas geradas pelo próprio modelo.
 - **Melhorar texto:** um LLM detalha a sua ideia no seu idioma, com desfazer.
@@ -35,6 +36,7 @@ O navegador fala só com o app; o ComfyUI e o LLM nunca ficam expostos. O worker
   | Text encoder | `qwen3vl_8b_int8_convrot.safetensors` | `models/text_encoders/` |
   | VAE | `qwen_image_2.1_vae_bf16.safetensors` | `models/vae/` |
 
+- **Para vídeo (opcional):** os modelos do **MiniMax H3** ([Hugging Face `Comfy-Org/MiniMax-H3`](https://huggingface.co/Comfy-Org/MiniMax-H3)) — FL2VA e Ref2VA, text encoder Qwen3-VL da MiniMax, VAEs de vídeo e áudio — a LoRA TaoMate de 3 passos, e os nós `comfyui-kjnodes` e `ComfyUI-VideoHelperSuite`. Os nomes exatos estão em `workflows/api/video_*_api.json`.
 - **Opcional:** uma API compatível com OpenAI (ex.: [LiteLLM](https://github.com/BerriAI/litellm)) com um modelo pequeno para "Melhorar texto" e para a etapa final (tradução, referências, estilo). Sem ela, o botão some e o prompt vai como foi escrito, com o estilo no fim.
 
 ## Rodando com Docker
@@ -97,6 +99,7 @@ O worker da fila não é recarregado pelo HMR: depois de mexer em `src/lib/jobs/
 | `pnpm typecheck` / `pnpm lint` | tipos e ESLint |
 | `pnpm check:workflows` | valida `workflows/api/*.json` |
 | `pnpm smoke` | 1 geração de ponta a ponta (app rodando + ComfyUI) |
+| `pnpm smoke:video` | 1 vídeo de 5 s de ponta a ponta (`--refs` usa uma referência) |
 | `pnpm acceptance` | critérios de aceite da spec (~4 min de GPU) |
 | `pnpm styles:thumbs` | gera as miniaturas dos estilos que faltam |
 | `pnpm icons` | regera favicon, ícones do PWA e telas de abertura |
@@ -106,7 +109,7 @@ Stack: Next.js 16 (App Router) + React 19, Tailwind 4 + shadcn/ui, Zod, BullMQ +
 ## Estrutura
 
 ```
-src/app/            telas (/generate, /edit) e rotas de API (/api/jobs, /api/uploads, /api/enhance, /api/health)
+src/app/            telas (/generate, /edit, /video) e rotas de API (/api/jobs, /api/uploads, /api/enhance, /api/health)
 src/components/     interface (seletores, painel de resultado, ícones e o gato)
 src/lib/            regras: tamanho, prompt, estilos, LLM, fila/worker, cliente do ComfyUI
 src/i18n/           textos dos 4 idiomas (chaves em inglês)

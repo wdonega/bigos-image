@@ -122,3 +122,34 @@ describe("jobRequestSchema", () => {
     expect(jobRequestSchema.safeParse({ ...base, size: { ratio: "1:1", megapixels: 3 } }).success).toBe(false);
   });
 });
+
+describe("planJob — video", () => {
+  const video = { screen: "video", prompt: "um cachorro correndo na praia", ratio: "16:9", duration: 5 };
+
+  it("text only: FL2VA graph, 124 frames, ≈720p on Normal", async () => {
+    const p = await plan(video);
+    expect(p).toMatchObject({
+      workflow: "video_fl2va",
+      size: { width: 1280, height: 736 },
+      video: { frames: 124, seconds: 5 },
+      images: [],
+      transparentBackground: false,
+    });
+    expect(p.fallbackPrompt).toBe("detailed_description: um cachorro correndo na praia\n\nnon_diegetic_music: N/A");
+  });
+
+  it("references: Ref2VA graph, mentions become subjects in the fallback", async () => {
+    const p = await plan({ ...video, prompt: "o gato da [Imagem 1] pinta", images: ["u1"], duration: 15, quality: "high", ratio: "9:16" });
+    expect(p).toMatchObject({ workflow: "video_ref2va", size: { width: 1088, height: 1920 }, video: { frames: 362 } });
+    expect(p.text).toBe("o gato da <image1> pinta");
+    expect(p.fallbackPrompt).toContain("detailed_description: o gato da <Subject 1> pinta");
+    expect(p.fallbackPrompt).toContain("<Subject 1> is the subject shown in <Picture 1>.");
+  });
+
+  it("rejects durations and proportions that are not offered, and too many references", async () => {
+    expect(jobRequestSchema.safeParse({ ...video, duration: 7 }).success).toBe(false);
+    expect(jobRequestSchema.safeParse({ ...video, ratio: "3:2" }).success).toBe(false);
+    const ids = Array.from({ length: 10 }, (_, i) => `u${i}`);
+    await expect(plan({ ...video, images: ids })).rejects.toMatchObject({ code: "too_many_images" });
+  });
+});

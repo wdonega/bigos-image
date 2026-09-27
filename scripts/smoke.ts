@@ -26,13 +26,13 @@ let last = "";
 for (;;) {
   const view = (await (await fetch(`${base}/api/jobs/${created.job_id}`)).json()) as {
     status: string;
-    imageUrl?: string;
+    url?: string;
   };
   const line = JSON.stringify(view);
   if (line !== last) console.log(`${((Date.now() - started) / 1000).toFixed(1)}s`, line);
   last = line;
   if (view.status === "done") {
-    const png = Buffer.from(await (await fetch(`${base}${view.imageUrl}`)).arrayBuffer());
+    const png = Buffer.from(await (await fetch(`${base}${view.url}`)).arrayBuffer());
     const meta = await sharp(png).metadata();
     const ok = meta.format === "png" && meta.width === 1024 && meta.height === 1024;
     console.log(ok ? "OK" : "FAIL", `${meta.format} ${meta.width}x${meta.height} alpha=${meta.hasAlpha}`);

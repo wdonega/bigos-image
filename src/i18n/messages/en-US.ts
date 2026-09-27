@@ -15,6 +15,7 @@ export const enUS = {
   nav: {
     generate: "Generate",
     edit: "Edit",
+    video: "Video",
   },
   generate: {
     emptyHint: "Describe your idea on the side and tap Generate image.",
@@ -37,6 +38,24 @@ export const enUS = {
     submitting: "Editing…",
     aspectWarning:
       "The chosen proportion differs from the original image. Parts of the image may be cropped or repositioned.",
+  },
+  video: {
+    emptyTitle: "Your video appears here.",
+    styleNoneHint: "The video follows the style your text describes.",
+    title: "Create video",
+    subtitle: "Describe the scene, choose the duration and the proportion. The video comes with sound.",
+    promptLabel: "What happens in the video?",
+    promptPlaceholder: "E.g. a golden retriever running along the beach at sunset, waves splashing",
+    submit: "Create video",
+    submitting: "Creating…",
+    emptyHint: "Describe the scene on the side and tap Create video.",
+    runningHint: "A video takes a few minutes. You can leave this page open.",
+    referencesHelp: "Optional: photos of the characters, places or objects that should appear. Use @ to mention them in the text, for example: “[Image 1] plays with the ball from [Image 2]”.",
+    duration: "Duration",
+    durationHint: "Longer videos take longer to create.",
+    seconds: "{seconds} s",
+    qualityNormalHint: "About 720p. Good for most cases.",
+    qualityHighHint: "About 1080p: sharper, but takes about 3 times longer.",
   },
   imageDrop: {
     choose: "Choose or drag an image",
@@ -92,6 +111,9 @@ export const enUS = {
       "Works when the image already has an object or character on a simple background. In photos with a full scene the background usually stays.",
   },
   job: {
+    resultVideoAlt: "Generated video",
+    resultInfoVideo: "{width} × {height} px · MP4 with sound",
+    downloadVideo: "Download MP4",
     retry: "Try again",
     empty: "Your image appears here.",
     sending: "Sending…",

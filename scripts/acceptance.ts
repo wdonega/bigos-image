@@ -8,7 +8,7 @@ const base = process.argv[2] ?? "http://localhost:3000";
 const m1 = path.resolve("storage/spikes/m1");
 const results: { name: string; ok: boolean; detail: string }[] = [];
 
-type View = { status: string; imageUrl?: string; warnings?: string[]; ahead?: number; error?: unknown };
+type View = { status: string; url?: string; warnings?: string[]; ahead?: number; error?: unknown };
 
 async function post(url: string, body: unknown) {
   const res = await fetch(`${base}${url}`, {
@@ -39,7 +39,7 @@ async function run(body: Record<string, unknown>) {
   if (created.status !== 202) throw new Error(JSON.stringify(created.body));
   const view = await wait(created.body.job_id);
   if (view.status !== "done") throw new Error(`${view.status} ${JSON.stringify(view.error)}`);
-  const png = Buffer.from(await (await fetch(`${base}${view.imageUrl}`)).arrayBuffer());
+  const png = Buffer.from(await (await fetch(`${base}${view.url}`)).arrayBuffer());
   const meta = await sharp(png).metadata();
   let clear = 0;
   if (meta.hasAlpha) {

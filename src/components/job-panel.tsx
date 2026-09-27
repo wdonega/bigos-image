@@ -58,6 +58,8 @@ export function JobPanel({
   onRetry,
   cancelling,
   emptyHint,
+  emptyTitle,
+  runningHint,
 }: {
   jobId: string | null;
   view: JobView | null;
@@ -65,6 +67,10 @@ export function JobPanel({
   onRetry: () => void;
   cancelling: boolean;
   emptyHint: string;
+  /** Defaults to "Your image appears here." */
+  emptyTitle?: string;
+  /** Shown while generating (a video takes minutes). */
+  runningHint?: string;
 }) {
   const { t, detail } = useI18n();
   const busy = jobId !== null && (view === null || ["queued", "waiting", "running"].includes(view.status));
@@ -89,7 +95,7 @@ export function JobPanel({
         <div
           className={cn(
             "flex flex-1 flex-col gap-3 p-4 sm:p-5",
-            loadedUrl === view.imageUrl ? "result-in" : "opacity-0",
+            loadedUrl === view.url ? "result-in" : "opacity-0",
           )}
         >
           <div
@@ -98,27 +104,43 @@ export function JobPanel({
               view.transparent ? "bg-checkerboard" : "bg-muted/40",
             )}
           >
-            {/* Our API serves the original PNG (alpha included); next/image would re-encode it. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={view.imageUrl}
-              alt={t("job.resultAlt")}
-              width={view.width}
-              height={view.height}
-              onLoad={() => setLoadedUrl(view.imageUrl)}
-              className="h-auto max-h-[70vh] w-auto max-w-full object-contain"
-            />
+            {view.media === "video" ? (
+              <video
+                src={view.url}
+                controls
+                playsInline
+                preload="metadata"
+                width={view.width}
+                height={view.height}
+                onLoadedData={() => setLoadedUrl(view.url)}
+                aria-label={t("job.resultVideoAlt")}
+                className="h-auto max-h-[70vh] w-auto max-w-full bg-black object-contain"
+              />
+            ) : (
+              <>
+                {/* Our API serves the original PNG (alpha included); next/image would re-encode it. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={view.url}
+                  alt={t("job.resultAlt")}
+                  width={view.width}
+                  height={view.height}
+                  onLoad={() => setLoadedUrl(view.url)}
+                  className="h-auto max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              </>
+            )}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
             <span className="tabular-nums">
-              {t(view.transparent ? "job.resultInfoTransparent" : "job.resultInfo", {
+              {t(view.media === "video" ? "job.resultInfoVideo" : view.transparent ? "job.resultInfoTransparent" : "job.resultInfo", {
                 width: view.width,
                 height: view.height,
               })}
             </span>
             <Button asChild className="h-11 rounded-xl px-4 sm:h-10">
-              <a href={`${view.imageUrl}?download`} download>
-                <DownloadIcon aria-hidden /> {t("job.download")}
+              <a href={`${view.url}?download`} download>
+                <DownloadIcon aria-hidden /> {t(view.media === "video" ? "job.downloadVideo" : "job.download")}
               </a>
             </Button>
           </div>
@@ -133,6 +155,7 @@ export function JobPanel({
           role="status"
           cat={<CatWatching progress={progress} className="w-48 text-foreground/80" />}
           title={statusText(view, t)}
+          hint={runningHint}
         >
           <div
             role="progressbar"
@@ -165,7 +188,7 @@ export function JobPanel({
       ) : (
         <PanelState
           cat={<CatSleeping className="text-muted-foreground/70" />}
-          title={view?.status === "cancelled" ? t("job.cancelled") : t("job.empty")}
+          title={view?.status === "cancelled" ? t("job.cancelled") : (emptyTitle ?? t("job.empty"))}
           hint={emptyHint}
         />
       )}
