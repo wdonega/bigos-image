@@ -2,12 +2,15 @@
 
 A simple image, video and music generator for people who know nothing about AI, built on **ComfyUI** with **Qwen Image 2.1** (images), **MiniMax H3** (video with sound) and **MiniMax Music 3** (songs). You describe what you want in any language, pick a few friendly options, and the app does the rest: it builds the ComfyUI graph, queues the job, shows progress and hands you a PNG, MP4 or MP3.
 
+📱 **Made for your phone.** It installs as an app (PWA) and runs great on mobile — tested on Android, on a Samsung Galaxy S24+. See [Made for your phone](#made-for-your-phone).
+
 | Image | Video | Music |
 |:-----:|:-----:|:-----:|
 | ![Image tab](docs/screenshot-image.webp) | ![Video tab](docs/screenshot-video.webp) | ![Music tab](docs/screenshot-music.webp) |
 
 ## Contents
 
+- [Made for your phone](#made-for-your-phone)
 - [Features](#features)
   - [Image](#image) · [Video](#video) · [Music](#music) · [Everywhere](#everywhere)
 - [How it works](#how-it-works)
@@ -22,6 +25,23 @@ A simple image, video and music generator for people who know nothing about AI, 
 - [Development](#development)
 - [Project layout](#project-layout)
 - [License](#license)
+
+## Made for your phone
+
+Bigos Image is built mobile-first and works as an **installable app (PWA)**: full screen, with its own icon and launch screen, dark or light theme, finger-sized buttons, and results you can download straight to the phone. The layout adapts to any screen, with no sideways scrolling.
+
+**Tested on Android** — a Samsung Galaxy S24+ — with image, video and music generation.
+
+| Image | Video | Music |
+|:-----:|:-----:|:-----:|
+| <img src="docs/mobile-image.webp" width="240" alt="Image tab on a phone"> | <img src="docs/mobile-video.webp" width="240" alt="Video tab on a phone"> | <img src="docs/mobile-music.webp" width="240" alt="Music tab on a phone"> |
+
+**Install it:**
+
+- **Android (Chrome):** open the app's address, then menu ⋮ → **Install app** (or **Add to Home screen**).
+- **iPhone / iPad (Safari):** Share → **Add to Home Screen**. The app ships the iOS icons and launch screens; it has been tested less on iOS than on Android.
+
+The PWA needs the app served over **HTTPS** (a reverse proxy in front of the Docker container, for example); `localhost` also works for trying it out.
 
 ## Features
 
@@ -48,7 +68,7 @@ A simple image, video and music generator for people who know nothing about AI, 
 - **Improve text:** an LLM expands your idea in your own language, with undo; it can be used again.
 - **Automatic final step:** before ComfyUI, the text is translated to English, image references become `<imageN>`, and the style or genre goes first in the prompt, in each model's own prompt format.
 - **One shared queue** with position ("2 ahead of you"), progress, cancel and retry.
-- **Installable PWA**, light and dark themes, **4 languages** (pt-BR, en-US, es-MX, zh-CN) picked from the browser.
+- **Installable PWA** that runs great on phones (tested on Android), light and dark themes, **4 languages** (pt-BR, en-US, es-MX, zh-CN) picked from the browser.
 - **GPU machine that sleeps:** if ComfyUI sits behind Wake-on-LAN, the app shows "Connecting…" and waits up to 30 s.
 
 ## How it works
