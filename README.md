@@ -4,6 +4,9 @@ A simple image, video and music generator for people who know nothing about AI, 
 
 📱 **Made for your phone.** It installs as an app (PWA) and runs great on mobile — tested on Android, on a Samsung Galaxy S24+. See [Made for your phone](#made-for-your-phone).
 
+> [!NOTE]
+> **Hardware used:** everything here was built and tested on an **NVIDIA RTX 5060 Ti with 16 GB of VRAM**. With less VRAM you will probably need lighter model variants and/or smaller limits — see [Less VRAM?](#less-vram).
+
 | Image | Video | Music |
 |:-----:|:-----:|:-----:|
 | ![Image tab](docs/screenshot-image.webp) | ![Video tab](docs/screenshot-video.webp) | ![Music tab](docs/screenshot-music.webp) |
@@ -19,6 +22,7 @@ A simple image, video and music generator for people who know nothing about AI, 
   - [Image tab — Qwen Image 2.1](#image-tab--qwen-image-21)
   - [Video tab — MiniMax H3](#video-tab--minimax-h3)
   - [Music tab — MiniMax Music 3](#music-tab--minimax-music-3)
+  - [Less VRAM?](#less-vram)
 - [Running with Docker](#running-with-docker)
   - [Versions and releases](#versions-and-releases)
   - [Building the image locally](#building-the-image-locally)
@@ -130,6 +134,26 @@ Nodes: all built into ComfyUI (`MiniMaxMusic3TextEncode`, `EmptyMiniMaxMusic3Lat
 | Diffusion | `minimax_music3_dit_fp16.safetensors` | `diffusion_models/` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/diffusion_models/minimax_music3_dit_fp16.safetensors) |
 | Text encoder | `minimax_music3_text_encoder_pruned_int8_convrot.safetensors` | `text_encoders/` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/text_encoders/minimax_music3_text_encoder_pruned_int8_convrot.safetensors) |
 | VAE | `minimax_music3_dav.safetensors` | `vae/` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/vae/minimax_music3_dav.safetensors) |
+
+### Less VRAM?
+
+The files above are what ran on a 16 GB card. Even so, a 5 s video at 1080p nearly fills it, and ComfyUI offloads parts of the models to system RAM. On smaller cards, try, in this order:
+
+1. **Lower the limits** in `.env` (no model change): `VIDEO_PIXELS_HIGH` / `VIDEO_PIXELS_NORMAL` (video canvas), `MAX_PIXELS` (image size), `MAX_REFS_TOTAL_PIXELS` (reference images). Video memory grows with pixels × frames, so shorter clips help too.
+2. **Swap in lighter files.** Download the file, then change the file name in the matching `workflows/api/*.json` (the loader node's `unet_name` / `clip_name` / `vae_name`):
+
+| Tab | Instead of | Lighter option | Size |
+|-----|-----------|----------------|------|
+| Image | `qwen3vl_8b_int8_convrot` (9.4 GB) | [`qwen3vl_8b_w4a8`](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_w4a8.safetensors) | 6.3 GB |
+| Music | `minimax_music3_dit_fp16` (4.9 GB) | [`minimax_music3_dit_int8_convrot`](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/diffusion_models/minimax_music3_dit_int8_convrot.safetensors) | 2.5 GB |
+| Music | `minimax_music3_text_encoder_pruned_int8_convrot` (9.2 GB) | [`minimax_music3_text_encoder_pruned_w4a8`](https://huggingface.co/supermind/minimax_music3_text_encoder_pruned_w4a8) (community) | 6.7 GB |
+
+   The Image diffusion model (`int8_convrot`, 7.3 GB) and the video diffusion models (`pruned_int8_convrot`, 21 GB) are already the smallest official ones.
+
+3. **Older GPUs and the video text encoder:** `nvfp4_awq` is an NVIDIA Blackwell (RTX 50 series) format. On older cards use [`qwen3vl_32b_minimax_h3_int8_convrot`](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors) (27 GB, mostly kept in system RAM), as the MiniMax H3 notes recommend.
+4. **ComfyUI flags:** start ComfyUI with `--lowvram` (or `--reserve-vram 1.5`) so it offloads more aggressively. It is slower, but it fits.
+
+> These alternatives were not tested with this app; only the files in the tables above were. The video graphs already use KJNodes' low-VRAM attention and chunked feed-forward, and the music graph decodes audio in tiles.
 
 ## Running with Docker
 
