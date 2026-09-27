@@ -6,6 +6,23 @@ A simple image, video and music generator for people who know nothing about AI, 
 |:-----:|:-----:|:-----:|
 | ![Image tab](docs/screenshot-image.webp) | ![Video tab](docs/screenshot-video.webp) | ![Music tab](docs/screenshot-music.webp) |
 
+## Contents
+
+- [Features](#features)
+  - [Image](#image) · [Video](#video) · [Music](#music) · [Everywhere](#everywhere)
+- [How it works](#how-it-works)
+- [Requirements](#requirements)
+- [ComfyUI components](#comfyui-components)
+  - [Image tab — Qwen Image 2.1](#image-tab--qwen-image-21)
+  - [Video tab — MiniMax H3](#video-tab--minimax-h3)
+  - [Music tab — MiniMax Music 3](#music-tab--minimax-music-3)
+- [Running with Docker](#running-with-docker)
+  - [Image tags](#image-tags)
+  - [Building the image locally](#building-the-image-locally)
+- [Development](#development)
+- [Project layout](#project-layout)
+- [License](#license)
+
 ## Features
 
 ### Image
