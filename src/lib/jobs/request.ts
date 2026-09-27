@@ -4,6 +4,7 @@ import { AppError, sizeProblemDetails } from "../errors.ts";
 import { PRESET_RATIOS, type Size, checkSize, presetSize } from "../size.ts";
 import { mentionsToTokens } from "../mentions.ts";
 import { STYLE_IDS, type StyleId, applyStyle, findStyle } from "../styles.ts";
+import { MUSIC_DURATIONS, MUSIC_GENRE_IDS, type MusicGenreId, fallbackMusicCaption, genrePhrase, normalizeLyrics } from "../music.ts";
 import { VIDEO_DURATIONS, VIDEO_RATIOS, buildVideoPrompt, tokensToSubjects, videoFrames, videoSize } from "../video.ts";
 import { randomSeed } from "../workflow/build.ts";
 
@@ -45,16 +46,27 @@ const videoRequestSchema = z.object({
   style: styleSchema,
 });
 
-export const jobRequestSchema = z.union([imageRequestSchema, videoRequestSchema]);
+// Music (spec §14, decision 30): description + lyrics (or instrumental) + optional genre + duration.
+const musicRequestSchema = z.object({
+  screen: z.literal("music"),
+  prompt: promptSchema,
+  lyrics: z.string().max(4000).default(""),
+  instrumental: z.boolean().default(false),
+  genre: z.enum(MUSIC_GENRE_IDS as [MusicGenreId, ...MusicGenreId[]]).nullable().default(null),
+  duration: z.literal(MUSIC_DURATIONS),
+});
+
+export const jobRequestSchema = z.union([imageRequestSchema, videoRequestSchema, musicRequestSchema]);
 
 export type JobRequest = z.infer<typeof jobRequestSchema>;
 type ImageRequest = z.infer<typeof imageRequestSchema>;
 type VideoRequest = z.infer<typeof videoRequestSchema>;
+type MusicRequest = z.infer<typeof musicRequestSchema>;
 
 /** What the worker needs to build and run the graph; stored as the queue job's data. */
 export type JobPlan = {
   /** The graph: images by number of images (spec §3); video with references uses Ref2VA. */
-  workflow: "t2i" | "edit" | "video_fl2va" | "video_ref2va";
+  workflow: "t2i" | "edit" | "video_fl2va" | "video_ref2va" | "music";
   /**
    * Source of the worker's final LLM pass (English, <imageN> references, style up front): the
    * user's text with mentions already as <imageN>.
@@ -76,6 +88,8 @@ export type JobPlan = {
   seed: number;
   /** Video only: frames at 24 fps (H3's 17k + 5 grid) and the requested seconds. */
   video?: { frames: number; seconds: number };
+  /** Music only: the lyrics as sung (never translated), instrumental flag and max seconds. */
+  music?: { lyrics: string; instrumental: boolean; seconds: number };
 };
 
 /** Looks up a stored upload; injected so planning stays testable without disk. */
@@ -90,6 +104,7 @@ export async function planJob(
   config: Config,
   findUpload: UploadLookup,
 ): Promise<JobPlan> {
+  if (req.screen === "music") return planMusic(req);
   return req.screen === "video" ? planVideo(req, config, findUpload) : planImage(req, config, findUpload);
 }
 
@@ -97,6 +112,26 @@ async function checkUploads(ids: string[], findUpload: UploadLookup) {
   for (const id of ids) {
     if (!(await findUpload(id))) throw new AppError("upload_not_found", 400);
   }
+}
+
+function planMusic(req: MusicRequest): JobPlan {
+  return {
+    workflow: "music",
+    text: req.prompt,
+    // The genre's English phrase; the final pass puts it first in the caption.
+    style: genrePhrase(req.genre),
+    fallbackPrompt: fallbackMusicCaption(req.prompt, req.genre, req.instrumental),
+    transparentBackground: false,
+    size: null,
+    images: [],
+    steps: 0,
+    seed: randomSeed(),
+    music: {
+      lyrics: normalizeLyrics(req.lyrics, req.instrumental),
+      instrumental: req.instrumental,
+      seconds: req.duration,
+    },
+  };
 }
 
 async function planVideo(req: VideoRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {

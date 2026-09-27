@@ -40,18 +40,20 @@ export function repairTokens(text: string): string {
 
 /** `mentions`: the image mentions exactly as the user wrote them ("[Imagem 1]"), listed so a small model keeps them. */
 /** What "Improve text" details: a still image, or a video (which also has motion and sound). */
-export type EnhanceKind = "image" | "video";
+export type EnhanceKind = "image" | "video" | "music";
 
 const DETAILS: Record<EnhanceKind, string> = {
   image: "subject, setting, lighting, composition",
   video: "subject, action over time, camera movement, setting, lighting, sounds",
+  music: "genre, mood, tempo, instruments, voice, how the song unfolds",
 };
+const GENERATOR: Record<EnhanceKind, string> = { image: "an image", video: "a video", music: "a music" };
 
 export function systemPrompt(locale: string, mentions: string[], kind: EnhanceKind = "image"): string {
   const language = LANGUAGE_NAMES[locale] ?? "English";
   return [
-    `You improve prompts for ${kind === "video" ? "a video" : "an image"} generator.`,
-    `Rewrite the user idea as ONE more detailed prompt in ${language} (${DETAILS[kind]}). Maximum ${kind === "video" ? 80 : 60} words. Keep the user's intent; do not add an art style.`,
+    `You improve prompts for ${GENERATOR[kind]} generator.`,
+    `Rewrite the user idea as ONE more detailed prompt in ${language} (${DETAILS[kind]}). Maximum ${kind === "image" ? 60 : 80} words. Keep the user's intent; do not add an art style.`,
     mentions.length > 0
       ? `The prompt MUST contain these exact mentions of input images, brackets included: ${mentions.join(", ")}.`
       : "",
@@ -310,5 +312,111 @@ export function finalizeVideoPrompt(
     (content) => parseVideoReply(content, expected, imageCount, style),
     fetchImpl,
     FINAL_ATTEMPTS,
+  );
+}
+
+// Music (spec §14, decision 30): the final pass turns the user's description (+ genre) into the
+// caption layout MiniMax Music 3 was trained on; the lyrics are never translated. Labeled lines,
+// not JSON, like video.
+
+export type MusicCaptionText = { global: string; vocals: string; arrangement: string };
+
+export function finalMusicSystemPrompt(genre: string | null, instrumental: boolean): string {
+  return [
+    "You write the description of a song for a music generator, in English, from the user's idea (any language).",
+    "Keep the user's intent; fill in plausible musical details (tempo in BPM, key, instruments) that fit it.",
+    genre ? `Genre: ${genre}. Start GLOBAL with it.` : "",
+    instrumental ? "The piece is instrumental: VOCALS must be NONE." : "",
+    "Reply with exactly three lines:",
+    "GLOBAL: <genre, tempo, key, mood, where it would be heard, production texture>",
+    `VOCALS: <voice type, delivery and effects${instrumental ? "" : "; NONE only if the idea asks for no vocals"}>`,
+    "ARRANGEMENT: <instruments, then how it unfolds: intro, verses, chorus, bridge, outro>",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function parseMusicReply(content: string, genre: string | null, instrumental: boolean): MusicCaptionText | null {
+  const field = (label: string) => {
+    const match = content.match(
+      new RegExp(`^\\s*\\**${label}\\**\\s*:\\**\\s*([\\s\\S]*?)(?=^\\s*\\**(?:GLOBAL|VOCALS|ARRANGEMENT)\\**\\s*:|$(?![\\s\\S]))`, "im"),
+    );
+    return match ? match[1].trim() : "";
+  };
+  const global = field("GLOBAL");
+  const arrangement = field("ARRANGEMENT");
+  if (!global || !arrangement) return null;
+  if (genre) {
+    const words = styleKeywords(genre);
+    const head = global.slice(0, STYLE_HEAD_CHARS).toLowerCase();
+    if (words.length > 0 && !words.some((w) => head.includes(w))) return null;
+  }
+  const vocals = field("VOCALS");
+  return { global, vocals: instrumental || /^none\.?$/i.test(vocals) ? "" : vocals, arrangement };
+}
+
+/** `genre` is the genre's English phrase (music.ts) or null. */
+export function finalizeMusicCaption(
+  llm: LlmConfig,
+  description: string,
+  genre: string | null,
+  instrumental: boolean,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MusicCaptionText> {
+  return complete(
+    llm,
+    [
+      { role: "system", content: finalMusicSystemPrompt(genre, instrumental) },
+      { role: "user", content: description },
+    ],
+    (content) => parseMusicReply(content, genre, instrumental),
+    fetchImpl,
+    FINAL_ATTEMPTS,
+  );
+}
+
+// "Create lyrics for me" (spec §14, decision 30): short song lyrics in the user's language, with the
+// section tags the model expects; shown in the lyrics box for the user to review before generating.
+
+const LYRICS_TAG = /^\s*\[(intro|verse|pre-chorus|chorus|bridge|outro|instrumental)[^\]]*\]\s*$/gim;
+
+export function lyricsSystemPrompt(locale: string, genre: string | null): string {
+  const language = LANGUAGE_NAMES[locale] ?? "English";
+  return [
+    `You write song lyrics in ${language} for a music generator.`,
+    genre ? `Genre: ${genre}.` : "",
+    "Write short, singable lyrics about the user's idea: two verses and a chorus that repeats, optionally a bridge.",
+    "Put each section under its own tag on a separate line: [Intro], [Verse], [Chorus], [Bridge], [Outro].",
+    "Reply with the lyrics only: no title, no explanation.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** The lyrics with at least one verse or chorus tag and some sung lines; null otherwise. */
+export function parseLyricsReply(content: string): string | null {
+  const text = content.trim().replace(/^```[a-z]*\n?|```$/g, "").trim();
+  const tags = text.match(LYRICS_TAG) ?? [];
+  if (!tags.some((t) => /verse|chorus/i.test(t))) return null;
+  const sung = text.split("\n").filter((l) => l.trim() && !/^\s*\[[^\]]*\]\s*$/.test(l));
+  return sung.length >= 4 ? text : null;
+}
+
+export function writeLyrics(
+  llm: LlmConfig,
+  idea: string,
+  locale: string,
+  genre: string | null,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string> {
+  return complete(
+    llm,
+    [
+      { role: "system", content: lyricsSystemPrompt(locale, genre) },
+      { role: "user", content: idea },
+    ],
+    parseLyricsReply,
+    fetchImpl,
+    ENHANCE_ATTEMPTS,
   );
 }

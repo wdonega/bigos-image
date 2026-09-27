@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GenerateIcon, VideoIcon } from "@/components/icons";
+import { GenerateIcon, MusicIcon, VideoIcon } from "@/components/icons";
 import { SettingsMenu } from "@/components/settings-menu";
 import { useI18n } from "@/i18n/provider";
 import type { Theme } from "@/lib/theme";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const LINKS = [
   { href: "/image", label: "nav.image", Icon: GenerateIcon },
   { href: "/video", label: "nav.video", Icon: VideoIcon },
+  { href: "/music", label: "nav.music", Icon: MusicIcon },
 ] as const;
 
 export function AppHeader({ theme }: { theme: Theme }) {

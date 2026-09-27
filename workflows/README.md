@@ -45,6 +45,14 @@ Vídeo:
 | `@image_1` | `LoadImage` | `image` (clonado para `image_2` a `image_9`, ligados em `ref_images.ref_image_N`) | | ✓ |
 | `@save` | `VHS_VideoCombine` | — (mp4 h264 + áudio) | ✓ | ✓ |
 
+Música (`audio_minimax_music_3.json`, spec §14 decisão 30; mantém o nome do export):
+
+| Título | `class_type` | Inputs que o backend escreve |
+|--------|--------------|------------------------------|
+| `@music` | `MiniMaxMusic3TextEncode` | `caption`, `lyrics`, `max_duration` |
+| `@seed` | `SeedNode` | `seed` (liga no encoder e no KSampler) |
+| `@save` | `SaveAudioAdvanced` | — (MP3 V0) |
+
 `width` e `height` moram no mesmo nó (`@latent_size`), e `seed`/`steps`/`cfg` no mesmo nó (`@sampler`).
 
 ## Pontos que só o export real responde (spec §14)

@@ -15,8 +15,12 @@ export type JobResult = {
   transparent: boolean;
   warnings: Detail[];
   /** Missing on jobs finished before videos existed: an image. */
-  media?: "image" | "video";
+  media?: Media;
+  /** Real length of a song, in seconds (the model may end before the asked duration). */
+  seconds?: number;
 };
+
+export type Media = "image" | "video" | "audio";
 
 export type JobView =
   | { id: string; status: "queued"; ahead: number }
@@ -25,9 +29,10 @@ export type JobView =
   | {
       id: string;
       status: "done";
-      media: "image" | "video";
-      /** The PNG (images) or MP4 (videos). */
+      media: Media;
+      /** The PNG (images), MP4 (videos) or MP3 (music). */
       url: string;
+      seconds?: number;
       width: number;
       height: number;
       transparent: boolean;
@@ -126,7 +131,8 @@ export function getJobView(id: string): Promise<JobView | null> {
         id,
         status: "done",
         media: r.media ?? "image",
-        url: `/api/jobs/${id}/${r.media === "video" ? "video" : "image"}`,
+        url: `/api/jobs/${id}/${r.media ?? "image"}`,
+        seconds: r.seconds,
         width: r.width,
         height: r.height,
         transparent: r.transparent,

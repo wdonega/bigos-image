@@ -2,18 +2,20 @@ import { randomUUID } from "node:crypto";
 import { type Job, UnrecoverableError, Worker } from "bullmq";
 import sharp from "sharp";
 import { ComfyClient, ComfyError } from "../comfy/client.ts";
-import { outputImage, outputVideo, runPrompt } from "../comfy/run.ts";
+import { outputAudio, outputImage, outputVideo, runPrompt } from "../comfy/run.ts";
 import { type Config, getConfig } from "../config.ts";
-import { finalizePrompt, finalizeVideoPrompt } from "../enhance.ts";
+import { finalizeMusicCaption, finalizePrompt, finalizeVideoPrompt } from "../enhance.ts";
+import { mp3Duration } from "../audio.ts";
+import { buildMusicCaption } from "../music.ts";
 import { AppError, type Detail, type ErrorCode } from "../errors.ts";
 import { buildPrompt } from "../prompt.ts";
 import { removeExpired, writeStored } from "../storage.ts";
 import { type SentImage, fitToBudget, readUploadImage, readUploadMeta } from "../uploads.ts";
 import { buildVideoPrompt, tokensToSubjects } from "../video.ts";
-import { buildEdit, buildT2I, buildVideo } from "../workflow/build.ts";
+import { buildEdit, buildMusic, buildT2I, buildVideo } from "../workflow/build.ts";
 import { type ApiGraph, findNodeId } from "../workflow/graph.ts";
 import { loadTemplate } from "../workflow/templates.ts";
-import { type JobData, type JobResult, QUEUE_NAME, cancelKey, createRedis } from "./queue.ts";
+import { type JobData, type JobResult, type Media, QUEUE_NAME, cancelKey, createRedis } from "./queue.ts";
 
 type Shared = { worker?: Worker<JobData, JobResult>; cleanup?: NodeJS.Timeout };
 const holder = globalThis as typeof globalThis & { __bigosWorker?: Shared };
@@ -21,8 +23,10 @@ const shared: Shared = (holder.__bigosWorker ??= {});
 
 const CLEANUP_EVERY_MS = 3_600_000;
 
-export function resultName(jobId: string, media: "image" | "video" = "image"): string {
-  return `${jobId}.${media === "video" ? "mp4" : "png"}`;
+const EXTENSIONS: Record<Media, string> = { image: "png", video: "mp4", audio: "mp3" };
+
+export function resultName(jobId: string, media: Media = "image"): string {
+  return `${jobId}.${EXTENSIONS[media]}`;
 }
 
 function toErrorCode(err: unknown, cancelled: boolean): ErrorCode {
@@ -106,6 +110,24 @@ export async function resolveVideoPrompt(
   }
 }
 
+/**
+ * Music final pass (spec §14, decision 30): the description (+ genre) becomes the caption layout
+ * MiniMax Music 3 was trained on. The lyrics are not touched here. Falls back like the others.
+ */
+export async function resolveMusicPrompt(
+  data: Pick<JobData, "text" | "style" | "fallbackPrompt" | "music">,
+  llm: Config["llm"],
+  finalize: typeof finalizeMusicCaption = finalizeMusicCaption,
+): Promise<string> {
+  if (!llm || data.text.length > llm.maxInputChars) return data.fallbackPrompt;
+  try {
+    return buildMusicCaption(await finalize(llm, data.text, data.style, data.music?.instrumental ?? false));
+  } catch (err) {
+    console.warn("[worker] final music prompt pass failed, using the fallback", err instanceof Error ? err.message : err);
+    return data.fallbackPrompt;
+  }
+}
+
 const isVideo = (data: Pick<JobData, "workflow">) =>
   data.workflow === "video_fl2va" || data.workflow === "video_ref2va";
 
@@ -115,6 +137,15 @@ async function buildGraph(
   config: Config,
   warnings: Detail[],
 ): Promise<ApiGraph> {
+  if (data.workflow === "music") {
+    if (!data.music) throw new AppError("invalid_request", 400);
+    return buildMusic(loadTemplate("music"), {
+      caption: data.finalPrompt ?? data.fallbackPrompt,
+      lyrics: data.music.lyrics,
+      seconds: data.music.seconds,
+      seed: data.seed,
+    });
+  }
   if (isVideo(data)) {
     if (!data.size || !data.video) throw new AppError("invalid_request", 400);
     const names: string[] = [];
@@ -183,16 +214,24 @@ async function processJob(
     }
     const warnings: Detail[] = [];
     if (job.data.finalPrompt === undefined) {
-      const finalPrompt = isVideo(job.data)
-        ? await resolveVideoPrompt(job.data, config.llm)
-        : await resolvePrompt(job.data, config.llm);
+      const finalPrompt =
+        job.data.workflow === "music"
+          ? await resolveMusicPrompt(job.data, config.llm)
+          : isVideo(job.data)
+            ? await resolveVideoPrompt(job.data, config.llm)
+            : await resolvePrompt(job.data, config.llm);
       console.log(`[worker] job ${id} prompt: ${finalPrompt}`);
       await job.updateData({ ...job.data, finalPrompt });
     }
     const graph = await buildGraph(job.data, client, config, warnings);
     let bestShare = 0;
     const { entry } = await runPrompt(client, graph, {
-      timeoutMs: isVideo(job.data) ? config.video.timeoutMs : config.jobTimeoutMs,
+      timeoutMs:
+        job.data.workflow === "music"
+          ? config.music.timeoutMs
+          : isVideo(job.data)
+            ? config.video.timeoutMs
+            : config.jobTimeoutMs,
       knownPromptId: job.data.promptId,
       onPromptId: (promptId) => job.updateData({ ...job.data, promptId }),
       onProgress: (progress) => {
@@ -206,6 +245,12 @@ async function processJob(
       },
       signal: controller.signal,
     });
+    if (job.data.workflow === "music") {
+      const mp3 = await client.view(outputAudio(entry, findNodeId(graph, "@save")));
+      await writeStored(config, "results", resultName(id, "audio"), mp3);
+      const seconds = Math.round(mp3Duration(mp3) * 10) / 10;
+      return { width: 0, height: 0, transparent: false, warnings, media: "audio", seconds };
+    }
     if (isVideo(job.data)) {
       const mp4 = await client.view(outputVideo(entry, findNodeId(graph, "@save")));
       await writeStored(config, "results", resultName(id, "video"), mp4);

@@ -114,6 +114,24 @@ export function buildVideo(template: ApiGraph, p: VideoParams): ApiGraph {
   return graph;
 }
 
+export type MusicParams = {
+  /** Caption in the model's layout (Global Metadata / Vocal Details / Arrangement). */
+  caption: string;
+  /** Lyrics with section tags, or "[Instrumental]". */
+  lyrics: string;
+  /** Upper bound; the model may end the song earlier. */
+  seconds: number;
+  seed: number;
+};
+
+/** Music graph (MiniMax Music 3): @seed feeds both the encoder and the sampler. */
+export function buildMusic(template: ApiGraph, p: MusicParams): ApiGraph {
+  const graph = structuredClone(template);
+  setInputs(graph, "@music", { caption: p.caption, lyrics: p.lyrics, max_duration: p.seconds });
+  setInputs(graph, "@seed", { seed: p.seed });
+  return graph;
+}
+
 /** Random seed below 2^53 so it survives JSON and JS numbers intact. */
 export function randomSeed(): number {
   const [high, low] = crypto.getRandomValues(new Uint32Array(2));

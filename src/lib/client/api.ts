@@ -64,10 +64,22 @@ export async function uploadImage(file: File): Promise<UploadedImage> {
 
 export type Enhanced = { text: string };
 
-export function enhancePrompt(prompt: string, locale: string, kind: "image" | "video" = "image"): Promise<Enhanced> {
+export type EnhanceKind = "image" | "video" | "music";
+
+export function enhancePrompt(prompt: string, locale: string, kind: EnhanceKind = "image"): Promise<Enhanced> {
   return send<Enhanced>("/api/enhance", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ prompt, locale, kind }),
   });
+}
+
+/** "Create lyrics for me": lyrics with section tags, in the user's language. */
+export async function writeLyrics(prompt: string, locale: string, genre: string | null): Promise<string> {
+  const body = await send<{ lyrics: string }>("/api/lyrics", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ prompt, locale, genre }),
+  });
+  return body.lyrics;
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  finalMusicSystemPrompt,
+  lyricsSystemPrompt,
+  parseLyricsReply,
+  parseMusicReply,
   finalVideoSystemPrompt,
   parseVideoReply,
   enhancePrompt,
@@ -167,5 +171,39 @@ describe("video final pass", () => {
       "DESCRIPTION: A cat from <image1> paints a picture by the big window of a quiet little room full of plants, soft morning light on the wooden floor, in watercolor painting\nSOUND: x\nMUSIC: N/A";
     expect(parseVideoReply(late, ["<image1>"], 1, watercolor)).toBeNull();
     expect(parseVideoReply("no labels at all", [], 0, null)).toBeNull();
+  });
+});
+
+describe("music final pass and lyrics", () => {
+  it("asks for three lines, the genre up front and no vocals when instrumental", () => {
+    const p = finalMusicSystemPrompt("Brazilian samba", true);
+    expect(p).toContain("Genre: Brazilian samba. Start GLOBAL with it.");
+    expect(p).toContain("VOCALS must be NONE");
+    expect(finalMusicSystemPrompt(null, false)).not.toMatch(/Genre:|must be NONE/);
+  });
+
+  it("reads the three fields and drops vocals for instrumental or NONE", () => {
+    const reply = "GLOBAL: Brazilian samba, 100 BPM.\nVOCALS: Warm male lead.\nARRANGEMENT: Cavaquinho intro, then percussion.";
+    expect(parseMusicReply(reply, "Brazilian samba", false)).toEqual({
+      global: "Brazilian samba, 100 BPM.",
+      vocals: "Warm male lead.",
+      arrangement: "Cavaquinho intro, then percussion.",
+    });
+    expect(parseMusicReply(reply, null, true)?.vocals).toBe("");
+    expect(parseMusicReply(reply.replace("Warm male lead.", "NONE"), null, false)?.vocals).toBe("");
+  });
+
+  it("rejects replies without the required fields or with the genre only at the end", () => {
+    expect(parseMusicReply("GLOBAL: Pop.", null, false)).toBeNull();
+    const late = "GLOBAL: An upbeat track for a weekend party with friends, 100 BPM, G major, festive mood, heard at street parties, in samba style\nVOCALS: x\nARRANGEMENT: y";
+    expect(parseMusicReply(late, "Brazilian samba", false)).toBeNull();
+  });
+
+  it("lyrics prompt uses the user's language; replies need tags and sung lines", () => {
+    expect(lyricsSystemPrompt("pt-BR", null)).toContain("in Brazilian Portuguese");
+    const good = "[Verse]\num\ndois\n\n[Chorus]\ntrês\nquatro";
+    expect(parseLyricsReply(`\`\`\`\n${good}\n\`\`\``)).toBe(good);
+    expect(parseLyricsReply("um\ndois\ntrês\nquatro")).toBeNull();
+    expect(parseLyricsReply("[Verse]\nsó uma linha")).toBeNull();
   });
 });

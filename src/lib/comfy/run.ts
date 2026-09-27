@@ -158,6 +158,15 @@ export async function runPrompt(
 }
 
 /** The first image saved by the node with this id (the @save node). */
+/** The file written by SaveAudioAdvanced, reported under `audio` (spec §14, m6 spike). */
+export function outputAudio(entry: HistoryEntry, saveNodeId: string): ImageRef {
+  const audio = entry.outputs?.[saveNodeId]?.audio?.[0];
+  if (!audio) {
+    throw new ComfyError("failed", `No audio in history outputs of node ${saveNodeId}`, entry.outputs);
+  }
+  return audio;
+}
+
 /** The video written by VHS_VideoCombine, which reports it under `gifs` (spec §14, m5 spike). */
 export function outputVideo(entry: HistoryEntry, saveNodeId: string): ImageRef {
   const video = entry.outputs?.[saveNodeId]?.gifs?.[0];

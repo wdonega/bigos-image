@@ -28,6 +28,8 @@ const envSchema = z.object({
   // ComfyUI's MiniMaxH3ReferenceToVideo takes at most 9 reference images.
   MAX_VIDEO_REFS: positiveInt.max(9).default(9),
   VIDEO_JOB_TIMEOUT_MINUTES: positiveInt.default(40),
+  // Music (MiniMax Music 3): time limit of one song.
+  MUSIC_JOB_TIMEOUT_MINUTES: positiveInt.default(20),
   // The ComfyUI machine wakes on LAN: how long to wait for it before calling it unavailable.
   COMFY_WAKE_SECONDS: positiveInt.default(30),
   // Optional: "Improve text" is hidden when the LLM is not configured.
@@ -68,6 +70,7 @@ export type Config = {
   jobTimeoutMs: number;
   steps: { normal: number; high: number };
   video: { pixels: { normal: number; high: number }; maxRefs: number; timeoutMs: number };
+  music: { timeoutMs: number };
   llm: LlmConfig | null;
 };
 
@@ -100,6 +103,7 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
       maxRefs: e.MAX_VIDEO_REFS,
       timeoutMs: e.VIDEO_JOB_TIMEOUT_MINUTES * 60_000,
     },
+    music: { timeoutMs: e.MUSIC_JOB_TIMEOUT_MINUTES * 60_000 },
     llm: e.LLM_URL
       ? {
           url: e.LLM_URL.replace(/\/+$/, ""),

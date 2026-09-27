@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/i18n/provider";
-import { ApiError, enhancePrompt } from "@/lib/client/api";
+import { ApiError, type EnhanceKind, enhancePrompt } from "@/lib/client/api";
 
 /**
  * "Improve text": replaces the field's text with a more detailed version (same language) and
@@ -11,7 +11,7 @@ import { ApiError, enhancePrompt } from "@/lib/client/api";
 export function usePromptEnhancer(
   prompt: string,
   setPrompt: (value: string) => void,
-  kind: "image" | "video" = "image",
+  kind: EnhanceKind = "image",
 ) {
   const { locale } = useI18n();
   const [loading, setLoading] = useState(false);

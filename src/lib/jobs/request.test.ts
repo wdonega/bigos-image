@@ -159,3 +159,28 @@ describe("planJob — video", () => {
     await expect(plan({ ...video, images: ids })).rejects.toMatchObject({ code: "too_many_images" });
   });
 });
+
+describe("planJob — music", () => {
+  const music = { screen: "music", prompt: "uma música animada sobre o fim de semana", duration: 60 };
+
+  it("plans a song: lyrics as written, genre phrase kept for the final pass", async () => {
+    const p = await plan({ ...music, lyrics: "Chegou o sábado\no sol abriu", genre: "samba" });
+    expect(p).toMatchObject({
+      workflow: "music",
+      style: "Brazilian samba",
+      images: [],
+      music: { lyrics: "[Verse]\nChegou o sábado\no sol abriu", instrumental: false, seconds: 60 },
+    });
+    expect(p.fallbackPrompt).toBe("Global Metadata: Brazilian samba. uma música animada sobre o fim de semana.");
+  });
+
+  it("instrumental ignores the lyrics box", async () => {
+    const p = await plan({ ...music, lyrics: "ignored", instrumental: true });
+    expect(p.music).toMatchObject({ lyrics: "[Instrumental]", instrumental: true });
+  });
+
+  it("rejects durations and genres that are not offered", () => {
+    expect(jobRequestSchema.safeParse({ ...music, duration: 45 }).success).toBe(false);
+    expect(jobRequestSchema.safeParse({ ...music, genre: "polka" }).success).toBe(false);
+  });
+});

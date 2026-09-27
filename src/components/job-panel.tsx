@@ -2,7 +2,7 @@
 
 import { DownloadIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { CatSad, CatSleeping, CatWatching } from "@/components/icons";
+import { CatSad, CatSleeping, CatWatching, MusicIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/provider";
 import type { JobView } from "@/lib/client/api";
@@ -23,6 +23,14 @@ function statusText(view: JobView | null, t: ReturnType<typeof useI18n>["t"]): s
     default:
       return "";
   }
+}
+
+const DOWNLOAD_LABEL = { image: "job.download", video: "job.downloadVideo", audio: "job.downloadAudio" } as const;
+
+/** 125 → "2:05". */
+function formatDuration(seconds: number): string {
+  const s = Math.round(seconds);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 /** Big centered message used by every state except the result. */
@@ -89,7 +97,7 @@ export function JobPanel({
   return (
     <div
       ref={panel}
-      className="flex min-h-96 scroll-mt-4 flex-col overflow-hidden rounded-3xl border bg-card/60 lg:min-h-[36rem]"
+      className="flex min-h-96 scroll-mt-4 flex-col overflow-hidden rounded-3xl border bg-card/60 lg:sticky lg:top-6 lg:min-h-[36rem] lg:self-start"
     >
       {view?.status === "done" ? (
         <div
@@ -104,7 +112,19 @@ export function JobPanel({
               view.transparent ? "bg-checkerboard" : "bg-muted/40",
             )}
           >
-            {view.media === "video" ? (
+            {view.media === "audio" ? (
+              <div className="flex w-full max-w-md flex-col items-center gap-6 p-6">
+                <MusicIcon className="size-20 text-primary" strokeWidth={1.3} />
+                <audio
+                  src={view.url}
+                  controls
+                  preload="metadata"
+                  onLoadedMetadata={() => setLoadedUrl(view.url)}
+                  aria-label={t("job.resultAudioAlt")}
+                  className="w-full"
+                />
+              </div>
+            ) : view.media === "video" ? (
               <video
                 src={view.url}
                 controls
@@ -133,14 +153,20 @@ export function JobPanel({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
             <span className="tabular-nums">
-              {t(view.media === "video" ? "job.resultInfoVideo" : view.transparent ? "job.resultInfoTransparent" : "job.resultInfo", {
-                width: view.width,
-                height: view.height,
-              })}
+              {view.media === "audio"
+                ? t("job.resultInfoAudio", { duration: formatDuration(view.seconds ?? 0) })
+                : t(
+                    view.media === "video"
+                      ? "job.resultInfoVideo"
+                      : view.transparent
+                        ? "job.resultInfoTransparent"
+                        : "job.resultInfo",
+                    { width: view.width, height: view.height },
+                  )}
             </span>
             <Button asChild className="h-11 rounded-xl px-4 sm:h-10">
               <a href={`${view.url}?download`} download>
-                <DownloadIcon aria-hidden /> {t(view.media === "video" ? "job.downloadVideo" : "job.download")}
+                <DownloadIcon aria-hidden /> {t(DOWNLOAD_LABEL[view.media])}
               </a>
             </Button>
           </div>

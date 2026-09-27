@@ -34,6 +34,12 @@ const EXPECTED = {
     "@seed": ["RandomNoise", ["noise_seed"]],
     "@save": ["VHS_VideoCombine", []],
   },
+  // Music (spec §14, decision 30): the owner's MiniMax Music 3 export, kept under its own name.
+  "audio_minimax_music_3.json": {
+    "@music": ["MiniMaxMusic3TextEncode", ["caption", "lyrics", "max_duration"]],
+    "@seed": ["SeedNode", ["seed"]],
+    "@save": ["SaveAudioAdvanced", []],
+  },
   "video_ref2va_api.json": {
     "@video": ["MiniMaxH3ReferenceToVideo", VIDEO],
     "@seed": ["RandomNoise", ["noise_seed"]],
