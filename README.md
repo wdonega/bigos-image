@@ -17,7 +17,7 @@ A simple image, video and music generator for people who know nothing about AI, 
   - [Video tab — MiniMax H3](#video-tab--minimax-h3)
   - [Music tab — MiniMax Music 3](#music-tab--minimax-music-3)
 - [Running with Docker](#running-with-docker)
-  - [Image tags](#image-tags)
+  - [Versions and releases](#versions-and-releases)
   - [Building the image locally](#building-the-image-locally)
 - [Development](#development)
 - [Project layout](#project-layout)
@@ -135,15 +135,20 @@ The variables can also live in a `.env` file next to `docker-compose.yml`.
 | `LLM_API_KEY` | no | empty | Key for that API |
 | `LLM_MODEL` | no | `prompt-enhancer` | Model name in that API |
 | `PORT` | no | `3000` | Port published on the host |
-| `BIGOS_IMAGE` | no | `ghcr.io/wdonega/bigos-image:latest` | Image to run (e.g. a specific `revN`) |
+| `BIGOS_IMAGE` | no | `ghcr.io/wdonega/bigos-image:latest` | Image to run (e.g. a specific version `1.0.N`) |
 
 Every other limit (maximum size, steps per Quality, video and music time limits, retention, Wake-on-LAN wait…) has a default, listed with its value in [`.env.example`](.env.example). To change one, add it under `environment:` in `docker-compose.yml`.
 
 Data: results and uploads in the `storage` volume (deleted after 24 h), the queue in the `redis-data` volume.
 
-### Image tags
+### Versions and releases
 
-Every push to the main branch publishes `latest` and **`revN`**, the commit's number in the history (`rev1`, `rev2`…; the commit SHA is kept in the image label `org.opencontainers.image.revision`). Git tags `v1.2.3` publish `1.2.3` and `1.2`. Documentation-only changes do not build an image. Workflow: [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
+The version is **`1.0.N`**, where N is the commit's number in the history. Every push to the main branch that changes the app:
+
+- publishes the image with three tags: **`1.0.N`**, **`revN`** and **`latest`** (the commit SHA is kept in the image label `org.opencontainers.image.revision`);
+- creates the GitHub **Release `v1.0.N`** (and its git tag), with the `docker pull` command and the changes since the previous release.
+
+To pin a version on a server: `BIGOS_IMAGE=ghcr.io/wdonega/bigos-image:1.0.33`. Documentation-only changes don't build, publish or release. Workflow: [`.github/workflows/docker.yml`](.github/workflows/docker.yml); a new version line (`1.1.N`, `2.0.N`…) is one variable there (`VERSION_PREFIX`).
 
 ### Building the image locally
 

@@ -1,14 +1,16 @@
-# Builds the Docker image for x86 (linux/amd64) and ARM (linux/arm64) and publishes it to
-# ghcr.io/wdonega/bigos-image tagged `revN` (N = number of commits up to this one, so rev1, rev2…
-# follow the history), plus `latest` on the default branch and the version on `v*` git tags. The
-# commit SHA stays in the image label org.opencontainers.image.revision. Pull requests only build.
+# Builds the Docker image for x86 (linux/amd64) and ARM (linux/arm64), publishes it to
+# ghcr.io/wdonega/bigos-image and creates a GitHub Release for it. N = number of commits up to this
+# one, so it grows with the history:
+#   image tags  1.0.N (the version), revN and latest
+#   release     v1.0.N (git tag + GitHub Release with the changes since the previous one)
+# The commit SHA stays in the image label org.opencontainers.image.revision. Pull requests only
+# build. To start a new line (1.1.N, 2.0.N…) change VERSION_PREFIX below.
 name: Docker image
 
-# Documentation-only changes (README, docs/, other .md files) don't build or publish an image.
+# Documentation-only changes (README, docs/, other .md files) don't build, publish or release.
 on:
   push:
     branches: [main, master]
-    tags: ["v*"]
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -23,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # the release and its git tag
   packages: write
 
 concurrency:
@@ -32,6 +34,7 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
+  VERSION_PREFIX: "1.0"
 
 jobs:
   image:
@@ -40,12 +43,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # The whole history: revN counts the commits.
+          # The whole history: N counts the commits.
           fetch-depth: 0
 
-      - name: Revision number
+      - name: Revision and version
         id: rev
-        run: echo "tag=rev$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          n=$(git rev-list --count HEAD)
+          echo "rev=rev$n" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION_PREFIX.$n" >> "$GITHUB_OUTPUT"
 
       # ARM is built under emulation on the x86 runner.
       - uses: docker/setup-qemu-action@v4
@@ -65,10 +71,11 @@ jobs:
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            type=raw,value=${{ steps.rev.outputs.tag }}
+            type=raw,value=${{ steps.rev.outputs.version }}
+            type=raw,value=${{ steps.rev.outputs.rev }}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+          labels: |
+            org.opencontainers.image.version=${{ steps.rev.outputs.version }}
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -80,3 +87,27 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Only after the image is published, and only for the default branch. Tags created with
+      # GITHUB_TOKEN don't trigger workflows, so this doesn't loop.
+      - name: GitHub Release
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.rev.outputs.version }}
+          REV: ${{ steps.rev.outputs.rev }}
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "$tag already exists (re-run of the same commit): nothing to do"
+            exit 0
+          fi
+          printf '%s\n' \
+            "Docker image for x86 and ARM:" \
+            "" \
+            '```bash' \
+            "docker pull $IMAGE:$VERSION   # also tagged $REV and latest" \
+            '```' \
+            "" \
+            "Commit: $GITHUB_SHA" > notes.md
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md --generate-notes --latest
