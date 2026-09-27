@@ -72,7 +72,7 @@ Dados: resultados e uploads no volume `storage` (apagados após 24 h), fila no v
 
 ### Tags da imagem
 
-Cada push na branch principal publica `latest` e a revisão do commit (`abc1234` e o SHA completo); tags `v1.2.3` publicam `1.2.3` e `1.2`. Mudanças só de documentação não geram imagem. Workflow: [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
+Cada push na branch principal publica `latest` e **`revN`**, o número do commit no histórico (`rev1`, `rev2`…; o SHA fica no rótulo `org.opencontainers.image.revision` da imagem); tags `v1.2.3` publicam `1.2.3` e `1.2`. Mudanças só de documentação não geram imagem. Workflow: [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
 
 ### Gerando a imagem localmente
 

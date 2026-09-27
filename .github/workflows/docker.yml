@@ -1,6 +1,7 @@
 # Builds the Docker image for x86 (linux/amd64) and ARM (linux/arm64) and publishes it to
-# ghcr.io/wdonega/bigos-image with the commit revision as tag, plus `latest` on the default
-# branch and the version on `v*` git tags. Pull requests only build (no push).
+# ghcr.io/wdonega/bigos-image tagged `revN` (N = number of commits up to this one, so rev1, rev2…
+# follow the history), plus `latest` on the default branch and the version on `v*` git tags. The
+# commit SHA stays in the image label org.opencontainers.image.revision. Pull requests only build.
 name: Docker image
 
 # Documentation-only changes (README, docs/, other .md files) don't build or publish an image.
@@ -38,6 +39,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The whole history: revN counts the commits.
+          fetch-depth: 0
+
+      - name: Revision number
+        id: rev
+        run: echo "tag=rev$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
 
       # ARM is built under emulation on the x86 runner.
       - uses: docker/setup-qemu-action@v4
@@ -57,8 +65,7 @@ jobs:
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            type=sha,format=short,prefix=
-            type=sha,format=long,prefix=
+            type=raw,value=${{ steps.rev.outputs.tag }}
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
