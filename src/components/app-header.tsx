@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { EditIcon, GenerateIcon, VideoIcon } from "@/components/icons";
+import { GenerateIcon, VideoIcon } from "@/components/icons";
 import { SettingsMenu } from "@/components/settings-menu";
 import { useI18n } from "@/i18n/provider";
 import type { Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/generate", label: "nav.generate", Icon: GenerateIcon },
-  { href: "/edit", label: "nav.edit", Icon: EditIcon },
+  { href: "/image", label: "nav.image", Icon: GenerateIcon },
   { href: "/video", label: "nav.video", Icon: VideoIcon },
 ] as const;
 
@@ -20,7 +19,7 @@ export function AppHeader({ theme }: { theme: Theme }) {
   return (
     <header className="border-b bg-background pt-[env(safe-area-inset-top)]">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 sm:gap-6 px-[max(1rem,env(safe-area-inset-left))]">
-        <Link href="/generate" aria-label={t("app.name")} className="flex h-10 items-center gap-2.5">
+        <Link href="/image" aria-label={t("app.name")} className="flex h-10 items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element -- tiny static icon */}
           <img src="/icons/icon-192.png" alt="" width={34} height={34} className="rounded-[10px]" />
           <span className="hidden font-heading text-lg font-bold tracking-tight min-[480px]:inline">

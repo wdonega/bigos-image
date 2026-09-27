@@ -5,12 +5,13 @@ import { ICON_SIZES, MASKABLE_SIZES, THEME_COLOR, iconPath, maskableIconPath } f
 // Static per build, so name/description use the default locale (pt-BR).
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    // Kept from before Generate/Edit merged into /image: changing it would make installed PWAs a new app.
     id: "/generate",
     name: "Bigos Image",
     short_name: "Bigos",
     description: "Gere e edite imagens de um jeito simples.",
     lang: "pt-BR",
-    start_url: "/generate",
+    start_url: "/image",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

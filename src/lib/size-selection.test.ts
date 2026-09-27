@@ -3,7 +3,6 @@ import {
   DEFAULT_GENERATE_SELECTION,
   allowedMegapixels,
   changeRatio,
-  differentAspect,
   roundSide,
   selectionProblems,
   selectionSize,
@@ -55,10 +54,5 @@ describe("size selection", () => {
     expect(roundSide(1000)).toBe(992);
     expect(roundSide(1010)).toBe(1024);
     expect(roundSide(Number.NaN)).toBe(32);
-  });
-
-  it("detects a changed proportion", () => {
-    expect(differentAspect({ width: 1024, height: 768 }, { width: 1184, height: 896 })).toBe(false);
-    expect(differentAspect({ width: 1024, height: 1024 }, { width: 1184, height: 896 })).toBe(true);
   });
 });

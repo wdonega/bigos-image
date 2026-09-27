@@ -45,10 +45,16 @@ describe("planJob — Generate without references", () => {
     expect(err.details).toEqual([{ code: "not_multiple" }, { code: "below_min_side", params: { min: 512 } }]);
   });
 
-  it("rejects Original on the Generate screen", async () => {
+  it("rejects Original without a reference image", async () => {
     await expect(plan({ ...base, size: { ratio: "original" } })).rejects.toMatchObject({
       code: "invalid_request",
+      details: [{ code: "original_needs_image" }],
     });
+  });
+
+  it("accepts Original on the Generate screen with references: the size follows image_1", async () => {
+    const p = await plan({ ...base, size: { ratio: "original" }, images: ["u1", "u2"] });
+    expect(p).toMatchObject({ workflow: "edit", size: null, images: ["u1", "u2"] });
   });
 
   it("keeps the prompt exactly as typed", async () => {

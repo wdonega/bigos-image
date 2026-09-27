@@ -15,8 +15,7 @@ export const zhCN: Messages = {
     language: "语言",
   },
   nav: {
-    generate: "生成",
-    edit: "编辑",
+    image: "图片",
     video: "视频",
   },
   generate: {
@@ -28,17 +27,6 @@ export const zhCN: Messages = {
     submit: "生成图片",
     submitting: "正在生成…",
     uploading: "正在上传图片…",
-  },
-  edit: {
-    emptyHint: "上传一张图片，说明要修改的内容，然后点击“编辑图片”。",
-    title: "编辑图片",
-    subtitle: "上传一张图片，并说明要修改什么。",
-    imageLabel: "图片",
-    instructionLabel: "你想修改什么？",
-    instructionPlaceholder: "例如：把背景换成海滩",
-    submit: "编辑图片",
-    submitting: "正在编辑…",
-    aspectWarning: "所选比例与原图不同，图片的部分内容可能会被裁剪或移位。",
   },
   video: {
     emptyTitle: "你的视频会显示在这里。",
@@ -57,14 +45,6 @@ export const zhCN: Messages = {
     seconds: "{seconds} 秒",
     qualityNormalHint: "约 720p。适合大多数情况。",
     qualityHighHint: "约 1080p：更清晰，但耗时约为 3 倍。",
-  },
-  imageDrop: {
-    choose: "选择或拖入一张图片",
-    formats: "PNG、JPG 或 WebP",
-    previewAlt: "要编辑的图片",
-    size: "图片：{width} × {height} 像素",
-    uploading: "正在上传…",
-    replace: "更换图片",
   },
   references: {
     title: "参考图片",
@@ -108,7 +88,6 @@ export const zhCN: Messages = {
   transparency: {
     label: "透明背景",
     hint: "输出为无背景的 PNG 图片。主体为物体或角色时效果最好。",
-    editHint: "当图片中的物体或角色位于简单背景上时有效。对于完整场景的照片，背景通常会保留。",
   },
   job: {
     resultVideoAlt: "生成的视频",
@@ -250,7 +229,7 @@ export const zhCN: Messages = {
     below_min_side: "每条边至少需要 {min} 像素。",
     above_max_pixels: "图片最多只能有 {megapixels} 百万像素。",
     aspect_ratio: "长边最多是短边的 {ratio} 倍。",
-    original_edit_only: "“原图”选项仅在编辑页面可用。",
+    original_needs_image: "“原图”选项需要一张参考图片：尺寸跟随图片 1。",
     edit_needs_one_image: "编辑时请上传且仅上传 1 张图片。",
     max_refs: "最多使用 {max} 张参考图片。",
     max_upload_mb: "每张图片最大 {max} MB。",

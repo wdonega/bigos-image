@@ -6,8 +6,7 @@ Gerador e editor de imagens simples, para quem não entende de IA, em cima do **
 
 ## O que faz
 
-- **Gerar:** texto para imagem, com até 10 **imagens de referência** (reordenáveis, citáveis no texto como `[Imagem 1]`).
-- **Editar:** envie uma imagem e diga o que mudar; o tamanho pode seguir o original.
+- **Imagem:** texto para imagem, com até 10 **imagens de referência** (reordenáveis, citáveis no texto como `[Imagem 1]`). Com uma referência, dá para editar uma foto ("troque o fundo da [Imagem 1] por uma praia") e escolher a proporção **Original**, que mantém o tamanho da Imagem 1.
 - **Vídeo:** descreva a cena e escolha duração (5–15 s), proporção e qualidade; sai um MP4 **com som** (MiniMax H3), com referências opcionais (personagens, lugares).
 - **Tamanho sem jargão:** proporção (1:1, 4:3, 16:9…) + resolução (Pequeno/Médio/Grande) ou Manual; o backend recalcula e valida tudo.
 - **51 estilos** (aquarela, anime, pixel art, cyberpunk…) com miniaturas geradas pelo próprio modelo.
@@ -109,7 +108,7 @@ Stack: Next.js 16 (App Router) + React 19, Tailwind 4 + shadcn/ui, Zod, BullMQ +
 ## Estrutura
 
 ```
-src/app/            telas (/generate, /edit, /video) e rotas de API (/api/jobs, /api/uploads, /api/enhance, /api/health)
+src/app/            telas (/image, /video) e rotas de API (/api/jobs, /api/uploads, /api/enhance, /api/health)
 src/components/     interface (seletores, painel de resultado, ícones e o gato)
 src/lib/            regras: tamanho, prompt, estilos, LLM, fila/worker, cliente do ComfyUI
 src/i18n/           textos dos 4 idiomas (chaves em inglês)

@@ -47,7 +47,7 @@ describe("translate", () => {
 
   it("falls back to the fallback catalog, then to the key", () => {
     const en = MESSAGES["en-US"];
-    expect(translate({ ...en, nav: {} } as never, "nav.edit", undefined, en)).toBe("Edit");
+    expect(translate({ ...en, nav: {} } as never, "nav.image", undefined, en)).toBe("Image");
     expect(translate(en, "does.not.exist")).toBe("does.not.exist");
   });
 });

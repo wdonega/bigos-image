@@ -6,12 +6,14 @@ const nextConfig: NextConfig = {
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   // BullMQ loads Lua scripts from disk at runtime; bundling breaks that.
   serverExternalPackages: ["bullmq", "ioredis"],
-  // Routes were renamed to English; keep old links and installed PWAs working.
+  // Old routes (Portuguese, then Generate/Edit before they merged into Image, spec §14 decision 29):
+  // keep old links and installed PWAs working.
   async redirects() {
-    return [
-      { source: "/gerar", destination: "/generate", permanent: true },
-      { source: "/editar", destination: "/edit", permanent: true },
-    ];
+    return ["/gerar", "/editar", "/generate", "/edit"].map((source) => ({
+      source,
+      destination: "/image",
+      permanent: true,
+    }));
   },
   // Service worker must never be cached, or clients keep an old version (Next.js PWA guide).
   async headers() {

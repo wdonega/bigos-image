@@ -94,9 +94,3 @@ export function toRequestSize(sel: SizeSelection): RequestSize {
   return { ratio: sel.ratio, megapixels: sel.megapixels };
 }
 
-/** True when two sizes differ in proportion by more than 3% (used to warn on the Edit screen). */
-export function differentAspect(a: Size, b: Size): boolean {
-  const ra = a.width / a.height;
-  const rb = b.width / b.height;
-  return Math.abs(ra - rb) / rb > 0.03;
-}

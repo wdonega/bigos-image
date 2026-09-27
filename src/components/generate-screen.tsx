@@ -36,7 +36,13 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
     // Undo would bring back the old image numbers.
     enhancer.forget();
     setPrompt((p) => renumberMentions(p, order, t("references.mentionWord"), t("references.removedMention")));
+    // Original follows Image 1: without references it no longer exists (back to the default).
+    if (order.length === 0) setSize((s) => (s.ratio === "original" ? DEFAULT_GENERATE_SELECTION : s));
   });
+  // "Original" (spec §7) is offered once there is a reference; the user picks it (decision 29).
+  const hasReferences = uploads.items.length > 0;
+  const first = uploads.items[0]?.upload;
+  const original = first ? { width: first.sentWidth, height: first.sentHeight } : null;
 
   const canSubmit =
     prompt.trim().length > 0 &&
@@ -98,7 +104,14 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
 
         <ReferencePicker uploads={uploads} max={limits.maxRefs} disabled={job.busy} onMention={insertMention} />
         <StyleField value={style} onChange={setStyle} disabled={job.busy} />
-        <SizePicker value={size} onChange={setSize} limits={limits} disabled={job.busy} />
+        <SizePicker
+          value={size}
+          onChange={setSize}
+          limits={limits}
+          original={original}
+          allowOriginal={hasReferences}
+          disabled={job.busy}
+        />
         <QualityPicker value={quality} onChange={setQuality} disabled={job.busy} />
         <TransparencyToggle checked={transparent} onChange={setTransparent} disabled={job.busy} />
         <FormError error={job.error} />

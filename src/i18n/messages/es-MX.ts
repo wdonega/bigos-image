@@ -14,8 +14,7 @@ export const esMX: Messages = {
     language: "Idioma",
   },
   nav: {
-    generate: "Crear",
-    edit: "Editar",
+    image: "Imagen",
     video: "Video",
   },
   generate: {
@@ -27,18 +26,6 @@ export const esMX: Messages = {
     submit: "Crear imagen",
     submitting: "Creando…",
     uploading: "Subiendo imágenes…",
-  },
-  edit: {
-    emptyHint: "Sube una imagen, di qué cambiar y toca Editar imagen.",
-    title: "Editar imagen",
-    subtitle: "Sube una imagen y di qué quieres cambiar.",
-    imageLabel: "Imagen",
-    instructionLabel: "¿Qué quieres cambiar?",
-    instructionPlaceholder: "Ej.: cambia el fondo por una playa",
-    submit: "Editar imagen",
-    submitting: "Editando…",
-    aspectWarning:
-      "La proporción elegida es distinta a la de la imagen original. Algunas partes pueden recortarse o cambiar de lugar.",
   },
   video: {
     emptyTitle: "Tu video aparece aquí.",
@@ -57,14 +44,6 @@ export const esMX: Messages = {
     seconds: "{seconds} s",
     qualityNormalHint: "Cerca de 720p. Bueno para la mayoría de los casos.",
     qualityHighHint: "Cerca de 1080p: más nítido, pero tarda unas 3 veces más.",
-  },
-  imageDrop: {
-    choose: "Elige o arrastra una imagen",
-    formats: "PNG, JPG o WebP",
-    previewAlt: "Imagen a editar",
-    size: "Imagen: {width} × {height} px",
-    uploading: "Subiendo…",
-    replace: "Cambiar imagen",
   },
   references: {
     title: "Imágenes de referencia",
@@ -108,8 +87,6 @@ export const esMX: Messages = {
   transparency: {
     label: "Fondo transparente",
     hint: "La imagen sale en PNG sin fondo. Funciona mejor con un objeto o personaje destacado.",
-    editHint:
-      "Funciona cuando la imagen ya tiene un objeto o personaje sobre un fondo sencillo. En fotos con un escenario completo, el fondo suele quedarse.",
   },
   job: {
     resultVideoAlt: "Video generado",
@@ -252,7 +229,7 @@ export const esMX: Messages = {
     below_min_side: "Cada lado debe medir al menos {min} px.",
     above_max_pixels: "La imagen puede tener como máximo {megapixels} megapíxeles.",
     aspect_ratio: "Un lado puede medir como máximo {ratio} veces el otro.",
-    original_edit_only: "La opción Original solo existe en la pantalla Editar.",
+    original_needs_image: "La opción Original necesita una imagen de referencia: el tamaño sigue a la Imagen 1.",
     edit_needs_one_image: "Sube exactamente 1 imagen para editar.",
     max_refs: "Usa como máximo {max} imágenes de referencia.",
     max_upload_mb: "El límite es de {max} MB por imagen.",

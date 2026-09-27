@@ -13,8 +13,7 @@ export const enUS = {
     language: "Language",
   },
   nav: {
-    generate: "Generate",
-    edit: "Edit",
+    image: "Image",
     video: "Video",
   },
   generate: {
@@ -26,18 +25,6 @@ export const enUS = {
     submit: "Generate image",
     submitting: "Generating…",
     uploading: "Uploading images…",
-  },
-  edit: {
-    emptyHint: "Upload an image, say what to change and tap Edit image.",
-    title: "Edit image",
-    subtitle: "Upload an image and say what to change.",
-    imageLabel: "Image",
-    instructionLabel: "What do you want to change?",
-    instructionPlaceholder: "E.g. replace the background with a beach",
-    submit: "Edit image",
-    submitting: "Editing…",
-    aspectWarning:
-      "The chosen proportion differs from the original image. Parts of the image may be cropped or repositioned.",
   },
   video: {
     emptyTitle: "Your video appears here.",
@@ -56,14 +43,6 @@ export const enUS = {
     seconds: "{seconds} s",
     qualityNormalHint: "About 720p. Good for most cases.",
     qualityHighHint: "About 1080p: sharper, but takes about 3 times longer.",
-  },
-  imageDrop: {
-    choose: "Choose or drag an image",
-    formats: "PNG, JPG or WebP",
-    previewAlt: "Image to edit",
-    size: "Image: {width} × {height} px",
-    uploading: "Uploading…",
-    replace: "Replace image",
   },
   references: {
     title: "Reference images",
@@ -107,8 +86,6 @@ export const enUS = {
   transparency: {
     label: "Transparent background",
     hint: "The image comes out as a PNG with no background. Works best with an object or character in focus.",
-    editHint:
-      "Works when the image already has an object or character on a simple background. In photos with a full scene the background usually stays.",
   },
   job: {
     resultVideoAlt: "Generated video",
@@ -250,7 +227,7 @@ export const enUS = {
     below_min_side: "Each side must be at least {min} px.",
     above_max_pixels: "The image can have at most {megapixels} megapixels.",
     aspect_ratio: "One side can be at most {ratio} times the other.",
-    original_edit_only: "The Original option only exists on the Edit screen.",
+    original_needs_image: "The Original option needs a reference image: its size follows Image 1.",
     edit_needs_one_image: "Send exactly 1 image to edit.",
     max_refs: "Use at most {max} reference images.",
     max_upload_mb: "The limit is {max} MB per image.",

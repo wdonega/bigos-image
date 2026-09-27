@@ -36,17 +36,6 @@ export function GenerateIcon(props: IconProps) {
   );
 }
 
-/** Edit: an image with a pencil. */
-export function EditIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M12 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
-      <path d="m3 16 4.5-4.5 3 3" />
-      <path d="M19.6 3.4a2 2 0 0 1 0 2.8L13 12.8l-3.4.9.9-3.4 6.6-6.6a2 2 0 0 1 2.5-.3Z" />
-    </Icon>
-  );
-}
-
 /** Video: a camera with a sparkle. */
 export function VideoIcon(props: IconProps) {
   return (

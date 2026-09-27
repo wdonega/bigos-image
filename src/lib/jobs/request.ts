@@ -133,8 +133,9 @@ async function planImage(req: ImageRequest, config: Config, findUpload: UploadLo
   if (req.screen === "generate" && req.images.length > config.maxRefs) {
     throw new AppError("too_many_images", 400, [{ code: "max_refs", params: { max: config.maxRefs } }]);
   }
-  if (req.size.ratio === "original" && req.screen !== "edit") {
-    throw new AppError("invalid_request", 400, [{ code: "original_edit_only" }]);
+  // Original follows image_1 (spec §7), so it needs a reference image (spec §14, decision 29).
+  if (req.size.ratio === "original" && req.images.length === 0) {
+    throw new AppError("invalid_request", 400, [{ code: "original_needs_image" }]);
   }
   await checkUploads(req.images, findUpload);
 
