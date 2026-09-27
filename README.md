@@ -28,17 +28,52 @@ O navegador fala só com o app; o ComfyUI e o LLM nunca ficam expostos. O worker
 
 ## Requisitos
 
-- **ComfyUI** atualizado (usa nós novos como `TextEncodeQwenImage21` e `QwenImage21Cache`) com os modelos do Qwen Image 2.1 ([Hugging Face `Comfy-Org/Qwen-Image-2.1`](https://huggingface.co/Comfy-Org/Qwen-Image-2.1)):
+- **ComfyUI** acessível pelo app, com os componentes da seção abaixo. Cada aba precisa só dos seus: dá para rodar só Imagem, por exemplo.
+- **Opcional:** uma API compatível com OpenAI (ex.: [LiteLLM](https://github.com/BerriAI/litellm)) com um modelo pequeno para "Melhorar texto", "Criar letra pra mim" e a etapa final (tradução, referências, estilo). Sem ela, esses botões somem e o prompt vai como foi escrito, com o estilo no fim.
 
-  | Tipo | Arquivo | Pasta |
-  |------|---------|-------|
-  | Diffusion | `qwen_image_2.1_int8_convrot.safetensors` | `models/diffusion_models/` |
-  | Text encoder | `qwen3vl_8b_int8_convrot.safetensors` | `models/text_encoders/` |
-  | VAE | `qwen_image_2.1_vae_bf16.safetensors` | `models/vae/` |
+## Componentes do ComfyUI
 
-- **Para vídeo (opcional):** os modelos do **MiniMax H3** ([Hugging Face `Comfy-Org/MiniMax-H3`](https://huggingface.co/Comfy-Org/MiniMax-H3)) — FL2VA e Ref2VA, text encoder Qwen3-VL da MiniMax, VAEs de vídeo e áudio — a LoRA TaoMate de 3 passos, e os nós `comfyui-kjnodes` e `ComfyUI-VideoHelperSuite`. Os nomes exatos estão em `workflows/api/video_*_api.json`.
-- **Para música (opcional):** os modelos do **MiniMax Music 3** (DiT, text encoder e VAE `minimax_music3_*`); nomes exatos em `workflows/api/audio_minimax_music_3.json`.
-- **Opcional:** uma API compatível com OpenAI (ex.: [LiteLLM](https://github.com/BerriAI/litellm)) com um modelo pequeno para "Melhorar texto" e para a etapa final (tradução, referências, estilo). Sem ela, o botão some e o prompt vai como foi escrito, com o estilo no fim.
+Testado com o **[ComfyUI](https://github.com/Comfy-Org/ComfyUI) 0.37.0**. Os grafos usados estão em [`workflows/api/`](workflows/api/); os nós são achados pelo título (`@…`, veja [`workflows/README.md`](workflows/README.md)). Salve cada modelo na pasta indicada, dentro de `ComfyUI/models/`.
+
+### Aba Imagem — Qwen Image 2.1
+
+Nós: todos nativos do ComfyUI (`TextEncodeQwenImage21`, `QwenImage21Cache`, `SaveImageAdvanced`, `ComfySwitchNode`…).
+
+| Tipo | Arquivo | Pasta | Download |
+|------|---------|-------|----------|
+| Diffusion | `qwen_image_2.1_int8_convrot.safetensors` | `diffusion_models/` | [Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors) |
+| Text encoder | `qwen3vl_8b_int8_convrot.safetensors` | `text_encoders/` | [Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors) |
+| VAE | `qwen_image_2.1_vae_bf16.safetensors` | `vae/` | [Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors) |
+
+### Aba Vídeo — MiniMax H3
+
+Nós nativos (`MiniMaxH3ImageToVideo`, `MiniMaxH3ReferenceToVideo`, `MiniMaxH3SigmaShift`, `SamplerCustomAdvanced`…) e dois pacotes de nós da comunidade:
+
+| Pacote | Nós usados | Repositório |
+|--------|-----------|-------------|
+| KJNodes | `MiniMaxLowVRAMAttention`, `MiniMaxChunkFeedForward` | [kijai/ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) |
+| VideoHelperSuite | `VHS_VideoCombine` (MP4 com áudio) | [Kosinkadink/ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) |
+
+| Tipo | Arquivo | Pasta | Download |
+|------|---------|-------|----------|
+| Diffusion (sem referências) | `minimax_h3_fl2va_pruned_int8_convrot.safetensors` | `diffusion_models/` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors) |
+| Diffusion (com referências) | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | `diffusion_models/` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors) |
+| Text encoder | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders/` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors) |
+| VAE de vídeo | `minimax_h3_video_vae_int8_convrot.safetensors` | `vae/` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_int8_convrot.safetensors) |
+| VAE de áudio | `minimax_h3_audio_vae_fp32.safetensors` | `vae/` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors) |
+| LoRA de 3 passos (TaoMate) | `minimax_h3_taomate_fl2va_3step_ema_comfyui.safetensors` | `loras/` | ver nota abaixo |
+
+> **LoRA TaoMate:** a origem é o [TaoLiveAIGC/TaoMate-H3](https://huggingface.co/TaoLiveAIGC/TaoMate-H3), publicado no formato PEFT (`adapter_model.safetensors`), não no do ComfyUI. Não há um arquivo público com o nome exato que o workflow usa; é uma versão convertida para o ComfyUI. Use uma conversão para ComfyUI dessa LoRA e salve-a com esse nome (ou troque o `lora_name` nos dois `workflows/api/video_*_api.json`).
+
+### Aba Música — MiniMax Music 3
+
+Nós: todos nativos (`MiniMaxMusic3TextEncode`, `EmptyMiniMaxMusic3LatentAudio`, `VAEDecodeAudioTiled`, `SaveAudioAdvanced`, `SeedNode`…).
+
+| Tipo | Arquivo | Pasta | Download |
+|------|---------|-------|----------|
+| Diffusion | `minimax_music3_dit_fp16.safetensors` | `diffusion_models/` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/diffusion_models/minimax_music3_dit_fp16.safetensors) |
+| Text encoder | `minimax_music3_text_encoder_pruned_int8_convrot.safetensors` | `text_encoders/` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/text_encoders/minimax_music3_text_encoder_pruned_int8_convrot.safetensors) |
+| VAE | `minimax_music3_dav.safetensors` | `vae/` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/vae/minimax_music3_dav.safetensors) |
 
 ## Rodando com Docker
 
