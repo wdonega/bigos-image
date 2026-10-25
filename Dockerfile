@@ -23,6 +23,9 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/workflows/api ./workflows/api
+# ffmpeg/ffprobe for the old video restoration (spec §14, decision 32): a static 7.1 build
+# (amd64 + arm64, ~200 MB) instead of Debian's 5.1 package (+385 MB).
+COPY --from=mwader/static-ffmpeg:7.1.1 /ffmpeg /ffprobe /usr/local/bin/
 RUN mkdir -p /data && chown node:node /data
 USER node
 VOLUME /data

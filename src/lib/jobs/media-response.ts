@@ -28,11 +28,16 @@ export async function mediaResponse(request: Request, id: string, media: Exclude
   if (size === null) throw new AppError("job_not_found", 404);
 
   const { mime, ext } = TYPES[media];
+  return fileResponse(request, file, size, mime, `bigos-${id}.${ext}`);
+}
+
+/** Streams a stored file with byte ranges (`?download` asks the browser to save it). */
+export function fileResponse(request: Request, file: string, size: number, mime: string, filename: string): Response {
   const download = new URL(request.url).searchParams.has("download");
   const headers: Record<string, string> = {
     "content-type": mime,
     "accept-ranges": "bytes",
-    "content-disposition": `${download ? "attachment" : "inline"}; filename="bigos-${id}.${ext}"`,
+    "content-disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
     "cache-control": "private, max-age=3600",
   };
   const range = parseRange(request.headers.get("range"), size);

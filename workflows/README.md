@@ -62,6 +62,8 @@ Efeitos de vídeo (spec §14, decisão 31). Gerados por `python3 scripts/derive-
 | `fx_animate_api.json` | #15 Wan Animate 2 | `@video_in` `LoadVideo` → `file`; `@trim` `Video Slice` → `duration`; `@size` `ResizeImageMaskNode` → `resize_type.width/height` (orientação do vídeo, pixels do template); `@image_1` `LoadImage` → `image` (personagem); `@prompt` / `@character` `PrimitiveStringMultiline` → `value`; `@seed` `SamplerCustom` → `noise_seed`; `@save` `SaveVideo` |
 | `fx_character_swap_api.json` | #14 H3 Character Swap | `@video_in` `LoadVideo` → `file`; `@prepare` `H3RelayPrepareSource` → `duration_seconds`; `@image_1` `LoadImage` → `image` (personagem); `@subject` `CLIPTextEncode` → `text` (para o SAM, em inglês); `@seed` `H3RelayWindowPlan` → `seed`; `@save` `SaveVideo` |
 
+Restauração (spec §14, decisão 32): `restore_seedvr2_api.json`, do `usecases/vhs-upscale/seedvr2_video.api.json` (template oficial de vídeo do SeedVR2), gerado pelo mesmo script com os ajustes que o `restore_vhs.py` aplica (blocos temporais automáticos, sobreposição 1, correção de cor `lab`): `@video_in` `LoadVideo` → `file`; `@size` `ResizeImageMaskNode` → `resize_type.width/height`; `@model` `UNETLoader` (3B, fixo); `@seed` `KSampler` → `seed`; `@save` `SaveVideo`. O script precisa de um clone com `usecases/` (ou de um `git archive` do `origin/main`).
+
 O `SaveVideo` nativo devolve o arquivo em `outputs[id].images[0]` com `animated: [true]` (o `VHS_VideoCombine` usa `gifs`).
 
 `width` e `height` moram no mesmo nó (`@latent_size`), e `seed`/`steps`/`cfg` no mesmo nó (`@sampler`).

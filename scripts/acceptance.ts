@@ -204,6 +204,47 @@ if (withEffects) {
   });
 }
 
+// Old video restoration (spec §13 and §14, decision 32). Uses b.mpg from storage/spikes/restore/.
+const tapePath = path.resolve("storage/spikes/restore/b.mpg");
+let tapeId = "";
+await check("Restore: a DVD capture uploads as a stream and is measured; the proxy gets ready", async () => {
+  const res = await fetch(`${base}/api/restore/uploads`, { method: "PUT", headers: { "x-filename": "b.mpg" }, body: readFileSync(tapePath) });
+  const tape = (await res.json()) as { id: string; info: { sar: number; seconds: number }; cleanWidth: number; media: string };
+  assert(res.status === 201 && Math.abs(tape.info.sar - 8 / 9) < 0.01 && tape.cleanWidth === 632, JSON.stringify(tape));
+  tapeId = tape.id;
+  for (let i = 0; i < 60; i++) {
+    const meta = (await (await fetch(`${base}/api/restore/uploads/${tapeId}`)).json()) as { media: string };
+    if (meta.media === "ready") return `${tape.info.seconds.toFixed(1)} s, cleaned to ${tape.cleanWidth} px wide, proxy ready`;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error("proxy not ready after 30 s");
+});
+
+await check("Restore: color previews of one frame (original + 7 colors)", async () => {
+  const res = await post(`/api/restore/uploads/${tapeId}/preview`, { seconds: 4 });
+  const images = Object.values(res.body.images as Record<string, string>);
+  const sizes = await Promise.all(images.map(async (u) => (await fetch(`${base}${u}`)).headers.get("content-type")));
+  assert(images.length === 8 && sizes.every((t) => t === "image/jpeg"), JSON.stringify(sizes));
+  return "8 JPEG previews";
+});
+
+await check("Restore: a section past the end of the video is refused", async () => {
+  const past = await post("/api/jobs", { screen: "restore", upload: tapeId, start: 0, end: 30, mode: "clean" });
+  assert(past.status === 400 && past.body.error?.details?.[0]?.code === "section_invalid", JSON.stringify(past.body));
+  return "400 section_invalid";
+});
+
+await check("Restore: Clean only returns a square-pixel H.264 MP4 with sound", async () => {
+  const created = await post("/api/jobs", { screen: "restore", upload: tapeId, start: 2, end: 5, color: "normalize", mode: "clean" });
+  assert(created.status === 202, JSON.stringify(created.body));
+  const view = await wait(created.body.job_id);
+  assert(view.status === "done", `${view.status} ${JSON.stringify(view.error)}`);
+  const mp4 = Buffer.from(await (await fetch(`${base}${view.url}`)).arrayBuffer());
+  const info = readVideoInfo(mp4);
+  assert(info && info.width === 632 && info.hasAudio && Math.abs(info.seconds - 3) < 0.1, JSON.stringify(info));
+  return `${info.seconds.toFixed(1)} s, ${info.width}×${info.height}, audio`;
+});
+
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed}/${results.length} checks passed.`);
 process.exit(failed ? 1 : 0);

@@ -10,7 +10,7 @@ import { mp3Duration } from "../audio.ts";
 import { buildMusicCaption } from "../music.ts";
 import { AppError, type Detail, type ErrorCode } from "../errors.ts";
 import { buildPrompt } from "../prompt.ts";
-import { removeExpired, writeStored } from "../storage.ts";
+import { removeExpired, storageFile, writeStored } from "../storage.ts";
 import {
   type SentImage,
   type VideoUploadMeta,
@@ -21,7 +21,10 @@ import {
   readUploadVideo,
 } from "../uploads.ts";
 import { buildVideoPrompt, tokensToSubjects } from "../video.ts";
+import { FfmpegError, probe } from "../ffmpeg.ts";
+import { readTapeMeta, tapeFile } from "../tapes.ts";
 import { buildEdit, buildEffect, buildMusic, buildT2I, buildVideo } from "../workflow/build.ts";
+import { removeWork, runRestore } from "./restore.ts";
 import { type ApiGraph, findNodeId } from "../workflow/graph.ts";
 import { loadTemplate } from "../workflow/templates.ts";
 import { type JobData, type JobResult, type Media, QUEUE_NAME, cancelKey, createRedis } from "./queue.ts";
@@ -41,6 +44,8 @@ export function resultName(jobId: string, media: Media = "image"): string {
 function toErrorCode(err: unknown, cancelled: boolean): ErrorCode {
   if (cancelled) return "cancelled";
   if (err instanceof AppError) return err.code;
+  // ffmpeg failing on a restoration (a damaged capture, a chunk with missing frames).
+  if (err instanceof FfmpegError) return "generation_failed";
   if (err instanceof ComfyError) {
     if (err.kind === "unavailable") return "comfy_unavailable";
     if (err.kind === "timeout") return "timeout";
@@ -173,10 +178,68 @@ async function effectImages(data: JobData, config: Config): Promise<EffectImages
   return { frame: await toDataUrl(frame), photo: await toDataUrl(photo) };
 }
 
-const isVideo = (data: Pick<JobData, "workflow">) =>
+const isVideo = <T extends Pick<JobData, "workflow">>(data: T): data is T & { workflow: "video_fl2va" | "video_ref2va" } =>
   data.workflow === "video_fl2va" || data.workflow === "video_ref2va";
 
 const isEffect = (data: Pick<JobData, "effect">) => data.effect !== undefined;
+
+/**
+ * Restoration job (spec §14, decision 32): no prompt, no single graph — the pipeline in restore.ts
+ * runs ffmpeg locally and, for the upscale, one ComfyUI prompt per chunk.
+ */
+async function processRestore(
+  job: Job<JobData, JobResult>,
+  client: ComfyClient,
+  config: Config,
+  signal: AbortSignal,
+): Promise<JobResult> {
+  const id = job.id as string;
+  const plan = job.data.restore;
+  const tape = plan ? await readTapeMeta(config, plan.upload) : null;
+  if (!plan || !tape) throw new AppError("upload_not_found", 400);
+  // The cleanup alone runs here, without the GPU: only the upscale needs ComfyUI awake.
+  if (plan.mode === "upscale" && !(await client.waitUntilAwake(config.comfyWakeMs))) {
+    throw new ComfyError("unavailable", `ComfyUI did not wake up within ${config.comfyWakeMs / 1000}s`);
+  }
+  const out = storageFile(config, "results", resultName(id, "video"));
+  let bestShare = 0;
+  await runRestore(
+    {
+      jobId: id,
+      file: tapeFile(config, tape),
+      info: tape.info,
+      measurements: tape.measurements,
+      section: { start: plan.start, seconds: plan.seconds, color: plan.color, mode: plan.mode },
+      state: plan.state,
+    },
+    {
+      client,
+      config,
+      template: () => loadTemplate("restore_seedvr2"),
+      signal,
+      onProgress: (share) => {
+        if (share <= bestShare) return;
+        bestShare = share;
+        void job.updateProgress({ phase: "running", value: Math.round(share * 1000), max: 1000 }).catch(() => {});
+      },
+      saveState: async (state) => {
+        const restore = job.data.restore;
+        if (restore) await job.updateData({ ...job.data, restore: { ...restore, state } });
+      },
+    },
+    out,
+  );
+  await removeWork(config, id);
+  const result = await probe(out);
+  return {
+    width: result?.width ?? 0,
+    height: result?.height ?? 0,
+    transparent: false,
+    warnings: [],
+    media: "video",
+    seconds: result ? Math.round(result.seconds * 10) / 10 : undefined,
+  };
+}
 
 const VIDEO_TYPES: Record<VideoUploadMeta["ext"], string> = { mp4: "video/mp4", mov: "video/quicktime" };
 
@@ -293,6 +356,7 @@ async function processJob(
 
   try {
     if (await isCancelled()) throw new ComfyError("interrupted", "cancelled before start");
+    if (job.data.restore) return await processRestore(job, client, config, controller.signal);
     // The machine may be asleep (Wake-on-LAN): give it time before the first real call.
     if (!(await client.waitUntilAwake(config.comfyWakeMs))) {
       throw new ComfyError("unavailable", `ComfyUI did not wake up within ${config.comfyWakeMs / 1000}s`);
@@ -374,6 +438,7 @@ async function processJob(
   } catch (err) {
     const code = toErrorCode(err, controller.signal.aborted || (await isCancelled().catch(() => false)));
     if (code !== "cancelled") console.error(`[worker] job ${id} failed (${code})`, err);
+    if (job.data.restore) await removeWork(config, id).catch(() => {});
     throw new UnrecoverableError(code);
   } finally {
     clearInterval(watcher);

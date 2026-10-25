@@ -19,5 +19,13 @@ export const testConfig: Config = {
   comfyWakeMs: 30_000,
   music: { timeoutMs: 20 * 60_000 },
   effects: { maxUploadBytes: 100 * 1024 * 1024, maxSeconds: 5, timeoutMs: 40 * 60_000 },
+  restore: {
+    maxUploadBytes: 2048 * 1024 * 1024,
+    maxSeconds: { upscale: 60, clean: 1800 },
+    chunkFrames: 601,
+    chunkTimeoutMs: 90 * 60_000,
+    factors: { upscale: 110, clean: 1.7 },
+    warnMinutes: [20, 40, 60],
+  },
   video: { pixels: { normal: 921_600, high: 2_073_600 }, maxRefs: 9, timeoutMs: 40 * 60_000 },
 };

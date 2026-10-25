@@ -16,6 +16,7 @@ Aplicação web simples para leigos gerarem e editarem imagens com workflows do 
 - TypeScript full-stack: **Next.js** (App Router) com rotas de API como backend, **Tailwind + shadcn/ui** na interface, **Zod** para validar payloads, **Vitest** para testes, **Playwright** para o fluxo de ponta a ponta (opcional).
 - Node.js LTS atual e **pnpm**. Use as versões estáveis mais recentes das bibliotecas.
 - Imagens: **sharp** para redimensionar entradas grandes e para checar o canal alfa nos testes.
+- Vídeo antigo (aba Restaurar): **ffmpeg/ffprobe** 6+ no `PATH` em desenvolvimento (`brew install ffmpeg`); a imagem Docker traz um estático 7.1.
 - **Todo o código em inglês**: nomes, rotas (`/image`, `/video`, `/music`), comentários, logs e commits. Textos da interface **só via i18n** (`src/i18n/messages/{en-US,pt-BR,es-MX,zh-CN}.ts`, chaves em inglês, `en-US` é a referência e o fallback; toda chave nova entra nos 4 arquivos); nenhum texto de UI no código. O backend responde **códigos + parâmetros** (`errors.*`, `details.*`, `warnings.*`) e o front traduz. Sem jargão técnico para o usuário (a seed é sempre aleatória e não aparece; passos só via Qualidade).
 
 ## Comandos
@@ -39,6 +40,7 @@ pnpm acceptance           # critérios do §13 contra o app e o ComfyUI reais (~
 pnpm icons                # regera favicon/ícones/PWA a partir de docs/icons/icon_warm.png
 pnpm styles:thumbs        # gera as miniaturas que faltam em public/styles/ (app rodando + ComfyUI; --force refaz todas)
 node --env-file=.env scripts/spikes/m1.ts [filtro]   # spikes contra o ComfyUI real
+node --env-file=.env scripts/spikes/restore.ts [arquivo] [início] [segundos] [quadros/bloco] [clean|upscale]   # restauração de ponta a ponta
 ```
 
 O worker da fila sobe uma vez por processo (`src/instrumentation.ts`) e **não é recarregado pelo HMR**: depois de mudar `src/lib/jobs/worker.ts` ou algo que ele importa, reinicie o `pnpm dev`.
@@ -47,7 +49,7 @@ Código em `src/lib/` usa imports relativos com extensão `.ts` (para rodar dire
 
 ## Configuração (`.env`, ver `.env.example`; só `COMFY_URL` e `REDIS_URL` são obrigatórias, o resto tem padrão em `src/lib/config.ts`)
 
-`COMFY_URL`, `COMFY_WAKE_SECONDS`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`, `VIDEO_PIXELS_NORMAL`, `VIDEO_PIXELS_HIGH`, `MAX_VIDEO_REFS`, `VIDEO_JOB_TIMEOUT_MINUTES`, `MUSIC_JOB_TIMEOUT_MINUTES`, `MAX_VIDEO_UPLOAD_MB`, `EFFECT_MAX_SECONDS`, `EFFECT_JOB_TIMEOUT_MINUTES`, e opcionais `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_MAX_OUTPUT_TOKENS`, `LLM_MAX_INPUT_CHARS`, `LLM_DISABLE_THINKING` (Melhorar texto e etapa final; a chave só no `.env`). Nunca deixe limites fixos no código: leia da configuração.
+`COMFY_URL`, `COMFY_WAKE_SECONDS`, `REDIS_URL`, `STORAGE_DIR`, `MAX_REFS`, `MAX_PIXELS`, `MIN_SIDE`, `MAX_ASPECT_RATIO`, `MAX_INPUT_PIXELS`, `MAX_REFS_TOTAL_PIXELS`, `MAX_UPLOAD_MB`, `RETENTION_HOURS`, `JOB_TIMEOUT_MINUTES`, `STEPS_NORMAL`, `STEPS_HIGH`, `VIDEO_PIXELS_NORMAL`, `VIDEO_PIXELS_HIGH`, `MAX_VIDEO_REFS`, `VIDEO_JOB_TIMEOUT_MINUTES`, `MUSIC_JOB_TIMEOUT_MINUTES`, `MAX_VIDEO_UPLOAD_MB`, `EFFECT_MAX_SECONDS`, `EFFECT_JOB_TIMEOUT_MINUTES`, `RESTORE_MAX_UPLOAD_MB`, `RESTORE_MAX_UPSCALE_SECONDS`, `RESTORE_MAX_CLEAN_SECONDS`, `RESTORE_CHUNK_FRAMES`, `RESTORE_CHUNK_TIMEOUT_MINUTES`, `RESTORE_UPSCALE_FACTOR`, `RESTORE_CLEAN_FACTOR`, `RESTORE_WARN_MINUTES`, e opcionais `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_MAX_OUTPUT_TOKENS`, `LLM_MAX_INPUT_CHARS`, `LLM_DISABLE_THINKING` (Melhorar texto e etapa final; a chave só no `.env`). Nunca deixe limites fixos no código: leia da configuração.
 
 ## Arquitetura (resumo; detalhes na spec)
 

@@ -226,3 +226,31 @@ describe("planJob — video effects (spec §14, decision 31)", () => {
     expect((await fx({ effect: "remove_people", images: ["p1"] })).images).toEqual([]);
   });
 });
+
+describe("planJob — old video restoration (spec §14, decision 32)", () => {
+  const tape = { id: "t1", kind: "tape" as const, info: { seconds: 600 } };
+  const lookup: UploadLookup = async (id) => (id === "t1" ? tape : id === "p1" ? { id, kind: "image" } : null);
+  const restore = (body: Record<string, unknown>) => plan({ screen: "restore", upload: "t1", start: 10, end: 40, ...body }, lookup);
+
+  it("plans the chosen section with the defaults (normalize, upscale)", async () => {
+    expect(await restore({})).toMatchObject({
+      workflow: "restore",
+      restore: { upload: "t1", start: 10, seconds: 30, color: "normalize", mode: "upscale", state: { chunksDone: 0 } },
+    });
+  });
+
+  it("limits the section per mode: short with the upscale, long for the cleanup", async () => {
+    await expect(restore({ end: 75 })).rejects.toMatchObject({ details: [{ code: "section_too_long", params: { max: 60 } }] });
+    expect((await restore({ end: 400, mode: "clean" })).restore?.seconds).toBe(390);
+  });
+
+  it("refuses sections past the end, shorter than 1 s, and uploads that are not tapes", async () => {
+    await expect(restore({ start: 590, end: 620 })).rejects.toMatchObject({ details: [{ code: "section_invalid" }] });
+    await expect(restore({ start: 10, end: 10.5 })).rejects.toMatchObject({ details: [{ code: "section_invalid" }] });
+    await expect(restore({ upload: "p1" })).rejects.toMatchObject({ code: "upload_not_found" });
+  });
+
+  it("accepts an end handle a hair past the last frame", async () => {
+    expect((await restore({ start: 570, end: 600.2 })).restore?.seconds).toBe(30);
+  });
+});

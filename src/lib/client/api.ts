@@ -1,8 +1,9 @@
 // Browser-side calls to our API. The browser never talks to ComfyUI (spec §12).
 import type { Detail } from "@/lib/errors";
 import type { JobView } from "@/lib/jobs/queue";
+import type { PreviewChoice, TapeMeta } from "@/lib/tapes";
 
-export type { Detail, JobView };
+export type { Detail, JobView, PreviewChoice, TapeMeta };
 
 export const TERMINAL: ReadonlySet<JobView["status"]> = new Set(["done", "failed", "cancelled"]);
 
@@ -80,6 +81,45 @@ export async function uploadVideo(file: File, frame: Blob | null): Promise<Uploa
   form.append("file", file);
   if (frame) form.append("frame", frame, "frame.png");
   return send<UploadedVideo>("/api/uploads", { method: "POST", body: form });
+}
+
+/**
+ * Sends an old video for restoration (spec §14, decision 32) as the raw request body. XHR rather
+ * than fetch: it reports upload progress, which matters for captures of hundreds of MB.
+ */
+export function uploadTape(file: File, onProgress: (share: number) => void): Promise<TapeMeta> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", "/api/restore/uploads");
+    xhr.setRequestHeader("x-filename", encodeURIComponent(file.name));
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    xhr.onerror = () => reject(new ApiError("offline"));
+    xhr.onload = () => {
+      const body = (() => {
+        try {
+          return JSON.parse(xhr.responseText) as TapeMeta & { error?: { code: string; details?: Detail[] } };
+        } catch {
+          return null;
+        }
+      })();
+      if (xhr.status >= 200 && xhr.status < 300 && body) resolve(body);
+      else reject(new ApiError(body?.error?.code ?? "video_upload_failed", body?.error?.details ?? []));
+    };
+    xhr.send(file);
+  });
+}
+
+export function getTape(id: string): Promise<TapeMeta> {
+  return send<TapeMeta>(`/api/restore/uploads/${id}`, { method: "GET" });
+}
+
+/** The cleaned frame at `seconds` with each color (and the original), as image URLs. */
+export function previewTape(id: string, seconds: number): Promise<{ ms: number; images: Record<PreviewChoice, string> }> {
+  return send(`/api/restore/uploads/${id}/preview`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ seconds }),
+  });
 }
 
 export type Enhanced = { text: string };

@@ -59,6 +59,18 @@ export function EffectsIcon(props: IconProps) {
   );
 }
 
+/** Restore: a video cassette. */
+export function RestoreIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2" />
+      <circle cx="8" cy="11" r="2" />
+      <circle cx="16" cy="11" r="2" />
+      <path d="M10 11h4M7 18.5l1.5-3h7l1.5 3" />
+    </Icon>
+  );
+}
+
 /** Music: a double note. */
 export function MusicIcon(props: IconProps) {
   return (

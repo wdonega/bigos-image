@@ -35,6 +35,22 @@ const envSchema = z.object({
   MAX_VIDEO_UPLOAD_MB: positiveInt.default(100),
   EFFECT_MAX_SECONDS: positiveInt.default(5),
   EFFECT_JOB_TIMEOUT_MINUTES: positiveInt.default(40),
+  // Old video restoration (spec §14, decision 32): upload size, longest section per job with and
+  // without the upscale, frames per SeedVR2 chunk (4n+1, RAM of the ComfyUI machine) and its time
+  // limit, the time factors of the estimate (seconds of work per second of video: GPU measured at
+  // 110 for SeedVR2 3B 720p, CPU ~1.7 for the cleanup) and the estimate's warning steps in minutes.
+  RESTORE_MAX_UPLOAD_MB: positiveInt.default(2048),
+  RESTORE_MAX_UPSCALE_SECONDS: positiveInt.default(60),
+  RESTORE_MAX_CLEAN_SECONDS: positiveInt.default(1800),
+  RESTORE_CHUNK_FRAMES: positiveInt.refine((n) => n % 4 === 1, "must be 4n+1").default(601),
+  RESTORE_CHUNK_TIMEOUT_MINUTES: positiveInt.default(90),
+  RESTORE_UPSCALE_FACTOR: z.coerce.number().positive().default(110),
+  RESTORE_CLEAN_FACTOR: z.coerce.number().positive().default(1.7),
+  RESTORE_WARN_MINUTES: z
+    .string()
+    .default("20,40,60")
+    .transform((v) => v.split(",").map((n) => Number(n.trim())))
+    .refine((list) => list.length > 0 && list.every((n, i) => n > 0 && (i === 0 || n > list[i - 1])), "ascending minutes, e.g. 20,40,60"),
   // The ComfyUI machine wakes on LAN: how long to wait for it before calling it unavailable.
   COMFY_WAKE_SECONDS: positiveInt.default(30),
   // Optional: "Improve text" is hidden when the LLM is not configured.
@@ -83,6 +99,14 @@ export type Config = {
   video: { pixels: { normal: number; high: number }; maxRefs: number; timeoutMs: number };
   music: { timeoutMs: number };
   effects: { maxUploadBytes: number; maxSeconds: number; timeoutMs: number };
+  restore: {
+    maxUploadBytes: number;
+    maxSeconds: { upscale: number; clean: number };
+    chunkFrames: number;
+    chunkTimeoutMs: number;
+    factors: { upscale: number; clean: number };
+    warnMinutes: number[];
+  };
   llm: LlmConfig | null;
 };
 
@@ -120,6 +144,14 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
       maxUploadBytes: e.MAX_VIDEO_UPLOAD_MB * 1024 * 1024,
       maxSeconds: e.EFFECT_MAX_SECONDS,
       timeoutMs: e.EFFECT_JOB_TIMEOUT_MINUTES * 60_000,
+    },
+    restore: {
+      maxUploadBytes: e.RESTORE_MAX_UPLOAD_MB * 1024 * 1024,
+      maxSeconds: { upscale: e.RESTORE_MAX_UPSCALE_SECONDS, clean: e.RESTORE_MAX_CLEAN_SECONDS },
+      chunkFrames: e.RESTORE_CHUNK_FRAMES,
+      chunkTimeoutMs: e.RESTORE_CHUNK_TIMEOUT_MINUTES * 60_000,
+      factors: { upscale: e.RESTORE_UPSCALE_FACTOR, clean: e.RESTORE_CLEAN_FACTOR },
+      warnMinutes: e.RESTORE_WARN_MINUTES,
     },
     llm: e.LLM_URL
       ? {

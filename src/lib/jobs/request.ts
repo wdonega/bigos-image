@@ -7,6 +7,7 @@ import { STYLE_IDS, type StyleId, applyStyle, findStyle } from "../styles.ts";
 import { MUSIC_DURATIONS, MUSIC_GENRE_IDS, type MusicGenreId, fallbackMusicCaption, genrePhrase, normalizeLyrics } from "../music.ts";
 import { VIDEO_DURATIONS, VIDEO_RATIOS, buildVideoPrompt, tokensToSubjects, videoFrames, videoSize } from "../video.ts";
 import { EFFECTS, EFFECT_IDS, type EffectId, type EffectText, type EffectWorkflow } from "../effects.ts";
+import { COLOR_IDS, RESTORE_MODES, type ColorId, type RestoreMode } from "../restore.ts";
 import { randomSeed } from "../workflow/build.ts";
 
 // Request contract of POST /api/jobs (spec §10).
@@ -68,18 +69,36 @@ const effectsRequestSchema = z.object({
   consent: z.boolean().default(false),
 });
 
-export const jobRequestSchema = z.union([imageRequestSchema, videoRequestSchema, musicRequestSchema, effectsRequestSchema]);
+// Old video restoration (spec §14, decision 32): an uploaded tape, the section chosen in the trim
+// editor, the color correction and the mode (cleanup only, or cleanup + SeedVR2 upscale).
+const restoreRequestSchema = z.object({
+  screen: z.literal("restore"),
+  upload: z.string().min(1),
+  start: z.number().min(0),
+  end: z.number().positive(),
+  color: z.enum(COLOR_IDS).default("normalize"),
+  mode: z.enum(RESTORE_MODES).default("upscale"),
+});
+
+export const jobRequestSchema = z.union([
+  imageRequestSchema,
+  videoRequestSchema,
+  musicRequestSchema,
+  effectsRequestSchema,
+  restoreRequestSchema,
+]);
 
 export type JobRequest = z.infer<typeof jobRequestSchema>;
 type ImageRequest = z.infer<typeof imageRequestSchema>;
 type VideoRequest = z.infer<typeof videoRequestSchema>;
 type MusicRequest = z.infer<typeof musicRequestSchema>;
 type EffectsRequest = z.infer<typeof effectsRequestSchema>;
+type RestoreRequest = z.infer<typeof restoreRequestSchema>;
 
 /** What the worker needs to build and run the graph; stored as the queue job's data. */
 export type JobPlan = {
   /** The graph: images by number of images (spec §3); video with references uses Ref2VA. */
-  workflow: "t2i" | "edit" | "video_fl2va" | "video_ref2va" | "music" | EffectWorkflow;
+  workflow: "t2i" | "edit" | "video_fl2va" | "video_ref2va" | "music" | EffectWorkflow | "restore";
   /**
    * Source of the worker's final LLM pass (English, <imageN> references, style up front): the
    * user's text with mentions already as <imageN>.
@@ -110,6 +129,15 @@ export type JobPlan = {
   effect?: { id: EffectId; video: string; width: number; height: number; seconds: number; hasFrame: boolean };
   /** Effects only: the vision pass's English texts once the worker computed them (kept for retries). */
   effectText?: EffectText;
+  /** Restoration only: the tape, the section and the choices; `state` tracks the chunks already upscaled. */
+  restore?: {
+    upload: string;
+    start: number;
+    seconds: number;
+    color: ColorId;
+    mode: RestoreMode;
+    state: { chunksDone: number; chunk?: number; promptId?: string };
+  };
 };
 
 /** Looks up a stored upload; injected so planning stays testable without disk. */
@@ -118,7 +146,9 @@ export type UploadLookup = (id: string) => Promise<UploadFacts | null>;
 /** What planning needs to know about an upload; images stored before videos existed have no kind. */
 export type UploadFacts = {
   id: string;
-  kind?: "image" | "video";
+  kind?: "image" | "video" | "tape";
+  /** Tapes: the probed facts. */
+  info?: { seconds: number };
   width?: number;
   height?: number;
   seconds?: number;
@@ -136,6 +166,7 @@ export async function planJob(
 ): Promise<JobPlan> {
   if (req.screen === "music") return planMusic(req);
   if (req.screen === "effects") return planEffect(req, config, findUpload);
+  if (req.screen === "restore") return planRestore(req, config, findUpload);
   return req.screen === "video" ? planVideo(req, config, findUpload) : planImage(req, config, findUpload);
 }
 
@@ -145,6 +176,35 @@ async function checkUploads(ids: string[], findUpload: UploadLookup) {
     const upload = await findUpload(id);
     if (!upload || upload.kind === "video") throw new AppError("upload_not_found", 400);
   }
+}
+
+/** Shortest section worth a job (the script's chunks need frames to work with). */
+const MIN_RESTORE_SECONDS = 1;
+/** Slack for an end handle on the last frame (durations are rounded differently by the browser). */
+const END_SLACK_SECONDS = 0.25;
+
+async function planRestore(req: RestoreRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {
+  const tape = await findUpload(req.upload);
+  if (!tape || tape.kind !== "tape" || !tape.info) throw new AppError("upload_not_found", 400);
+  const end = Math.min(req.end, tape.info.seconds);
+  const seconds = Math.round((end - req.start) * 1000) / 1000;
+  if (req.end > tape.info.seconds + END_SLACK_SECONDS || seconds < MIN_RESTORE_SECONDS) {
+    throw new AppError("invalid_request", 400, [{ code: "section_invalid", params: { min: MIN_RESTORE_SECONDS } }]);
+  }
+  const max = config.restore.maxSeconds[req.mode];
+  if (seconds > max) throw new AppError("invalid_request", 400, [{ code: "section_too_long", params: { max } }]);
+  return {
+    workflow: "restore",
+    text: "",
+    style: null,
+    fallbackPrompt: "",
+    transparentBackground: false,
+    size: null,
+    images: [],
+    steps: 0,
+    seed: randomSeed(),
+    restore: { upload: tape.id, start: req.start, seconds, color: req.color, mode: req.mode, state: { chunksDone: 0 } },
+  };
 }
 
 async function planEffect(req: EffectsRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {

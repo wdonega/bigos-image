@@ -75,6 +75,14 @@ const EXPECTED = {
     "@seed": ["SamplerCustom", ["noise_seed"]],
     "@save": ["SaveVideo", []],
   },
+  // Old video restoration (spec §14, decision 32): the SeedVR2 video upscale of usecases/vhs-upscale.
+  "restore_seedvr2_api.json": {
+    "@video_in": ["LoadVideo", ["file"]],
+    "@size": ["ResizeImageMaskNode", ["resize_type.width", "resize_type.height"]],
+    "@model": ["UNETLoader", ["unet_name"]],
+    "@seed": ["KSampler", ["seed"]],
+    "@save": ["SaveVideo", []],
+  },
   "fx_character_swap_api.json": {
     "@video_in": ["LoadVideo", ["file"]],
     "@prepare": ["H3RelayPrepareSource", ["duration_seconds"]],

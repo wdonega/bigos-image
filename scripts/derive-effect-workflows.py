@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-# Derives workflows/api/fx_*.json (video effects, spec §14 decision 31) from the tested workflows in
-# ../comfyui-workflows: adds the @ titles the backend looks for, inserts the 5 s trim, drops the
-# comparison outputs and prunes nodes that feed no output. Run again when those workflows change:
+# Derives workflows/api/fx_*.json (video effects, spec §14 decision 31) and restore_seedvr2_api.json
+# (old video restoration, decision 32) from the tested workflows in ../comfyui-workflows: adds the
+# @ titles the backend looks for, inserts the 5 s trim, drops the comparison outputs, applies the
+# restoration script's settings and prunes nodes that feed no output. Run again when they change:
 #   python3 scripts/derive-effect-workflows.py [path/to/comfyui-workflows]
 import json, os, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "comfyui-workflows"), "workflows") + "/"
+REPO = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "comfyui-workflows")
+SRC = os.path.join(REPO, "workflows") + "/"
 OUT = os.path.join(ROOT, "workflows", "api") + "/"
 
 def load(d): return json.load(open(SRC + d + "/workflow.api.json"))
@@ -63,3 +65,17 @@ for nid, t in {"source": "@video_in", "prepare": "@prepare", "reference": "@imag
                "subject": "@subject", "plan": "@seed", "save": "@save"}.items(): title(g, nid, t)
 g["prepare"]["inputs"]["duration_seconds"] = 5.0
 save(prune(g, ["save"]), "fx_character_swap_api.json")
+
+# SeedVR2 video upscale of the VHS restoration (usecases/vhs-upscale): the settings restore_vhs.py
+# writes on every run are baked in (automatic temporal chunks, overlap 1, "lab" color correction
+# that keeps the cleanup's colors); the backend writes the file, the size, the model and the seed.
+g = json.load(open(os.path.join(REPO, "usecases", "vhs-upscale", "seedvr2_video.api.json")))
+for nid, t in {"73": "@video_in", "66:57": "@size", "66:52": "@model", "66:54": "@seed", "76": "@save"}.items(): title(g, nid, t)
+resize = g["66:57"]["inputs"]
+for k in [k for k in resize if k.startswith("resize_type.")]: del resize[k]
+resize.update({"resize_type": "scale dimensions", "resize_type.width": 960, "resize_type.height": 720, "resize_type.crop": "disabled"})
+g["66:105"]["inputs"]["value"] = True
+g["66:99"]["inputs"]["temporal_overlap"] = 1
+g["66:59"]["inputs"]["color_correction_method"] = "lab"
+g["76"]["inputs"]["filename_prefix"] = "bigos/restore"
+save(prune(g, ["76"]), "restore_seedvr2_api.json")

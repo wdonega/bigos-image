@@ -2,8 +2,9 @@ import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path";
 import type { Config } from "./config.ts";
 
-// Generated results and uploads live on disk under STORAGE_DIR and expire after RETENTION_HOURS.
-const AREAS = ["results", "uploads"] as const;
+// Generated results and uploads live on disk under STORAGE_DIR and expire after RETENTION_HOURS;
+// "work" holds a restoration's intermediate files (spec §14, decision 32) while its job runs.
+const AREAS = ["results", "uploads", "work"] as const;
 type Area = (typeof AREAS)[number];
 
 const SAFE_NAME = /^[A-Za-z0-9_-]+\.[a-z0-9]+$/;
