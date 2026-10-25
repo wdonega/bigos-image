@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
-import { MIN_TRANSPARENT_SHARE, finalizeImage, resolvePrompt, transparentShare } from "./worker";
+import { MIN_TRANSPARENT_SHARE, finalizeImage, resolveEffectText, resolvePrompt, transparentShare } from "./worker";
 
 async function rgbaPng(alpha: number) {
   return sharp({
@@ -45,7 +45,7 @@ describe("resolvePrompt", () => {
     fallbackPrompt: "um gato. watercolor painting.",
     images: ["u1"],
   };
-  const llm = { url: "https://llm.test", apiKey: "k", model: "prompt-enhancer", maxOutputTokens: 800, maxInputChars: 4000 };
+  const llm = { url: "https://llm.test", apiKey: "k", model: "prompt-enhancer", maxOutputTokens: 800, maxInputChars: 4000, disableThinking: false };
 
   it("uses the LLM's final prompt", async () => {
     const finalize = vi.fn(async () => "Watercolor painting of a cat");
@@ -63,5 +63,34 @@ describe("resolvePrompt", () => {
       throw new Error("enhance_failed");
     });
     expect(await resolvePrompt(data, llm, failing)).toBe(data.fallbackPrompt);
+  });
+});
+
+describe("resolveEffectText (spec §14, decision 31)", () => {
+  const llm = { url: "https://llm.test", apiKey: "k", model: "m", maxOutputTokens: 800, maxInputChars: 4000, disableThinking: false };
+  const effect = (id: "remove_people" | "animate") => ({ id, video: "v1", width: 1280, height: 736, seconds: 5, hasFrame: true });
+  const images = { frame: "data:frame", photo: "data:photo" };
+
+  it("uses the vision pass when the LLM and the frame are there", async () => {
+    const finalize = vi.fn(async () => ({ scene: "Empty ring.", remove: "boxer" }));
+    const text = await resolveEffectText({ text: "o boxeador", effect: effect("remove_people") }, llm, images, finalize);
+    expect(text).toEqual({ scene: "Empty ring.", remove: "boxer" });
+    expect(finalize).toHaveBeenCalledWith(llm, "remove_people", "o boxeador", images);
+  });
+
+  it("falls back without the LLM, without the frame it needs, or when the pass fails", async () => {
+    const finalize = vi.fn(async () => {
+      throw new Error("down");
+    });
+    const data = { text: "", effect: effect("remove_people") };
+    expect(await resolveEffectText(data, null, images, finalize)).toMatchObject({ remove: "person, people" });
+    expect(await resolveEffectText(data, llm, { ...images, frame: null }, finalize)).toMatchObject({ remove: "person, people" });
+    expect(await resolveEffectText(data, llm, images, finalize)).toMatchObject({ remove: "person, people" });
+  });
+
+  it("animate does not need the frame", async () => {
+    const finalize = vi.fn(async () => ({ character: "owl", action: "dances" }));
+    await resolveEffectText({ text: "", effect: effect("animate") }, llm, { frame: null, photo: "data:photo" }, finalize);
+    expect(finalize).toHaveBeenCalled();
   });
 });

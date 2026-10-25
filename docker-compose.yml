@@ -16,6 +16,8 @@ services:
       LLM_URL: ${LLM_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-prompt-enhancer}
+      # true for reasoning models on llama.cpp (answers without thinking first).
+      LLM_DISABLE_THINKING: ${LLM_DISABLE_THINKING:-false}
     ports:
       - "${PORT:-3000}:3000"
     volumes:

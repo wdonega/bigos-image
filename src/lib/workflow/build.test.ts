@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEdit, buildT2I, randomSeed, buildVideo, MAX_VIDEO_REFS } from "./build";
+import { buildEdit, buildEffect, buildT2I, randomSeed, buildVideo, MAX_VIDEO_REFS } from "./build";
 import { type ApiGraph, WorkflowError, findNodeId, setInputs } from "./graph";
 import { loadTemplate } from "./templates";
 
@@ -125,5 +125,78 @@ describe("buildVideo", () => {
   it("rejects more references than the node takes", () => {
     const names = Array.from({ length: MAX_VIDEO_REFS + 1 }, (_, i) => `${i}.png`);
     expect(() => buildVideo(loadTemplate("video_ref2va"), { ...video, images: names })).toThrow(WorkflowError);
+  });
+});
+
+describe("buildEffect (spec §14, decision 31)", () => {
+  const base = {
+    video: "bigos-v.mp4",
+    photo: "bigos-p.png",
+    frame: "bigos-v_frame.png",
+    videoSize: { width: 1280, height: 736 },
+    seconds: 4.5,
+    seed: 7,
+  };
+
+  it("clean plate: video, trim, scene, what to remove, seed and the bypassed first frame", () => {
+    const g = buildEffect(loadTemplate("fx_clean_plate"), {
+      ...base,
+      workflow: "fx_clean_plate",
+      photo: null,
+      text: { scene: "An empty ring.", remove: "person, boxer" },
+    });
+    expect(node(g, "@video_in")).toMatchObject({ file: "bigos-v.mp4" });
+    expect(node(g, "@trim")).toMatchObject({ duration: 4.5, start_time: 0 });
+    expect(node(g, "@prompt")).toMatchObject({ text: "An empty ring." });
+    expect(node(g, "@negative")).toMatchObject({ text: "person, boxer" });
+    expect(node(g, "@seed")).toMatchObject({ noise_seed: 7 });
+    expect(node(g, "@first_frame")).toMatchObject({ image: "bigos-v_frame.png" });
+  });
+
+  it("face swap: decodes at the template's max side, keeps the duration, face and scene", () => {
+    const g = buildEffect(loadTemplate("fx_face_swap"), {
+      ...base,
+      workflow: "fx_face_swap",
+      videoSize: { width: 2160, height: 3840 },
+      text: { scene: "An old woman boxing." },
+    });
+    expect(node(g, "@video_in")).toMatchObject({ video: "bigos-v.mp4", custom_width: 720, custom_height: 1280 });
+    expect(node(g, "@duration")).toMatchObject({ value: 4.5 });
+    expect(node(g, "@image_1")).toMatchObject({ image: "bigos-p.png" });
+    expect(node(g, "@prompt")).toMatchObject({ value: "An old woman boxing." });
+    expect(node(g, "@seed")).toMatchObject({ noise_seed: 7 });
+  });
+
+  it("animate: output follows the video's orientation with the template's pixels", () => {
+    const g = buildEffect(loadTemplate("fx_animate"), {
+      ...base,
+      workflow: "fx_animate",
+      text: { character: "an owl", action: "The owl dances." },
+    });
+    const size = node(g, "@size");
+    expect(Number(size["resize_type.width"])).toBeGreaterThan(Number(size["resize_type.height"]));
+    expect(node(g, "@character")).toMatchObject({ value: "Character appearance description: an owl" });
+    expect(node(g, "@prompt")).toMatchObject({ value: "The owl dances." });
+    expect(node(g, "@trim")).toMatchObject({ duration: 4.5 });
+    expect(node(g, "@image_1")).toMatchObject({ image: "bigos-p.png" });
+  });
+
+  it("character swap: duration in the Relay prepare node, subject for the detector", () => {
+    const g = buildEffect(loadTemplate("fx_character_swap"), {
+      ...base,
+      workflow: "fx_character_swap",
+      text: { subject: "the man" },
+    });
+    expect(node(g, "@video_in")).toMatchObject({ file: "bigos-v.mp4" });
+    expect(node(g, "@prepare")).toMatchObject({ duration_seconds: 4.5 });
+    expect(node(g, "@subject")).toMatchObject({ text: "the man" });
+    expect(node(g, "@seed")).toMatchObject({ seed: 7 });
+  });
+
+  it("refuses to build without what the graph needs", () => {
+    expect(() =>
+      buildEffect(loadTemplate("fx_face_swap"), { ...base, workflow: "fx_face_swap", photo: null, text: { scene: "x" } }),
+    ).toThrow(WorkflowError);
+    expect(() => buildEffect(loadTemplate("fx_animate"), { ...base, workflow: "fx_animate", text: {} })).toThrow(WorkflowError);
   });
 });

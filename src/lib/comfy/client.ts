@@ -16,14 +16,23 @@ export class ComfyError extends Error {
 
 export type ImageRef = { filename: string; subfolder: string; type: string };
 
+/** What SaveVideo reports about the file it wrote (spec §14, effects spike). */
+export type VideoMetadata = { width?: number; height?: number; duration?: number; fps?: number; frame_count?: number };
+
 export type HistoryEntry = {
   status?: {
     status_str?: string;
     completed?: boolean;
     messages?: [string, Record<string, unknown>][];
   };
-  /** Images from SaveImage nodes; `gifs` holds videos (VHS_VideoCombine), `audio` sound files (SaveAudio*). */
-  outputs?: Record<string, { images?: ImageRef[]; gifs?: ImageRef[]; audio?: ImageRef[] }>;
+  /**
+   * Images from SaveImage nodes; `gifs` holds videos (VHS_VideoCombine), `audio` sound files
+   * (SaveAudio*). The native SaveVideo reports its file under `images` with `animated: [true]`.
+   */
+  outputs?: Record<
+    string,
+    { images?: (ImageRef & { metadata?: VideoMetadata })[]; gifs?: ImageRef[]; audio?: ImageRef[]; animated?: boolean[] }
+  >;
 };
 
 export type ComfyClientOptions = {
@@ -136,9 +145,10 @@ export class ComfyClient {
     return index === -1 ? null : index + 1;
   }
 
-  async uploadImage(data: Buffer, filename: string): Promise<string> {
+  /** Uploads to ComfyUI's input folder; videos go the same way (LoadVideo lists them). */
+  async uploadImage(data: Buffer, filename: string, contentType = "image/png"): Promise<string> {
     const form = new FormData();
-    form.append("image", new Blob([new Uint8Array(data)], { type: "image/png" }), filename);
+    form.append("image", new Blob([new Uint8Array(data)], { type: contentType }), filename);
     form.append("overwrite", "true");
     const body = await this.#json<{ name: string; subfolder?: string }>("/upload/image", {
       method: "POST",

@@ -4,15 +4,24 @@ import sharp from "sharp";
 import { ComfyClient, ComfyError } from "../comfy/client.ts";
 import { outputAudio, outputImage, outputVideo, runPrompt } from "../comfy/run.ts";
 import { type Config, getConfig } from "../config.ts";
-import { finalizeMusicCaption, finalizePrompt, finalizeVideoPrompt } from "../enhance.ts";
+import { type EffectImages, finalizeEffectText, finalizeMusicCaption, finalizePrompt, finalizeVideoPrompt } from "../enhance.ts";
+import { EFFECTS, type EffectText, fallbackEffectText } from "../effects.ts";
 import { mp3Duration } from "../audio.ts";
 import { buildMusicCaption } from "../music.ts";
 import { AppError, type Detail, type ErrorCode } from "../errors.ts";
 import { buildPrompt } from "../prompt.ts";
 import { removeExpired, writeStored } from "../storage.ts";
-import { type SentImage, fitToBudget, readUploadImage, readUploadMeta } from "../uploads.ts";
+import {
+  type SentImage,
+  type VideoUploadMeta,
+  fitToBudget,
+  readUploadFrame,
+  readUploadImage,
+  readUploadMeta,
+  readUploadVideo,
+} from "../uploads.ts";
 import { buildVideoPrompt, tokensToSubjects } from "../video.ts";
-import { buildEdit, buildMusic, buildT2I, buildVideo } from "../workflow/build.ts";
+import { buildEdit, buildEffect, buildMusic, buildT2I, buildVideo } from "../workflow/build.ts";
 import { type ApiGraph, findNodeId } from "../workflow/graph.ts";
 import { loadTemplate } from "../workflow/templates.ts";
 import { type JobData, type JobResult, type Media, QUEUE_NAME, cancelKey, createRedis } from "./queue.ts";
@@ -128,8 +137,83 @@ export async function resolveMusicPrompt(
   }
 }
 
+/**
+ * Effects' vision pass (spec §14, decision 31): the LLM sees the first frame and the photo and
+ * writes the English texts of the effect's graph. Without the LLM, the frame (remove/face swap)
+ * or a usable reply, the generic texts of fallbackEffectText are used.
+ */
+export async function resolveEffectText(
+  data: Pick<JobData, "text" | "effect">,
+  llm: Config["llm"],
+  images: EffectImages,
+  finalize: typeof finalizeEffectText = finalizeEffectText,
+): Promise<EffectText> {
+  if (!data.effect) throw new AppError("invalid_request", 400);
+  const fallback = fallbackEffectText(data.effect.id, data.text);
+  const needsFrame = data.effect.id === "remove_people" || data.effect.id === "face_swap";
+  if (!llm || data.text.length > llm.maxInputChars || (needsFrame && !images.frame)) return fallback;
+  try {
+    return await finalize(llm, data.effect.id, data.text, images);
+  } catch (err) {
+    console.warn("[worker] effect vision pass failed, using the fallback", err instanceof Error ? err.message : err);
+    return fallback;
+  }
+}
+
+/** A PNG as a small JPEG data URL for the vision pass (768 px is plenty to describe a scene). */
+async function toDataUrl(png: Buffer | null): Promise<string | null> {
+  if (!png) return null;
+  const jpeg = await sharp(png).resize(768, 768, { fit: "inside", withoutEnlargement: true }).flatten({ background: "#ffffff" }).jpeg().toBuffer();
+  return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+}
+
+async function effectImages(data: JobData, config: Config): Promise<EffectImages> {
+  const frame = data.effect?.hasFrame ? await readUploadFrame(config, data.effect.video) : null;
+  const photo = data.images[0] ? await readUploadImage(config, data.images[0]) : null;
+  return { frame: await toDataUrl(frame), photo: await toDataUrl(photo) };
+}
+
 const isVideo = (data: Pick<JobData, "workflow">) =>
   data.workflow === "video_fl2va" || data.workflow === "video_ref2va";
+
+const isEffect = (data: Pick<JobData, "effect">) => data.effect !== undefined;
+
+const VIDEO_TYPES: Record<VideoUploadMeta["ext"], string> = { mp4: "video/mp4", mov: "video/quicktime" };
+
+/** Sends the effect's files to ComfyUI and fills its graph. */
+async function buildEffectGraph(data: JobData, client: ComfyClient, config: Config): Promise<ApiGraph> {
+  const effect = data.effect;
+  const meta = effect ? await readUploadMeta(config, effect.video) : null;
+  if (!effect || !data.effectText || meta?.kind !== "video") throw new AppError("upload_not_found", 400);
+  const video = await readUploadVideo(config, meta);
+  if (!video) throw new AppError("upload_not_found", 400);
+  const videoName = await client.uploadImage(video, `bigos-${meta.id}.${meta.ext}`, VIDEO_TYPES[meta.ext]);
+
+  let photo: string | null = null;
+  if (EFFECTS[effect.id].photo) {
+    const png = data.images[0] ? await readUploadImage(config, data.images[0]) : null;
+    if (!png) throw new AppError("upload_not_found", 400);
+    photo = await client.uploadImage(png, `bigos-${data.images[0]}.png`);
+  }
+  let frame: string | null = null;
+  if (EFFECTS[effect.id].workflow === "fx_clean_plate") {
+    // Its first-frame branch is bypassed, but LoadImage needs a file: the frame or a blank image.
+    const png =
+      (effect.hasFrame ? await readUploadFrame(config, meta.id) : null) ??
+      (await sharp({ create: { width: 64, height: 64, channels: 3, background: "#000000" } }).png().toBuffer());
+    frame = await client.uploadImage(png, `bigos-${meta.id}_frame.png`);
+  }
+  return buildEffect(loadTemplate(EFFECTS[effect.id].workflow), {
+    workflow: EFFECTS[effect.id].workflow,
+    video: videoName,
+    photo,
+    frame,
+    videoSize: { width: effect.width, height: effect.height },
+    seconds: effect.seconds,
+    text: data.effectText,
+    seed: data.seed,
+  });
+}
 
 async function buildGraph(
   data: JobData,
@@ -137,6 +221,7 @@ async function buildGraph(
   config: Config,
   warnings: Detail[],
 ): Promise<ApiGraph> {
+  if (isEffect(data)) return buildEffectGraph(data, client, config);
   if (data.workflow === "music") {
     if (!data.music) throw new AppError("invalid_request", 400);
     return buildMusic(loadTemplate("music"), {
@@ -171,7 +256,7 @@ async function buildGraph(
   for (const id of data.images) {
     const png = await readUploadImage(config, id);
     const meta = await readUploadMeta(config, id);
-    if (!png || !meta) throw new AppError("upload_not_found", 400);
+    if (!png || !meta || meta.kind === "video") throw new AppError("upload_not_found", 400);
     stored.push({ png, width: meta.sentWidth, height: meta.sentHeight });
   }
   const { images, reduced } = await fitToBudget(stored, config.maxRefsTotalPixels);
@@ -213,7 +298,11 @@ async function processJob(
       throw new ComfyError("unavailable", `ComfyUI did not wake up within ${config.comfyWakeMs / 1000}s`);
     }
     const warnings: Detail[] = [];
-    if (job.data.finalPrompt === undefined) {
+    if (isEffect(job.data) && job.data.effectText === undefined) {
+      const effectText = await resolveEffectText(job.data, config.llm, await effectImages(job.data, config));
+      console.log(`[worker] job ${id} effect texts: ${JSON.stringify(effectText)}`);
+      await job.updateData({ ...job.data, effectText });
+    } else if (!isEffect(job.data) && job.data.finalPrompt === undefined) {
       const finalPrompt =
         job.data.workflow === "music"
           ? await resolveMusicPrompt(job.data, config.llm)
@@ -226,12 +315,15 @@ async function processJob(
     const graph = await buildGraph(job.data, client, config, warnings);
     let bestShare = 0;
     const { entry } = await runPrompt(client, graph, {
-      timeoutMs:
-        job.data.workflow === "music"
+      timeoutMs: isEffect(job.data)
+        ? config.effects.timeoutMs
+        : job.data.workflow === "music"
           ? config.music.timeoutMs
           : isVideo(job.data)
             ? config.video.timeoutMs
             : config.jobTimeoutMs,
+      // A network blip while polling must not fail a job that keeps running on the GPU.
+      outageMs: config.comfyWakeMs,
       knownPromptId: job.data.promptId,
       onPromptId: (promptId) => job.updateData({ ...job.data, promptId }),
       onProgress: (progress) => {
@@ -250,6 +342,14 @@ async function processJob(
       await writeStored(config, "results", resultName(id, "audio"), mp3);
       const seconds = Math.round(mp3Duration(mp3) * 10) / 10;
       return { width: 0, height: 0, transparent: false, warnings, media: "audio", seconds };
+    }
+    if (isEffect(job.data)) {
+      const output = outputVideo(entry, findNodeId(graph, "@save"));
+      await writeStored(config, "results", resultName(id, "video"), await client.view(output));
+      const width = output.metadata?.width ?? job.data.effect?.width ?? 0;
+      const height = output.metadata?.height ?? job.data.effect?.height ?? 0;
+      const seconds = output.metadata?.duration ? Math.round(output.metadata.duration * 10) / 10 : undefined;
+      return { width, height, transparent: false, warnings, media: "video", seconds };
     }
     if (isVideo(job.data)) {
       const mp4 = await client.view(outputVideo(entry, findNodeId(graph, "@save")));

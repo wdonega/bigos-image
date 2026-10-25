@@ -1,5 +1,5 @@
 import type { ApiGraph } from "../workflow/graph.ts";
-import { ComfyError, type HistoryEntry, type ImageRef } from "./client.ts";
+import { ComfyError, type HistoryEntry, type ImageRef, type VideoMetadata } from "./client.ts";
 import { type PromptEvent, parseComfyMessage } from "./events.ts";
 
 export type RunProgress =
@@ -31,6 +31,11 @@ export type RunOptions = {
   signal?: AbortSignal;
   pollMs?: number;
   connect?: ConnectSocket;
+  /**
+   * How long polling may keep failing with "unavailable" (network blip, proxy restart) before the
+   * run gives up; the prompt keeps running in ComfyUI meanwhile. 0 = fail on the first error.
+   */
+  outageMs?: number;
 };
 
 /** Opens the progress WebSocket; returns null if it fails (polling still finishes the job). */
@@ -124,10 +129,26 @@ export async function runPrompt(
       return error;
     };
 
+    let failingSince: number | null = null;
+    /** One poll call; an "unavailable" error within the outage window counts as "no news yet". */
+    const poll = async <T>(call: () => Promise<T>): Promise<T | undefined> => {
+      try {
+        const value = await call();
+        failingSince = null;
+        return value;
+      } catch (err) {
+        if (!(err instanceof ComfyError) || err.kind !== "unavailable") throw err;
+        failingSince ??= Date.now();
+        if (Date.now() - failingSince >= (options.outageMs ?? 0)) throw err;
+        console.warn(`[comfy] poll failed, retrying: ${err.message}`);
+        return undefined;
+      }
+    };
+
     for (;;) {
       if (options.signal?.aborted) throw await stop(new ComfyError("interrupted", "cancelled"));
 
-      const entry = await client.history(id);
+      const entry = await poll(() => client.history(id));
       if (entry && isDone(entry)) {
         if (entry.status?.status_str === "error") {
           throw new ComfyError("failed", failureMessage(entry), entry.status);
@@ -137,10 +158,10 @@ export async function runPrompt(
       if (socketFailure) throw socketFailure;
       if (Date.now() > deadline) throw await stop(new ComfyError("timeout", "timed out"));
 
-      if (!started) {
-        const position = await client.queuePosition(id);
+      if (!started && failingSince === null) {
+        const position = await poll(() => client.queuePosition(id));
         if (position === 0) started = true;
-        else options.onProgress?.({ phase: "waiting", position });
+        else if (position !== undefined) options.onProgress?.({ phase: "waiting", position });
       }
 
       await new Promise<void>((resolve) => {
@@ -167,9 +188,13 @@ export function outputAudio(entry: HistoryEntry, saveNodeId: string): ImageRef {
   return audio;
 }
 
-/** The video written by VHS_VideoCombine, which reports it under `gifs` (spec §14, m5 spike). */
-export function outputVideo(entry: HistoryEntry, saveNodeId: string): ImageRef {
-  const video = entry.outputs?.[saveNodeId]?.gifs?.[0];
+/**
+ * The video written by VHS_VideoCombine, which reports it under `gifs` (spec §14, m5 spike), or by
+ * the native SaveVideo, under `images` with `animated: [true]` (effects spike).
+ */
+export function outputVideo(entry: HistoryEntry, saveNodeId: string): ImageRef & { metadata?: VideoMetadata } {
+  const out = entry.outputs?.[saveNodeId];
+  const video = out?.gifs?.[0] ?? (out?.animated?.[0] ? out.images?.[0] : undefined);
   if (!video) {
     throw new ComfyError("failed", `No video in history outputs of node ${saveNodeId}`, entry.outputs);
   }

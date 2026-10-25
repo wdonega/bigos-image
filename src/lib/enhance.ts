@@ -1,4 +1,5 @@
 import type { LlmConfig } from "./config.ts";
+import type { EffectId, EffectText } from "./effects.ts";
 import { AppError } from "./errors.ts";
 import { mentionNumbers, repairMentions } from "./mentions.ts";
 
@@ -90,7 +91,9 @@ export function parseReply(content: string, expected: number[]): EnhanceResult |
   return { text: improved };
 }
 
-type ChatMessage = { role: "system" | "user"; content: string };
+/** Text, or text plus images (OpenAI `image_url` parts, data URLs) for the vision pass. */
+type ContentPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+type ChatMessage = { role: "system" | "user"; content: string | ContentPart[] };
 
 /**
  * One chat completion, parsed by `parse`; an unusable reply is retried once. Network/HTTP failures
@@ -103,7 +106,13 @@ async function complete<T>(
   fetchImpl: typeof fetch,
   attempts: number,
 ): Promise<T> {
-  const body = JSON.stringify({ model: llm.model, temperature: 0.3, max_tokens: llm.maxOutputTokens, messages });
+  const body = JSON.stringify({
+    model: llm.model,
+    temperature: 0.3,
+    max_tokens: llm.maxOutputTokens,
+    messages,
+    ...(llm.disableThinking ? { chat_template_kwargs: { enable_thinking: false } } : {}),
+  });
   for (let attempt = 0; attempt < attempts; attempt++) {
     let res: Response;
     try {
@@ -418,5 +427,103 @@ export function writeLyrics(
     parseLyricsReply,
     fetchImpl,
     ENHANCE_ATTEMPTS,
+  );
+}
+
+// Video effects (spec §14, decision 31): the LLM looks at the video's first frame (and the face or
+// character photo) and writes the English descriptions each effect's model needs: people won't
+// describe a scene, and models like the head swap drop what the prompt leaves out. Labeled lines,
+// like video and music.
+
+/** Images sent with the effect pass, as data URLs; null when not available. */
+export type EffectImages = { frame: string | null; photo: string | null };
+
+const EFFECT_LABELS: Record<EffectId, (keyof EffectText)[]> = {
+  remove_people: ["scene", "remove"],
+  face_swap: ["scene"],
+  animate: ["character", "action"],
+  character_swap: ["subject"],
+};
+
+/** Which images go to the LLM, in the order the system prompt names them. */
+export function effectImageOrder(effect: EffectId, images: EffectImages): string[] {
+  const list = effect === "animate" ? [images.photo, images.frame] : effect === "face_swap" ? [images.frame, images.photo] : [images.frame];
+  return list.filter((url): url is string => url !== null);
+}
+
+export function effectSystemPrompt(effect: EffectId, hasFrame: boolean): string {
+  const lines: Record<EffectId, string[]> = {
+    remove_people: [
+      "You write prompts for a video model that erases people or objects from a video and shows the scene without them.",
+      "Image 1 is the first frame of the video.",
+      "The user says what to remove, in any language; if they say nothing, remove every person.",
+      "Reply with exactly two lines:",
+      "SCENE: <in English, one paragraph: the place in image 1 as it looks after the removal: setting, everything that stays, lighting, colors, camera angle. Mention what was removed only in a final sentence: 'No <things> anywhere in the frame.'>",
+      "REMOVE: <in English, a comma-separated list of what to remove, e.g. person, people, boy, dog>",
+    ],
+    face_swap: [
+      "You write prompts for a video model that replaces the head of the main person in a video.",
+      "Image 1 is the first frame of the video. Image 2 is the new face.",
+      "Anything the prompt leaves out may disappear from the video, so describe everything in image 1.",
+      "The user may add notes, in any language.",
+      "Reply with exactly one line:",
+      "SCENE: <in English, one paragraph: the person who should appear, with the face, hair and age of image 2, wearing the clothes and in the pose of the person in image 1; then everything else in image 1: background, objects, other people, lighting, colors>",
+    ],
+    animate: [
+      "You write prompts for a video model that makes the character in a photo move like the person in a video.",
+      hasFrame ? "Image 1 is the character. Image 2 is the first frame of the motion video." : "Image 1 is the character.",
+      "The user may say what the character does, in any language.",
+      "Reply with exactly two lines:",
+      "CHARACTER: <in English: the character's appearance in image 1: who or what it is, body, colors, clothes, accessories, art style>",
+      `ACTION: <in English, one sentence: what the character does (the user's idea${hasFrame ? ", or the movement suggested by image 2" : ""}), in the setting of image 1>`,
+    ],
+    character_swap: [
+      "You help a detector find one person in a video.",
+      hasFrame ? "Image 1 is the first frame of the video." : "",
+      "The user says which person will be replaced, in any language; if they say nothing, pick the main person.",
+      "Reply with exactly one line:",
+      "SUBJECT: <a short English noun phrase the detector can find, e.g. man, woman, the boy on the left>",
+    ],
+  };
+  return lines[effect].filter(Boolean).join("\n");
+}
+
+/** Reads the effect's labeled lines; null when any of them is missing. */
+export function parseEffectReply(content: string, effect: EffectId): EffectText | null {
+  const labels = EFFECT_LABELS[effect];
+  const names = labels.map((l) => l.toUpperCase()).join("|");
+  const text: EffectText = {};
+  for (const label of labels) {
+    // Labels may come bold ("**SCENE:**"); a field runs until the next label or the end.
+    const match = content.match(
+      new RegExp(`^\\s*\\**${label.toUpperCase()}\\**\\s*:\\**\\s*([\\s\\S]*?)(?=^\\s*\\**(?:${names})\\**\\s*:|$(?![\\s\\S]))`, "im"),
+    );
+    const value = match?.[1].trim().replace(/^["']|["']$/g, "");
+    if (!value) return null;
+    text[label] = value;
+  }
+  return text;
+}
+
+export function finalizeEffectText(
+  llm: LlmConfig,
+  effect: EffectId,
+  userText: string,
+  images: EffectImages,
+  fetchImpl: typeof fetch = fetch,
+): Promise<EffectText> {
+  const content: ContentPart[] = [
+    { type: "text", text: userText.trim() || "(no notes)" },
+    ...effectImageOrder(effect, images).map((url): ContentPart => ({ type: "image_url", image_url: { url } })),
+  ];
+  return complete(
+    llm,
+    [
+      { role: "system", content: effectSystemPrompt(effect, images.frame !== null) },
+      { role: "user", content },
+    ],
+    (reply) => parseEffectReply(reply, effect),
+    fetchImpl,
+    FINAL_ATTEMPTS,
   );
 }

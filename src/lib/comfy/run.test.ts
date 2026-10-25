@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { HistoryEntry } from "./client";
-import { type ConnectSocket, type RunClient, outputImage, runPrompt } from "./run";
+import { ComfyError, type HistoryEntry } from "./client";
+import { type ConnectSocket, type RunClient, outputImage, outputVideo, runPrompt } from "./run";
 
 const success: HistoryEntry = {
   status: { status_str: "success", completed: true },
@@ -91,8 +91,55 @@ describe("runPrompt", () => {
   });
 });
 
+describe("runPrompt — ComfyUI briefly unreachable", () => {
+  const blip = () => Promise.reject(new ComfyError("unavailable", "ComfyUI unreachable (/history/p1): fetch failed"));
+
+  it("keeps polling through a short outage when outageMs allows it", async () => {
+    const client = fakeClient([success]);
+    client.history.mockImplementationOnce(blip).mockImplementationOnce(blip);
+    const result = await runPrompt(client, {}, { ...base, outageMs: 60_000 });
+    expect(result.entry).toBe(success);
+    expect(client.history).toHaveBeenCalledTimes(3);
+  });
+
+  it("fails on the first error without outageMs (old behavior)", async () => {
+    const client = fakeClient([success]);
+    client.history.mockImplementationOnce(blip);
+    await expect(runPrompt(client, {}, base)).rejects.toMatchObject({ kind: "unavailable" });
+  });
+
+  it("gives up once the outage lasts longer than outageMs", async () => {
+    const client = fakeClient([success]);
+    client.history.mockImplementation(blip);
+    await expect(runPrompt(client, {}, { ...base, outageMs: 5 })).rejects.toMatchObject({ kind: "unavailable" });
+  });
+
+  it("does not retry other errors", async () => {
+    const client = fakeClient([success]);
+    client.history.mockImplementationOnce(() => Promise.reject(new Error("bug")));
+    await expect(runPrompt(client, {}, { ...base, outageMs: 60_000 })).rejects.toThrow("bug");
+  });
+});
+
 describe("outputImage", () => {
   it("fails clearly when the save node produced nothing", () => {
     expect(() => outputImage({ outputs: {} }, "461")).toThrow(/No image/);
+  });
+});
+
+describe("outputVideo", () => {
+  const file = { filename: "v.mp4", subfolder: "ltx23", type: "output" };
+
+  it("reads VHS_VideoCombine videos under gifs", () => {
+    expect(outputVideo({ outputs: { "9": { gifs: [file] } } }, "9")).toEqual(file);
+  });
+
+  it("reads SaveVideo videos under images when animated, with their metadata", () => {
+    const saved = { ...file, metadata: { width: 928, height: 544, duration: 4.7 } };
+    expect(outputVideo({ outputs: { "9": { images: [saved], animated: [true] } } }, "9")).toEqual(saved);
+  });
+
+  it("does not take a still image for a video", () => {
+    expect(() => outputVideo({ outputs: { "9": { images: [file] } } }, "9")).toThrow(/No video/);
   });
 });

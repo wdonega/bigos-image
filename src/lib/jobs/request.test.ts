@@ -184,3 +184,45 @@ describe("planJob — music", () => {
     expect(jobRequestSchema.safeParse({ ...music, genre: "polka" }).success).toBe(false);
   });
 });
+
+describe("planJob — video effects (spec §14, decision 31)", () => {
+  const video = { id: "v1", kind: "video" as const, width: 1280, height: 736, seconds: 12, hasFrame: true };
+  const lookup: UploadLookup = async (id) => (id === "v1" ? video : id === "p1" ? { id, kind: "image" } : null);
+  const fx = (body: Record<string, unknown>) => plan({ screen: "effects", video: "v1", ...body }, lookup);
+
+  it("remove_people needs only the video; the length is capped at EFFECT_MAX_SECONDS", async () => {
+    const p = await fx({ effect: "remove_people", prompt: " o carro " });
+    expect(p).toMatchObject({
+      workflow: "fx_clean_plate",
+      text: "o carro",
+      images: [],
+      effect: { id: "remove_people", video: "v1", width: 1280, height: 736, seconds: 5, hasFrame: true },
+    });
+  });
+
+  it("keeps shorter videos whole", async () => {
+    const short: UploadLookup = async (id) => (id === "v1" ? { ...video, seconds: 3.2 } : { id, kind: "image" });
+    const p = await planJob(parse({ screen: "effects", effect: "remove_people", video: "v1" }), testConfig, short);
+    expect(p.effect?.seconds).toBe(3.2);
+  });
+
+  it("photo effects need the photo and the consent", async () => {
+    await expect(fx({ effect: "face_swap", consent: true })).rejects.toMatchObject({
+      details: [{ code: "effect_needs_photo", params: { photo: "face" } }],
+    });
+    await expect(fx({ effect: "character_swap", images: ["p1"] })).rejects.toMatchObject({
+      details: [{ code: "consent_required" }],
+    });
+    const p = await fx({ effect: "animate", images: ["p1"], consent: true });
+    expect(p).toMatchObject({ workflow: "fx_animate", images: ["p1"] });
+  });
+
+  it("refuses a video id that is an image, and an image id that is a video", async () => {
+    await expect(fx({ effect: "remove_people", video: "p1" })).rejects.toMatchObject({ code: "upload_not_found" });
+    await expect(fx({ effect: "face_swap", images: ["v1"], consent: true })).rejects.toMatchObject({ code: "upload_not_found" });
+  });
+
+  it("ignores a photo sent to an effect that takes none", async () => {
+    expect((await fx({ effect: "remove_people", images: ["p1"] })).images).toEqual([]);
+  });
+});

@@ -1,3 +1,4 @@
+import { type EffectText, type EffectWorkflow, animateSize, characterPrompt, loadSize } from "../effects.ts";
 import type { Size } from "../size.ts";
 import { type ApiGraph, WorkflowError, findNodeId, setInputs } from "./graph.ts";
 
@@ -129,6 +130,72 @@ export function buildMusic(template: ApiGraph, p: MusicParams): ApiGraph {
   const graph = structuredClone(template);
   setInputs(graph, "@music", { caption: p.caption, lyrics: p.lyrics, max_duration: p.seconds });
   setInputs(graph, "@seed", { seed: p.seed });
+  return graph;
+}
+
+// Video effects (spec §14, decision 31): graphs derived from ../comfyui-workflows (workflows/README.md).
+
+export type EffectParams = {
+  workflow: EffectWorkflow;
+  /** ComfyUI file names (from /upload/image): the video, the face/character photo, the first frame. */
+  video: string;
+  photo: string | null;
+  frame: string | null;
+  /** Displayed size of the uploaded video. */
+  videoSize: Size;
+  /** Seconds kept from the start: the video's length, at most EFFECT_MAX_SECONDS. */
+  seconds: number;
+  text: EffectText;
+  seed: number;
+};
+
+const required = (value: string | null | undefined, what: string): string => {
+  if (!value) throw new WorkflowError(`Effect graph needs ${what}`);
+  return value;
+};
+
+export function buildEffect(template: ApiGraph, p: EffectParams): ApiGraph {
+  const graph = structuredClone(template);
+  switch (p.workflow) {
+    case "fx_clean_plate":
+      setInputs(graph, "@video_in", { file: p.video });
+      setInputs(graph, "@trim", { duration: p.seconds });
+      setInputs(graph, "@prompt", { text: required(p.text.scene, "a scene") });
+      setInputs(graph, "@negative", { text: required(p.text.remove, "what to remove") });
+      setInputs(graph, "@seed", { noise_seed: p.seed });
+      // The first-frame branch is bypassed in the graph, but LoadImage still needs a real file.
+      setInputs(graph, "@first_frame", { image: required(p.frame ?? p.photo, "a first-frame image") });
+      break;
+    case "fx_face_swap": {
+      const maxSide = Number(graph[findNodeId(graph, "@max_side")].inputs.value);
+      const load = loadSize(p.videoSize, maxSide);
+      setInputs(graph, "@video_in", { video: p.video, custom_width: load.width, custom_height: load.height });
+      setInputs(graph, "@duration", { value: p.seconds });
+      setInputs(graph, "@image_1", { image: required(p.photo, "a face photo") });
+      setInputs(graph, "@prompt", { value: required(p.text.scene, "a scene") });
+      setInputs(graph, "@seed", { noise_seed: p.seed });
+      break;
+    }
+    case "fx_animate": {
+      const sizeNode = graph[findNodeId(graph, "@size")].inputs;
+      const size = animateSize(p.videoSize, Number(sizeNode["resize_type.width"]) * Number(sizeNode["resize_type.height"]));
+      setInputs(graph, "@video_in", { file: p.video });
+      setInputs(graph, "@trim", { duration: p.seconds });
+      setInputs(graph, "@size", { "resize_type.width": size.width, "resize_type.height": size.height });
+      setInputs(graph, "@image_1", { image: required(p.photo, "a character photo") });
+      setInputs(graph, "@prompt", { value: required(p.text.action, "an action") });
+      setInputs(graph, "@character", { value: characterPrompt(required(p.text.character, "a character description")) });
+      setInputs(graph, "@seed", { noise_seed: p.seed });
+      break;
+    }
+    case "fx_character_swap":
+      setInputs(graph, "@video_in", { file: p.video });
+      setInputs(graph, "@prepare", { duration_seconds: p.seconds });
+      setInputs(graph, "@image_1", { image: required(p.photo, "a character photo") });
+      setInputs(graph, "@subject", { text: required(p.text.subject, "a subject") });
+      setInputs(graph, "@seed", { seed: p.seed });
+      break;
+  }
   return graph;
 }
 

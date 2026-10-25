@@ -18,5 +18,6 @@ export const testConfig: Config = {
   llm: null,
   comfyWakeMs: 30_000,
   music: { timeoutMs: 20 * 60_000 },
+  effects: { maxUploadBytes: 100 * 1024 * 1024, maxSeconds: 5, timeoutMs: 40 * 60_000 },
   video: { pixels: { normal: 921_600, high: 2_073_600 }, maxRefs: 9, timeoutMs: 40 * 60_000 },
 };

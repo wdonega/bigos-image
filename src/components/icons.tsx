@@ -47,6 +47,18 @@ export function VideoIcon(props: IconProps) {
   );
 }
 
+/** Video effects: a film frame touched by a magic wand. */
+export function EffectsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="2.5" y="6" width="13" height="12" rx="2" />
+      <path d="M6 6v12M12 6v12" />
+      <path d="m14 20 7-7" />
+      <path d="M19.5 3.2l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6Z" />
+    </Icon>
+  );
+}
+
 /** Music: a double note. */
 export function MusicIcon(props: IconProps) {
   return (

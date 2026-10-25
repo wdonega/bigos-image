@@ -53,6 +53,17 @@ Música (`audio_minimax_music_3.json`, spec §14 decisão 30; mantém o nome do 
 | `@seed` | `SeedNode` | `seed` (liga no encoder e no KSampler) |
 | `@save` | `SaveAudioAdvanced` | — (MP3 V0) |
 
+Efeitos de vídeo (spec §14, decisão 31). Gerados por `python3 scripts/derive-effect-workflows.py` a partir dos `workflow.api.json` testados em `../comfyui-workflows` (não são exports manuais): o script põe os títulos, insere o corte (`Video Slice`, nó `fx_trim`), tira as saídas de comparação e poda nós que não chegam a nenhuma saída. Rode de novo se aqueles workflows mudarem.
+
+| Arquivo | Origem | Títulos (`class_type` → inputs que o backend escreve) |
+|---------|--------|-------------------------------------------------------|
+| `fx_clean_plate_api.json` | #60 LTX 2.3 Clean Plate | `@video_in` `LoadVideo` → `file`; `@trim` `Video Slice` → `duration`; `@prompt` / `@negative` `CLIPTextEncode` → `text`; `@seed` `RandomNoise` → `noise_seed`; `@first_frame` `LoadImage` → `image` (ramo em bypass, mas o arquivo precisa existir); `@save` `SaveVideo` |
+| `fx_face_swap_api.json` | #17 LTX 2.3 head swap | `@video_in` `VHS_LoadVideo` → `video`, `custom_width`, `custom_height` (reduz vídeos maiores que `@max_side` ao carregar); `@duration` `PrimitiveFloat` → `value`; `@max_side` `PrimitiveInt` (só lido); `@image_1` `LoadImage` → `image` (rosto); `@prompt` `PrimitiveStringMultiline` → `value`; `@seed` `RandomNoise` → `noise_seed`; `@save` `SaveVideo` |
+| `fx_animate_api.json` | #15 Wan Animate 2 | `@video_in` `LoadVideo` → `file`; `@trim` `Video Slice` → `duration`; `@size` `ResizeImageMaskNode` → `resize_type.width/height` (orientação do vídeo, pixels do template); `@image_1` `LoadImage` → `image` (personagem); `@prompt` / `@character` `PrimitiveStringMultiline` → `value`; `@seed` `SamplerCustom` → `noise_seed`; `@save` `SaveVideo` |
+| `fx_character_swap_api.json` | #14 H3 Character Swap | `@video_in` `LoadVideo` → `file`; `@prepare` `H3RelayPrepareSource` → `duration_seconds`; `@image_1` `LoadImage` → `image` (personagem); `@subject` `CLIPTextEncode` → `text` (para o SAM, em inglês); `@seed` `H3RelayWindowPlan` → `seed`; `@save` `SaveVideo` |
+
+O `SaveVideo` nativo devolve o arquivo em `outputs[id].images[0]` com `animated: [true]` (o `VHS_VideoCombine` usa `gifs`).
+
 `width` e `height` moram no mesmo nó (`@latent_size`), e `seed`/`steps`/`cfg` no mesmo nó (`@sampler`).
 
 ## Pontos que só o export real responde (spec §14)

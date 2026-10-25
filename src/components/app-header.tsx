@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GenerateIcon, MusicIcon, VideoIcon } from "@/components/icons";
+import { EffectsIcon, GenerateIcon, MusicIcon, VideoIcon } from "@/components/icons";
 import { SettingsMenu } from "@/components/settings-menu";
 import { useI18n } from "@/i18n/provider";
 import type { Theme } from "@/lib/theme";
@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/image", label: "nav.image", Icon: GenerateIcon },
   { href: "/video", label: "nav.video", Icon: VideoIcon },
   { href: "/music", label: "nav.music", Icon: MusicIcon },
+  { href: "/effects", label: "nav.effects", Icon: EffectsIcon },
 ] as const;
 
 export function AppHeader({ theme }: { theme: Theme }) {
@@ -35,13 +36,16 @@ export function AppHeader({ theme }: { theme: Theme }) {
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
+                aria-label={t(label)}
+                title={t(label)}
                 className={cn(
                   "flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:h-9",
                   active && "bg-secondary text-foreground",
                 )}
               >
                 <Icon className={cn(active && "text-primary")} />
-                {t(label)}
+                {/* Four tabs don't fit a phone with their names: icons only below sm (spec §14, decision 31). */}
+                <span className="hidden sm:inline">{t(label)}</span>
               </Link>
             );
           })}

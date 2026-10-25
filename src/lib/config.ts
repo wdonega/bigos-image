@@ -30,6 +30,11 @@ const envSchema = z.object({
   VIDEO_JOB_TIMEOUT_MINUTES: positiveInt.default(40),
   // Music (MiniMax Music 3): time limit of one song.
   MUSIC_JOB_TIMEOUT_MINUTES: positiveInt.default(20),
+  // Video effects (spec §14, decision 31): uploaded video size, seconds kept (longer videos are
+  // trimmed to the start) and time limit of one effect.
+  MAX_VIDEO_UPLOAD_MB: positiveInt.default(100),
+  EFFECT_MAX_SECONDS: positiveInt.default(5),
+  EFFECT_JOB_TIMEOUT_MINUTES: positiveInt.default(40),
   // The ComfyUI machine wakes on LAN: how long to wait for it before calling it unavailable.
   COMFY_WAKE_SECONDS: positiveInt.default(30),
   // Optional: "Improve text" is hidden when the LLM is not configured.
@@ -39,6 +44,10 @@ const envSchema = z.object({
   // Keep within the model's limits in LiteLLM (max_output_tokens / max_input_tokens).
   LLM_MAX_OUTPUT_TOKENS: positiveInt.default(800),
   LLM_MAX_INPUT_CHARS: positiveInt.default(4000),
+  // Reasoning models served by llama.cpp think before answering, which eats max_tokens (and
+  // time): "true" sends chat_template_kwargs.enable_thinking=false. Not for OpenAI/LiteLLM
+  // endpoints that refuse unknown fields.
+  LLM_DISABLE_THINKING: z.stringbool().default(false),
 });
 
 /** OpenAI-compatible endpoint (LiteLLM) used by "Improve text". */
@@ -50,6 +59,8 @@ export type LlmConfig = {
   maxOutputTokens: number;
   /** Longest user text sent to the LLM; longer texts skip it (the final pass falls back). */
   maxInputChars: number;
+  /** Ask a llama.cpp reasoning model to answer without thinking first. */
+  disableThinking: boolean;
 };
 
 export type Config = {
@@ -71,6 +82,7 @@ export type Config = {
   steps: { normal: number; high: number };
   video: { pixels: { normal: number; high: number }; maxRefs: number; timeoutMs: number };
   music: { timeoutMs: number };
+  effects: { maxUploadBytes: number; maxSeconds: number; timeoutMs: number };
   llm: LlmConfig | null;
 };
 
@@ -104,6 +116,11 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
       timeoutMs: e.VIDEO_JOB_TIMEOUT_MINUTES * 60_000,
     },
     music: { timeoutMs: e.MUSIC_JOB_TIMEOUT_MINUTES * 60_000 },
+    effects: {
+      maxUploadBytes: e.MAX_VIDEO_UPLOAD_MB * 1024 * 1024,
+      maxSeconds: e.EFFECT_MAX_SECONDS,
+      timeoutMs: e.EFFECT_JOB_TIMEOUT_MINUTES * 60_000,
+    },
     llm: e.LLM_URL
       ? {
           url: e.LLM_URL.replace(/\/+$/, ""),
@@ -111,6 +128,7 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
           model: e.LLM_MODEL,
           maxOutputTokens: e.LLM_MAX_OUTPUT_TOKENS,
           maxInputChars: e.LLM_MAX_INPUT_CHARS,
+          disableThinking: e.LLM_DISABLE_THINKING,
         }
       : null,
   };

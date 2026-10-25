@@ -6,6 +6,7 @@ import { mentionsToTokens } from "../mentions.ts";
 import { STYLE_IDS, type StyleId, applyStyle, findStyle } from "../styles.ts";
 import { MUSIC_DURATIONS, MUSIC_GENRE_IDS, type MusicGenreId, fallbackMusicCaption, genrePhrase, normalizeLyrics } from "../music.ts";
 import { VIDEO_DURATIONS, VIDEO_RATIOS, buildVideoPrompt, tokensToSubjects, videoFrames, videoSize } from "../video.ts";
+import { EFFECTS, EFFECT_IDS, type EffectId, type EffectText, type EffectWorkflow } from "../effects.ts";
 import { randomSeed } from "../workflow/build.ts";
 
 // Request contract of POST /api/jobs (spec §10).
@@ -56,17 +57,29 @@ const musicRequestSchema = z.object({
   duration: z.literal(MUSIC_DURATIONS),
 });
 
-export const jobRequestSchema = z.union([imageRequestSchema, videoRequestSchema, musicRequestSchema]);
+// Video effects (spec §14, decision 31): an uploaded video, a photo when the effect needs one,
+// one optional short text and, for effects that put someone's identity in the video, consent.
+const effectsRequestSchema = z.object({
+  screen: z.literal("effects"),
+  effect: z.enum(EFFECT_IDS),
+  video: z.string().min(1),
+  images: z.array(z.string().min(1)).max(1).default([]),
+  prompt: z.string().max(4000).default(""),
+  consent: z.boolean().default(false),
+});
+
+export const jobRequestSchema = z.union([imageRequestSchema, videoRequestSchema, musicRequestSchema, effectsRequestSchema]);
 
 export type JobRequest = z.infer<typeof jobRequestSchema>;
 type ImageRequest = z.infer<typeof imageRequestSchema>;
 type VideoRequest = z.infer<typeof videoRequestSchema>;
 type MusicRequest = z.infer<typeof musicRequestSchema>;
+type EffectsRequest = z.infer<typeof effectsRequestSchema>;
 
 /** What the worker needs to build and run the graph; stored as the queue job's data. */
 export type JobPlan = {
   /** The graph: images by number of images (spec §3); video with references uses Ref2VA. */
-  workflow: "t2i" | "edit" | "video_fl2va" | "video_ref2va" | "music";
+  workflow: "t2i" | "edit" | "video_fl2va" | "video_ref2va" | "music" | EffectWorkflow;
   /**
    * Source of the worker's final LLM pass (English, <imageN> references, style up front): the
    * user's text with mentions already as <imageN>.
@@ -90,10 +103,27 @@ export type JobPlan = {
   video?: { frames: number; seconds: number };
   /** Music only: the lyrics as sung (never translated), instrumental flag and max seconds. */
   music?: { lyrics: string; instrumental: boolean; seconds: number };
+  /**
+   * Effects only: the uploaded video (id, displayed size, whether its first frame was stored) and
+   * the seconds kept from its start. `images` holds the face/character photo, if any.
+   */
+  effect?: { id: EffectId; video: string; width: number; height: number; seconds: number; hasFrame: boolean };
+  /** Effects only: the vision pass's English texts once the worker computed them (kept for retries). */
+  effectText?: EffectText;
 };
 
 /** Looks up a stored upload; injected so planning stays testable without disk. */
-export type UploadLookup = (id: string) => Promise<{ id: string } | null>;
+export type UploadLookup = (id: string) => Promise<UploadFacts | null>;
+
+/** What planning needs to know about an upload; images stored before videos existed have no kind. */
+export type UploadFacts = {
+  id: string;
+  kind?: "image" | "video";
+  width?: number;
+  height?: number;
+  seconds?: number;
+  hasFrame?: boolean;
+};
 
 /**
  * Validates a request and turns it into a plan. The workflow follows the number of images
@@ -105,13 +135,48 @@ export async function planJob(
   findUpload: UploadLookup,
 ): Promise<JobPlan> {
   if (req.screen === "music") return planMusic(req);
+  if (req.screen === "effects") return planEffect(req, config, findUpload);
   return req.screen === "video" ? planVideo(req, config, findUpload) : planImage(req, config, findUpload);
 }
 
+/** Every id must be a stored image (a video id where an image belongs counts as not found). */
 async function checkUploads(ids: string[], findUpload: UploadLookup) {
   for (const id of ids) {
-    if (!(await findUpload(id))) throw new AppError("upload_not_found", 400);
+    const upload = await findUpload(id);
+    if (!upload || upload.kind === "video") throw new AppError("upload_not_found", 400);
   }
+}
+
+async function planEffect(req: EffectsRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {
+  const spec = EFFECTS[req.effect];
+  const video = await findUpload(req.video);
+  if (!video || video.kind !== "video") throw new AppError("upload_not_found", 400);
+  if (spec.photo && req.images.length !== 1) {
+    throw new AppError("invalid_request", 400, [{ code: "effect_needs_photo", params: { photo: spec.photo } }]);
+  }
+  if (spec.consent && !req.consent) throw new AppError("invalid_request", 400, [{ code: "consent_required" }]);
+  const images = spec.photo ? req.images : [];
+  await checkUploads(images, findUpload);
+  return {
+    workflow: spec.workflow,
+    text: req.prompt.trim(),
+    style: null,
+    fallbackPrompt: "",
+    transparentBackground: false,
+    size: null,
+    images,
+    steps: 0,
+    seed: randomSeed(),
+    effect: {
+      id: req.effect,
+      video: video.id,
+      width: video.width ?? 0,
+      height: video.height ?? 0,
+      // Longer videos are cut to their start (the upload already warned about it).
+      seconds: Math.min(video.seconds ?? config.effects.maxSeconds, config.effects.maxSeconds),
+      hasFrame: video.hasFrame ?? false,
+    },
+  };
 }
 
 function planMusic(req: MusicRequest): JobPlan {

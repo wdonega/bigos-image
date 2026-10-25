@@ -27,6 +27,18 @@ describe("parseConfig", () => {
     expect(config.steps).toEqual({ normal: 25, high: 40 });
   });
 
+  it("reads the video effect limits (spec §14, decision 31)", () => {
+    expect(parseConfig(env).effects).toEqual({ maxUploadBytes: 100 * 1024 * 1024, maxSeconds: 5, timeoutMs: 40 * 60_000 });
+    const custom = parseConfig({ ...env, MAX_VIDEO_UPLOAD_MB: "50", EFFECT_MAX_SECONDS: "8", EFFECT_JOB_TIMEOUT_MINUTES: "60" });
+    expect(custom.effects).toEqual({ maxUploadBytes: 50 * 1024 * 1024, maxSeconds: 8, timeoutMs: 60 * 60_000 });
+  });
+
+  it("reads LLM_DISABLE_THINKING as a boolean, off by default", () => {
+    const withLlm = { ...env, LLM_URL: "https://llm.example" };
+    expect(parseConfig(withLlm).llm?.disableThinking).toBe(false);
+    expect(parseConfig({ ...withLlm, LLM_DISABLE_THINKING: "true" }).llm?.disableThinking).toBe(true);
+  });
+
   it("fails loudly when a required setting is missing", () => {
     expect(() => parseConfig({ ...env, COMFY_URL: undefined })).toThrow(/COMFY_URL/);
     expect(() => parseConfig({ ...env, REDIS_URL: undefined })).toThrow(/REDIS_URL/);

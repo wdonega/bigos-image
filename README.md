@@ -15,7 +15,7 @@ A simple image, video and music generator for people who know nothing about AI, 
 
 - [Made for your phone](#made-for-your-phone)
 - [Features](#features)
-  - [Image](#image) · [Video](#video) · [Music](#music) · [Everywhere](#everywhere)
+  - [Image](#image) · [Video](#video) · [Music](#music) · [Effects](#effects) · [Everywhere](#everywhere)
 - [How it works](#how-it-works)
 - [Requirements](#requirements)
 - [ComfyUI components](#comfyui-components)
@@ -67,6 +67,15 @@ The PWA needs the app served over **HTTPS** (a reverse proxy in front of the Doc
   - or tap **Create lyrics for me** to get lyrics in your language, split into verses and chorus, ready to edit (with undo).
 - Optional **genre** (pop, rock, samba, MPB, bossa nova, sertanejo, forró, funk, electronic, hip-hop, lo-fi, reggae, jazz, classical, kids) and **length** (30 s to 3 min).
 - The result is an **MP3** with its real length.
+
+### Effects
+- Send a short video (MP4 or MOV, straight from the phone; the first 5 s are used) and pick an effect:
+  - **Remove people**: erases people and moving things, keeping the empty scene (LTX 2.3 Clean Plate, ~5 min);
+  - **Swap face**: another face on the person, same body, clothes and sound (LTX 2.3 head swap, ~8 min);
+  - **Animate character**: the character in a photo moves like the person in the video (Wan Animate 2, ~8 min, 3.4 s result);
+  - **Swap character**: the whole person becomes the one in a photo (MiniMax H3 Character Swap, ~18 min).
+- No prompt to write: the LLM looks at the video's first frame (and the photo) and describes the scene for the model. An optional short text says what to remove, who to swap or what the character does.
+- Effects that put someone's face or body in a video ask for consent first.
 
 ### Everywhere
 - **Improve text:** an LLM expands your idea in your own language, with undo; it can be used again.
@@ -135,6 +144,10 @@ Nodes: all built into ComfyUI (`MiniMaxMusic3TextEncode`, `EmptyMiniMaxMusic3Lat
 | Text encoder | `minimax_music3_text_encoder_pruned_int8_convrot.safetensors` | `text_encoders/` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/text_encoders/minimax_music3_text_encoder_pruned_int8_convrot.safetensors) |
 | VAE | `minimax_music3_dav.safetensors` | `vae/` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3/resolve/main/vae/minimax_music3_dav.safetensors) |
 
+### Effects tab
+
+The four effects use the workflows tested in the companion [comfyui-workflows](https://github.com/wdonega/comfyui-workflows) repository (#60 Clean Plate, #17 LTX face swap, #15 Wan Animate 2, #14 H3 Character Swap): each folder has an `install.sh` that installs its custom nodes and models. The app's graphs (`workflows/api/fx_*.json`) are derived from them by `scripts/derive-effect-workflows.py`. The LLM must accept images for the scene descriptions (without it, generic descriptions are used).
+
 ### Less VRAM?
 
 The files above are what ran on a 16 GB card. Even so, a 5 s video at 1080p nearly fills it, and ComfyUI offloads parts of the models to system RAM. On smaller cards, try, in this order:
@@ -178,6 +191,7 @@ The variables can also live in a `.env` file next to `docker-compose.yml`.
 | `LLM_URL` | no | empty | OpenAI-compatible API for "Improve text", lyrics and the final step |
 | `LLM_API_KEY` | no | empty | Key for that API |
 | `LLM_MODEL` | no | `prompt-enhancer` | Model name in that API |
+| `LLM_DISABLE_THINKING` | no | `false` | `true` for reasoning models on llama.cpp: answer without thinking first (faster; without it long replies like lyrics run out of tokens) |
 | `PORT` | no | `3000` | Port published on the host |
 | `BIGOS_IMAGE` | no | `ghcr.io/wdonega/bigos-image:latest` | Image to run (e.g. a specific version `1.0.N`) |
 

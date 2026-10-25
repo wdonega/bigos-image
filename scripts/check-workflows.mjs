@@ -46,6 +46,43 @@ const EXPECTED = {
     "@image_1": ["LoadImage", ["image"]],
     "@save": ["VHS_VideoCombine", []],
   },
+  // Video effects (spec §14, decision 31): derived from ../comfyui-workflows (workflows/README.md).
+  "fx_clean_plate_api.json": {
+    "@video_in": ["LoadVideo", ["file"]],
+    "@trim": ["Video Slice", ["duration"]],
+    "@prompt": ["CLIPTextEncode", ["text"]],
+    "@negative": ["CLIPTextEncode", ["text"]],
+    "@seed": ["RandomNoise", ["noise_seed"]],
+    "@first_frame": ["LoadImage", ["image"]],
+    "@save": ["SaveVideo", []],
+  },
+  "fx_face_swap_api.json": {
+    "@video_in": ["VHS_LoadVideo", ["video", "custom_width", "custom_height"]],
+    "@duration": ["PrimitiveFloat", ["value"]],
+    "@max_side": ["PrimitiveInt", ["value"]],
+    "@image_1": ["LoadImage", ["image"]],
+    "@prompt": ["PrimitiveStringMultiline", ["value"]],
+    "@seed": ["RandomNoise", ["noise_seed"]],
+    "@save": ["SaveVideo", []],
+  },
+  "fx_animate_api.json": {
+    "@video_in": ["LoadVideo", ["file"]],
+    "@trim": ["Video Slice", ["duration"]],
+    "@size": ["ResizeImageMaskNode", ["resize_type.width", "resize_type.height"]],
+    "@image_1": ["LoadImage", ["image"]],
+    "@prompt": ["PrimitiveStringMultiline", ["value"]],
+    "@character": ["PrimitiveStringMultiline", ["value"]],
+    "@seed": ["SamplerCustom", ["noise_seed"]],
+    "@save": ["SaveVideo", []],
+  },
+  "fx_character_swap_api.json": {
+    "@video_in": ["LoadVideo", ["file"]],
+    "@prepare": ["H3RelayPrepareSource", ["duration_seconds"]],
+    "@image_1": ["LoadImage", ["image"]],
+    "@subject": ["CLIPTextEncode", ["text"]],
+    "@seed": ["H3RelayWindowPlan", ["seed"]],
+    "@save": ["SaveVideo", []],
+  },
 };
 
 const FORBIDDEN = ["ResolutionSelector", "ImageCompare", "MiniMaxH3DirectorCS"];

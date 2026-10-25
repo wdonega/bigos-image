@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  effectImageOrder,
+  effectSystemPrompt,
+  finalizeEffectText,
+  parseEffectReply,
   finalMusicSystemPrompt,
   lyricsSystemPrompt,
   parseLyricsReply,
@@ -17,7 +21,7 @@ import {
   systemPrompt,
 } from "./enhance";
 
-const llm = { url: "https://llm.test", apiKey: "k", model: "prompt-enhancer", maxOutputTokens: 800, maxInputChars: 4000 };
+const llm = { url: "https://llm.test", apiKey: "k", model: "prompt-enhancer", maxOutputTokens: 800, maxInputChars: 4000, disableThinking: false };
 const reply = (content: string) =>
   Response.json({ choices: [{ message: { content } }] });
 
@@ -205,5 +209,56 @@ describe("music final pass and lyrics", () => {
     expect(parseLyricsReply(`\`\`\`\n${good}\n\`\`\``)).toBe(good);
     expect(parseLyricsReply("um\ndois\ntrês\nquatro")).toBeNull();
     expect(parseLyricsReply("[Verse]\nsó uma linha")).toBeNull();
+  });
+});
+
+describe("effects vision pass (spec §14, decision 31)", () => {
+  const images = { frame: "data:image/jpeg;base64,FRAME", photo: "data:image/jpeg;base64,PHOTO" };
+
+  it("asks each effect for its own labeled lines", () => {
+    expect(effectSystemPrompt("remove_people", true)).toMatch(/SCENE:[\s\S]*REMOVE:/);
+    expect(effectSystemPrompt("face_swap", true)).toContain("Image 2 is the new face");
+    expect(effectSystemPrompt("animate", false)).not.toContain("Image 2");
+    expect(effectSystemPrompt("character_swap", true)).toContain("SUBJECT:");
+  });
+
+  it("orders the images as the prompt names them", () => {
+    expect(effectImageOrder("face_swap", images)).toEqual([images.frame, images.photo]);
+    expect(effectImageOrder("animate", images)).toEqual([images.photo, images.frame]);
+    expect(effectImageOrder("animate", { frame: null, photo: images.photo })).toEqual([images.photo]);
+    expect(effectImageOrder("remove_people", images)).toEqual([images.frame]);
+  });
+
+  it("reads the labeled lines and rejects incomplete replies", () => {
+    expect(parseEffectReply("**SCENE:** An empty ring.\nREMOVE: person, boxer", "remove_people")).toEqual({
+      scene: "An empty ring.",
+      remove: "person, boxer",
+    });
+    expect(parseEffectReply('SUBJECT: "the man"', "character_swap")).toEqual({ subject: "the man" });
+    expect(parseEffectReply("CHARACTER: an owl", "animate")).toBeNull();
+  });
+
+  it("sends the user's text and the images as image_url parts", async () => {
+    const fetchImpl = vi.fn(async () => reply("CHARACTER: an owl\nACTION: The owl dances."));
+    const text = await finalizeEffectText(llm, "animate", "dança", images, fetchImpl as unknown as typeof fetch);
+    expect(text).toEqual({ character: "an owl", action: "The owl dances." });
+    const body = JSON.parse((fetchImpl.mock.calls[0] as unknown as [string, { body: string }])[1].body);
+    expect(body.messages[1].content).toEqual([
+      { type: "text", text: "dança" },
+      { type: "image_url", image_url: { url: images.photo } },
+      { type: "image_url", image_url: { url: images.frame } },
+    ]);
+  });
+});
+
+describe("LLM_DISABLE_THINKING", () => {
+  it("asks llama.cpp to skip reasoning only when configured", async () => {
+    const bodyOf = async (disableThinking: boolean) => {
+      const fetchImpl = vi.fn(async () => reply("SUBJECT: man"));
+      await finalizeEffectText({ ...llm, disableThinking }, "character_swap", "", { frame: null, photo: null }, fetchImpl as unknown as typeof fetch);
+      return JSON.parse((fetchImpl.mock.calls[0] as unknown as [string, { body: string }])[1].body);
+    };
+    expect((await bodyOf(true)).chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(await bodyOf(false)).not.toHaveProperty("chat_template_kwargs");
   });
 });
