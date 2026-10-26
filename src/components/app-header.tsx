@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { EffectsIcon, GenerateIcon, MusicIcon, RestoreIcon, VideoIcon } from "@/components/icons";
+import { JobsMenu } from "@/components/jobs-menu";
 import { SettingsMenu } from "@/components/settings-menu";
 import { useI18n } from "@/i18n/provider";
 import type { Theme } from "@/lib/theme";
@@ -21,11 +22,12 @@ export function AppHeader({ theme }: { theme: Theme }) {
   const pathname = usePathname();
   return (
     <header className="border-b bg-background pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 sm:gap-6 px-[max(1rem,env(safe-area-inset-left))]">
-        <Link href="/image" aria-label={t("app.name")} className="flex h-10 items-center gap-2.5">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 sm:gap-6 px-[max(1rem,env(safe-area-inset-left))]">
+        <Link href="/image" aria-label={t("app.name")} className="flex h-10 shrink-0 items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element -- tiny static icon */}
           <img src="/icons/icon-192.png" alt="" width={34} height={34} className="rounded-[10px]" />
-          <span className="hidden font-heading text-lg font-bold tracking-tight min-[480px]:inline">
+          {/* One line, and only where it fits beside the tabs: with icon-only tabs (560–767 px) and next to the named tabs from 1024 px. */}
+          <span className="hidden font-heading text-lg leading-tight font-bold tracking-tight whitespace-nowrap min-[560px]:inline md:hidden lg:inline">
             {t("app.name")}
           </span>
         </Link>
@@ -40,18 +42,21 @@ export function AppHeader({ theme }: { theme: Theme }) {
                 aria-label={t(label)}
                 title={t(label)}
                 className={cn(
-                  "flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:h-9",
+                  "flex h-10 items-center gap-2 rounded-lg px-2 text-sm sm:px-3 font-medium text-muted-foreground transition-colors hover:text-foreground md:h-9",
                   active && "bg-secondary text-foreground",
                 )}
               >
                 <Icon className={cn(active && "text-primary")} />
-                {/* Four tabs don't fit a phone with their names: icons only below sm (spec §14, decision 31). */}
-                <span className="hidden sm:inline">{t(label)}</span>
+                {/* Five tabs and the jobs button don't fit with their names below md: icons only (spec §14, decisions 31 and 33). */}
+                <span className="hidden md:inline">{t(label)}</span>
               </Link>
             );
           })}
         </nav>
-        <SettingsMenu initialTheme={theme} />
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+          <JobsMenu />
+          <SettingsMenu initialTheme={theme} />
+        </div>
       </div>
     </header>
   );

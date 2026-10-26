@@ -43,7 +43,7 @@ const EFFECT_ICONS: Record<EffectId, typeof EraserIcon> = {
 };
 
 /** Video effects (spec §14, decision 31): pick an effect, send a video (and a photo), apply. */
-export function EffectsScreen({ limits }: { limits: ScreenLimits }) {
+export function EffectsScreen({ limits, jobId }: { limits: ScreenLimits; jobId: string | null }) {
   const { t } = useI18n();
   const [effect, setEffect] = useState<EffectId>("remove_people");
   const [text, setText] = useState("");
@@ -51,7 +51,7 @@ export function EffectsScreen({ limits }: { limits: ScreenLimits }) {
   const maxFor = (id: EffectId) => effectMaxSeconds(id, limits.effectSeconds.max);
   const [range, setRange] = useState<[number, number]>([0, 0]);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const job = useJobRunner();
+  const job = useJobRunner("effects", jobId);
   const source = useVideoSource(limits.restore.maxUploadBytes, (meta) =>
     setRange([0, Math.min(meta.info.seconds, limits.effectSeconds.default, maxFor(effect))]),
   );
@@ -89,7 +89,7 @@ export function EffectsScreen({ limits }: { limits: ScreenLimits }) {
       images: spec.photo && photo.id ? [photo.id] : [],
       prompt: text,
       consent,
-    });
+    }, { label: tape.name, effect });
   }
 
   return (

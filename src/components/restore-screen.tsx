@@ -25,9 +25,9 @@ import type { ScreenLimits } from "@/lib/screen-limits";
 import { cn } from "@/lib/utils";
 
 /** Old video restoration (spec §14, decision 32): upload, trim, pick a color, restore. */
-export function RestoreScreen({ limits }: { limits: ScreenLimits["restore"] }) {
+export function RestoreScreen({ limits, jobId }: { limits: ScreenLimits["restore"]; jobId: string | null }) {
   const { t } = useI18n();
-  const job = useJobRunner();
+  const job = useJobRunner("restore", jobId);
   const [mode, setMode] = useState<RestoreMode>("upscale");
   const [color, setColor] = useState<ColorId>("normalize");
   const [range, setRange] = useState<[number, number]>([0, 0]);
@@ -52,7 +52,7 @@ export function RestoreScreen({ limits }: { limits: ScreenLimits["restore"] }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!canSubmit || !tape) return;
-    void job.submit({ screen: "restore", upload: tape.id, start: range[0], end: range[1], color, mode });
+    void job.submit({ screen: "restore", upload: tape.id, start: range[0], end: range[1], color, mode }, { label: tape.name });
   }
 
   return (

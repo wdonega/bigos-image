@@ -72,6 +72,16 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+// Jobs menu (spec §14, decision 33): the state of several jobs at once.
+await check("Jobs menu: GET /api/jobs?ids= returns each job, null when unknown, 400 when malformed", async () => {
+  const ok = await fetch(`${base}/api/jobs?ids=1,999999999`);
+  const body = (await ok.json()) as { jobs: Record<string, unknown> };
+  assert(ok.status === 200 && "1" in body.jobs && body.jobs["999999999"] === null, JSON.stringify(body));
+  const bad = await fetch(`${base}/api/jobs?ids=1,abc`);
+  assert(bad.status === 400, `malformed ids: ${bad.status}`);
+  return "200 with null for unknown, 400 for malformed";
+});
+
 await check("Generate with defaults → opaque 1024 × 1024 PNG", async () => {
   const { meta } = await run({ prompt: "A lighthouse on a rocky coast at sunset" });
   assert(meta.format === "png" && meta.width === 1024 && meta.height === 1024, `${meta.format} ${meta.width}x${meta.height}`);

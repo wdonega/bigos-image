@@ -7,7 +7,9 @@ import { screenLimits } from "@/lib/screen-limits";
 // Limits come from the server's environment at request time.
 export const dynamic = "force-dynamic";
 
-export default async function EffectsPage() {
+export default async function EffectsPage({ searchParams }: PageProps<"/effects">) {
+  const job = (await searchParams).job;
+  const jobId = typeof job === "string" ? job : null;
   const { t } = await getTranslator();
   const limits = screenLimits();
   return (
@@ -17,7 +19,7 @@ export default async function EffectsPage() {
         <p className="text-sm text-muted-foreground">{t("effects.subtitle")}</p>
       </div>
       <ServiceStatus wakeSeconds={getConfig().comfyWakeMs / 1000} />
-      <EffectsScreen limits={limits} />
+      <EffectsScreen key={jobId ?? "new"} limits={limits} jobId={jobId} />
     </div>
   );
 }

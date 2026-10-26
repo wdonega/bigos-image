@@ -22,7 +22,7 @@ import type { StyleId } from "@/lib/styles";
 import type { VideoDuration, VideoRatio } from "@/lib/video";
 
 /** Video (spec §14, decision 28): the Generate screen's shape, with duration instead of size. */
-export function VideoScreen({ limits }: { limits: ScreenLimits }) {
+export function VideoScreen({ limits, jobId }: { limits: ScreenLimits; jobId: string | null }) {
   const { t } = useI18n();
   const [prompt, setPrompt] = useState("");
   const [ratio, setRatio] = useState<VideoRatio>("16:9");
@@ -30,7 +30,7 @@ export function VideoScreen({ limits }: { limits: ScreenLimits }) {
   const [quality, setQuality] = useState<Quality>("normal");
   const [style, setStyle] = useState<StyleId | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
-  const job = useJobRunner();
+  const job = useJobRunner("video", jobId);
   const enhancer = usePromptEnhancer(prompt, setPrompt, "video");
   const uploads = useUploads(limits.maxVideoRefs, (order) => {
     // Undo would bring back the old image numbers.
@@ -55,7 +55,7 @@ export function VideoScreen({ limits }: { limits: ScreenLimits }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
-    void job.submit({ screen: "video", prompt, images: uploads.ids, ratio, duration, quality, style });
+    void job.submit({ screen: "video", prompt, images: uploads.ids, ratio, duration, quality, style }, { label: prompt });
   }
 
   return (

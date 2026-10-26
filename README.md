@@ -87,6 +87,7 @@ The PWA needs the app served over **HTTPS** (a reverse proxy in front of the Doc
 - **Improve text:** an LLM expands your idea in your own language, with undo; it can be used again.
 - **Automatic final step:** before ComfyUI, the text is translated to English, image references become `<imageN>`, and the style or genre goes first in the prompt, in each model's own prompt format.
 - **One shared queue** with position ("2 ahead of you"), progress, cancel and retry.
+- **Jobs menu** in the header: what this device sent in the last 24 h, with progress, cancel (stops it in ComfyUI too), open and download, a notice when something finishes and the count in the tab title. Leaving the page or closing the app loses nothing; the address (`?job=…`) reopens a job.
 - **Installable PWA** that runs great on phones (tested on Android), light and dark themes, **4 languages** (pt-BR, en-US, es-MX, zh-CN) picked from the browser.
 - **GPU machine that sleeps:** if ComfyUI sits behind Wake-on-LAN, the app shows "Connecting…" and waits up to 30 s.
 

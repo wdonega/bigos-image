@@ -16,14 +16,14 @@ import type { MusicDuration, MusicGenreId } from "@/lib/music";
 import type { ScreenLimits } from "@/lib/screen-limits";
 
 /** Music (spec §14, decision 30): the Image screen's shape, with lyrics, genre and duration. */
-export function MusicScreen({ limits }: { limits: ScreenLimits }) {
+export function MusicScreen({ limits, jobId }: { limits: ScreenLimits; jobId: string | null }) {
   const { t } = useI18n();
   const [prompt, setPrompt] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [instrumental, setInstrumental] = useState(false);
   const [genre, setGenre] = useState<MusicGenreId | null>(null);
   const [duration, setDuration] = useState<MusicDuration>(60);
-  const job = useJobRunner();
+  const job = useJobRunner("music", jobId);
   const enhancer = usePromptEnhancer(prompt, setPrompt, "music");
 
   const canSubmit = prompt.trim().length > 0 && !job.busy;
@@ -31,7 +31,7 @@ export function MusicScreen({ limits }: { limits: ScreenLimits }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
-    void job.submit({ screen: "music", prompt, lyrics, instrumental, genre, duration });
+    void job.submit({ screen: "music", prompt, lyrics, instrumental, genre, duration }, { label: prompt });
   }
 
   return (

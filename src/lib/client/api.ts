@@ -43,6 +43,14 @@ export async function createJob(request: unknown): Promise<string> {
   return body.job_id;
 }
 
+/** State of the jobs the menu lists; null for jobs the server no longer has. */
+export async function getJobViews(ids: string[]): Promise<Record<string, JobView | null>> {
+  const body = await send<{ jobs: Record<string, JobView | null> }>(`/api/jobs?ids=${ids.map(encodeURIComponent).join(",")}`, {
+    cache: "no-store",
+  });
+  return body.jobs;
+}
+
 export function cancelJob(jobId: string): Promise<JobView> {
   return send<JobView>(`/api/jobs/${jobId}`, { method: "DELETE" });
 }

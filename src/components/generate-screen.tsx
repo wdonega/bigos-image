@@ -22,7 +22,7 @@ import type { ScreenLimits } from "@/lib/screen-limits";
 import type { StyleId } from "@/lib/styles";
 import { DEFAULT_GENERATE_SELECTION, type SizeSelection, selectionProblems, toRequestSize } from "@/lib/size-selection";
 
-export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
+export function GenerateScreen({ limits, jobId }: { limits: ScreenLimits; jobId: string | null }) {
   const { t } = useI18n();
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState<SizeSelection>(DEFAULT_GENERATE_SELECTION);
@@ -30,7 +30,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
   const [transparent, setTransparent] = useState(false);
   const [style, setStyle] = useState<StyleId | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
-  const job = useJobRunner();
+  const job = useJobRunner("generate", jobId);
   const enhancer = usePromptEnhancer(prompt, setPrompt);
   const uploads = useUploads(limits.maxRefs, (order) => {
     // Undo would bring back the old image numbers.
@@ -73,7 +73,7 @@ export function GenerateScreen({ limits }: { limits: ScreenLimits }) {
       quality,
       transparent_background: transparent,
       style,
-    });
+    }, { label: prompt });
   }
 
   return (
