@@ -186,35 +186,27 @@ describe("planJob — music", () => {
 });
 
 describe("planJob — video effects (spec §14, decision 31)", () => {
-  const video = { id: "v1", kind: "video" as const, width: 1280, height: 736, seconds: 12, hasFrame: true };
-  const lookup: UploadLookup = async (id) => (id === "v1" ? video : id === "p1" ? { id, kind: "image" } : null);
-  const fx = (body: Record<string, unknown>) => plan({ screen: "effects", video: "v1", ...body }, lookup);
+  const lookup: UploadLookup = async (id) =>
+    id === "v1" ? { id, kind: "tape", info: { seconds: 30 } } : id === "p1" ? { id, kind: "image" } : null;
+  const fx = (body: Record<string, unknown>) => plan({ screen: "effects", video: "v1", start: 4, end: 9, ...body }, lookup);
 
-  it("remove_people needs only the video; the length is capped at EFFECT_MAX_SECONDS", async () => {
+  it("plans the chosen section of the uploaded video", async () => {
     const p = await fx({ effect: "remove_people", prompt: " o carro " });
-    expect(p).toMatchObject({
-      workflow: "fx_clean_plate",
-      text: "o carro",
-      images: [],
-      effect: { id: "remove_people", video: "v1", width: 1280, height: 736, seconds: 5, hasFrame: true },
-    });
+    expect(p).toMatchObject({ workflow: "fx_clean_plate", text: "o carro", images: [], effect: { id: "remove_people", video: "v1", start: 4, seconds: 5 } });
   });
 
-  it("keeps shorter videos whole", async () => {
-    const short: UploadLookup = async (id) => (id === "v1" ? { ...video, seconds: 3.2 } : { id, kind: "image" });
-    const p = await planJob(parse({ screen: "effects", effect: "remove_people", video: "v1" }), testConfig, short);
-    expect(p.effect?.seconds).toBe(3.2);
+  it("allows up to EFFECT_MAX_SECONDS, refuses longer or past the end", async () => {
+    expect((await fx({ effect: "remove_people", end: 14 })).effect?.seconds).toBe(10);
+    await expect(fx({ effect: "remove_people", end: 15 })).rejects.toMatchObject({ details: [{ code: "section_too_long", params: { max: 10 } }] });
+    await expect(fx({ effect: "remove_people", start: 28, end: 33 })).rejects.toMatchObject({ details: [{ code: "section_invalid" }] });
   });
 
   it("photo effects need the photo and the consent", async () => {
     await expect(fx({ effect: "face_swap", consent: true })).rejects.toMatchObject({
       details: [{ code: "effect_needs_photo", params: { photo: "face" } }],
     });
-    await expect(fx({ effect: "character_swap", images: ["p1"] })).rejects.toMatchObject({
-      details: [{ code: "consent_required" }],
-    });
-    const p = await fx({ effect: "animate", images: ["p1"], consent: true });
-    expect(p).toMatchObject({ workflow: "fx_animate", images: ["p1"] });
+    await expect(fx({ effect: "character_swap", images: ["p1"] })).rejects.toMatchObject({ details: [{ code: "consent_required" }] });
+    expect(await fx({ effect: "animate", images: ["p1"], consent: true })).toMatchObject({ workflow: "fx_animate", images: ["p1"] });
   });
 
   it("refuses a video id that is an image, and an image id that is a video", async () => {

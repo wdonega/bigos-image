@@ -163,29 +163,25 @@ async function uploadFile(file: string, extra?: [string, string]) {
 
 let videoId = "";
 let faceId = "";
-await check("Effects: an MP4 upload reports its length and size; longer than the limit → trim warning", async () => {
-  const up = await uploadFile(path.join(fxInputs, "boxer.mp4"), ["frame", path.join(fxInputs, "boxer-frame.png")]);
-  assert(up.status === 201, JSON.stringify(up.body));
-  const b = up.body as { id: string; seconds: number; width: number; height: number; hasAudio: boolean; hasFrame: boolean; warnings: { code: string }[] };
-  assert(b.seconds > 5 && b.width === 1280 && b.hasAudio && b.hasFrame, JSON.stringify(b));
-  assert(b.warnings.some((w) => w.code === "video_trimmed"), JSON.stringify(b.warnings));
-  videoId = b.id;
+await check("Effects: a video uploads (streamed) and the section is limited to EFFECT_MAX_SECONDS", async () => {
+  const res = await fetch(`${base}/api/restore/uploads`, {
+    method: "PUT",
+    headers: { "x-filename": "boxer10.mp4" },
+    body: readFileSync(path.join(fxInputs, "boxer10.mp4")),
+  });
+  const video = (await res.json()) as { id: string; info: { seconds: number } };
+  assert(res.status === 201 && video.info.seconds > 10, JSON.stringify(video));
+  videoId = video.id;
   faceId = ((await uploadFile(path.join(fxInputs, "face.png"))).body as { id: string }).id;
-  return `${b.seconds} s, ${b.width}×${b.height}, warning video_trimmed`;
-});
-
-await check("Effects: a file that is not a video is rejected (invalid_video)", async () => {
-  const form = new FormData();
-  form.append("file", new Blob([new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112, 1, 2, 3, 4])]), "fake.mp4");
-  const res = await fetch(`${base}/api/uploads`, { method: "POST", body: form });
-  const body = (await res.json()) as { error?: { code: string } };
-  assert(res.status === 400 && body.error?.code === "invalid_video", JSON.stringify(body));
-  return "400 invalid_video";
+  const tooLong = await post("/api/jobs", { screen: "effects", effect: "remove_people", video: videoId, start: 0, end: 10.3 });
+  assert(tooLong.body.error?.details?.[0]?.code === "section_too_long", JSON.stringify(tooLong.body));
+  return `${video.info.seconds.toFixed(1)} s uploaded; 10.3 s refused (section_too_long)`;
 });
 
 await check("Effects: photo effects need the photo and the consent", async () => {
-  const noPhoto = await post("/api/jobs", { screen: "effects", effect: "face_swap", video: videoId, consent: true });
-  const noConsent = await post("/api/jobs", { screen: "effects", effect: "character_swap", video: videoId, images: [faceId] });
+  const section = { video: videoId, start: 0, end: 5 };
+  const noPhoto = await post("/api/jobs", { screen: "effects", effect: "face_swap", ...section, consent: true });
+  const noConsent = await post("/api/jobs", { screen: "effects", effect: "character_swap", ...section, images: [faceId] });
   const codes = [noPhoto, noConsent].map((r) => `${r.status} ${r.body.error?.details?.[0]?.code}`);
   assert(codes[0] === "400 effect_needs_photo" && codes[1] === "400 consent_required", codes.join(", "));
   return codes.join(", ");
@@ -193,13 +189,13 @@ await check("Effects: photo effects need the photo and the consent", async () =>
 
 if (withEffects) {
   await check("Effects: Remove people returns an H.264 MP4 with sound, at most the limit long", async () => {
-    const created = await post("/api/jobs", { screen: "effects", effect: "remove_people", video: videoId, prompt: "o boxeador" });
+    const created = await post("/api/jobs", { screen: "effects", effect: "remove_people", video: videoId, start: 2, end: 7, prompt: "o boxeador" });
     assert(created.status === 202, JSON.stringify(created.body));
     const view = await wait(created.body.job_id);
     assert(view.status === "done", `${view.status} ${JSON.stringify(view.error)}`);
     const mp4 = Buffer.from(await (await fetch(`${base}${view.url}`)).arrayBuffer());
     const info = readVideoInfo(mp4);
-    assert(info && info.hasAudio && mp4.includes("avc1") && info.seconds <= 5.1, JSON.stringify(info));
+    assert(info && info.hasAudio && mp4.includes("avc1") && info.seconds > 4 && info.seconds <= 5.1, JSON.stringify(info));
     return `${info.seconds.toFixed(1)} s, ${info.width}×${info.height}, audio`;
   });
 }

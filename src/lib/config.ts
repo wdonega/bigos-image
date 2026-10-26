@@ -30,10 +30,11 @@ const envSchema = z.object({
   VIDEO_JOB_TIMEOUT_MINUTES: positiveInt.default(40),
   // Music (MiniMax Music 3): time limit of one song.
   MUSIC_JOB_TIMEOUT_MINUTES: positiveInt.default(20),
-  // Video effects (spec §14, decision 31): uploaded video size, seconds kept (longer videos are
-  // trimmed to the start) and time limit of one effect.
-  MAX_VIDEO_UPLOAD_MB: positiveInt.default(100),
-  EFFECT_MAX_SECONDS: positiveInt.default(5),
+  // Video effects (spec §14, decision 31): the section chosen in the trim editor starts at
+  // EFFECT_DEFAULT_SECONDS and can grow to EFFECT_MAX_SECONDS (each effect may allow less); time
+  // limit of one effect. Uploads share the restoration's RESTORE_MAX_UPLOAD_MB.
+  EFFECT_DEFAULT_SECONDS: positiveInt.default(5),
+  EFFECT_MAX_SECONDS: positiveInt.default(10),
   EFFECT_JOB_TIMEOUT_MINUTES: positiveInt.default(40),
   // Old video restoration (spec §14, decision 32): upload size, longest section per job with and
   // without the upscale, frames per SeedVR2 chunk (4n+1, RAM of the ComfyUI machine) and its time
@@ -98,7 +99,7 @@ export type Config = {
   steps: { normal: number; high: number };
   video: { pixels: { normal: number; high: number }; maxRefs: number; timeoutMs: number };
   music: { timeoutMs: number };
-  effects: { maxUploadBytes: number; maxSeconds: number; timeoutMs: number };
+  effects: { defaultSeconds: number; maxSeconds: number; timeoutMs: number };
   restore: {
     maxUploadBytes: number;
     maxSeconds: { upscale: number; clean: number };
@@ -141,7 +142,7 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
     },
     music: { timeoutMs: e.MUSIC_JOB_TIMEOUT_MINUTES * 60_000 },
     effects: {
-      maxUploadBytes: e.MAX_VIDEO_UPLOAD_MB * 1024 * 1024,
+      defaultSeconds: Math.min(e.EFFECT_DEFAULT_SECONDS, e.EFFECT_MAX_SECONDS),
       maxSeconds: e.EFFECT_MAX_SECONDS,
       timeoutMs: e.EFFECT_JOB_TIMEOUT_MINUTES * 60_000,
     },

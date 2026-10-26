@@ -14,19 +14,25 @@ type EffectSpec = {
   photo: "face" | "character" | null;
   /** Effects that put someone's identity in a video ask the user to confirm consent. */
   consent: boolean;
-  /** Minutes for 5 s of video on the reference GPU (RTX 5060 Ti 16 GB, effects spike): shown to the user. */
-  minutes: number;
+  /**
+   * Seconds of GPU per second of video on the reference GPU (RTX 5060 Ti 16 GB, 10 s spikes): the
+   * estimate. Wan Animate is much cheaper within its template's 81 frames (`factorShort`).
+   */
+  factor: number;
+  factorShort?: number;
+  /** Longest section the effect handles (VRAM, frames of the model); EFFECT_MAX_SECONDS caps them all. */
+  maxSeconds: number;
 };
 
 export const EFFECTS: Record<EffectId, EffectSpec> = {
   // LTX 2.3 Clean Plate (#60): erases people and moving objects, keeps the empty scene.
-  remove_people: { workflow: "fx_clean_plate", photo: null, consent: false, minutes: 5 },
+  remove_people: { workflow: "fx_clean_plate", photo: null, consent: false, factor: 62, maxSeconds: 10 },
   // LTX 2.3 head swap (#17): new face and hair, same body, clothes, motion and sound.
-  face_swap: { workflow: "fx_face_swap", photo: "face", consent: true, minutes: 8 },
+  face_swap: { workflow: "fx_face_swap", photo: "face", consent: true, factor: 151, maxSeconds: 10 },
   // Wan Animate 2 (#15): the character in the photo moves like the person in the video.
-  animate: { workflow: "fx_animate", photo: "character", consent: true, minutes: 8 },
+  animate: { workflow: "fx_animate", photo: "character", consent: true, factor: 329, factorShort: 124, maxSeconds: 10 },
   // MiniMax H3 Character Swap (#14): the whole person is replaced, scene and sound kept.
-  character_swap: { workflow: "fx_character_swap", photo: "character", consent: true, minutes: 18 },
+  character_swap: { workflow: "fx_character_swap", photo: "character", consent: true, factor: 233, maxSeconds: 10 },
 };
 
 /**
@@ -79,6 +85,26 @@ export function animateSize(video: { width: number; height: number }, templatePi
   const ratio = video.width > 0 && video.height > 0 ? video.width / video.height : 9 / 16;
   const to16 = (n: number) => Math.max(16, Math.floor(n / 16) * 16);
   return { width: to16(Math.sqrt(templatePixels * ratio)), height: to16(Math.sqrt(templatePixels / ratio)) };
+}
+
+/** Frames Wan Animate generates for a section: the driving video's frames on its 4n+1 grid. */
+export function animateFrames(seconds: number, fps: number): number {
+  return Math.max(1, Math.round((seconds * fps - 1) / 4)) * 4 + 1;
+}
+
+/** Wan Animate's template length (81 frames ≈ 3.4 s at 24 fps): longer needs its context windows. */
+export const ANIMATE_TEMPLATE_FRAMES = 81;
+
+/** Seconds of GPU an effect takes for a section (Wan Animate: cheaper up to 81 frames at 24 fps). */
+export function effectEstimateSeconds(effect: EffectId, seconds: number): number {
+  const spec = EFFECTS[effect];
+  const short = spec.factorShort && animateFrames(seconds, 24) <= ANIMATE_TEMPLATE_FRAMES;
+  return Math.round(seconds * (short ? (spec.factorShort ?? spec.factor) : spec.factor));
+}
+
+/** Longest section for an effect: its own limit and EFFECT_MAX_SECONDS. */
+export function effectMaxSeconds(effect: EffectId, configMax: number): number {
+  return Math.min(EFFECTS[effect].maxSeconds, configMax);
 }
 
 /**

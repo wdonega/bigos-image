@@ -1,4 +1,12 @@
-import { type EffectText, type EffectWorkflow, animateSize, characterPrompt, loadSize } from "../effects.ts";
+import {
+  ANIMATE_TEMPLATE_FRAMES,
+  type EffectText,
+  type EffectWorkflow,
+  animateFrames,
+  animateSize,
+  characterPrompt,
+  loadSize,
+} from "../effects.ts";
 import type { Size } from "../size.ts";
 import { type ApiGraph, WorkflowError, findNodeId, setInputs } from "./graph.ts";
 
@@ -141,9 +149,10 @@ export type EffectParams = {
   video: string;
   photo: string | null;
   frame: string | null;
-  /** Displayed size of the uploaded video. */
+  /** Size and frame rate of the section sent (cut and normalized by the worker). */
   videoSize: Size;
-  /** Seconds kept from the start: the video's length, at most EFFECT_MAX_SECONDS. */
+  fps: number;
+  /** Length of the section. */
   seconds: number;
   text: EffectText;
   seed: number;
@@ -182,6 +191,10 @@ export function buildEffect(template: ApiGraph, p: EffectParams): ApiGraph {
       setInputs(graph, "@video_in", { file: p.video });
       setInputs(graph, "@trim", { duration: p.seconds });
       setInputs(graph, "@size", { "resize_type.width": size.width, "resize_type.height": size.height });
+      // Past the template's 81 frames (~3.4 s) the model needs its context windows.
+      const frames = animateFrames(p.seconds, p.fps);
+      setInputs(graph, "@frames", { length: frames });
+      setInputs(graph, "@windows", { switch: frames > ANIMATE_TEMPLATE_FRAMES });
       setInputs(graph, "@image_1", { image: required(p.photo, "a character photo") });
       setInputs(graph, "@prompt", { value: required(p.text.action, "an action") });
       setInputs(graph, "@character", { value: characterPrompt(required(p.text.character, "a character description")) });

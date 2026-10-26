@@ -18,7 +18,7 @@ export const testConfig: Config = {
   llm: null,
   comfyWakeMs: 30_000,
   music: { timeoutMs: 20 * 60_000 },
-  effects: { maxUploadBytes: 100 * 1024 * 1024, maxSeconds: 5, timeoutMs: 40 * 60_000 },
+  effects: { defaultSeconds: 5, maxSeconds: 10, timeoutMs: 40 * 60_000 },
   restore: {
     maxUploadBytes: 2048 * 1024 * 1024,
     maxSeconds: { upscale: 60, clean: 1800 },

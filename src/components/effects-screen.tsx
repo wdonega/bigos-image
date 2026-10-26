@@ -2,7 +2,6 @@
 
 import {
   EraserIcon,
-  FilmIcon,
   ImagePlusIcon,
   LoaderCircleIcon,
   PersonStandingIcon,
@@ -19,12 +18,20 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useJobRunner } from "@/hooks/use-job-runner";
-import { ACCEPTED_VIDEO_TYPES, useSingleUpload } from "@/hooks/use-single-upload";
+import { useSingleUpload } from "@/hooks/use-single-upload";
 import { ACCEPTED_TYPES } from "@/hooks/use-uploads";
 import { useI18n } from "@/i18n/provider";
-import { uploadImage, uploadVideo } from "@/lib/client/api";
-import { captureFirstFrame } from "@/lib/client/video-frame";
-import { EFFECTS, EFFECT_IDS, type EffectId } from "@/lib/effects";
+import {
+  MIN_SECTION,
+  SectionSummary,
+  TrimEditor,
+  VideoSourcePicker,
+  formatEstimate,
+  formatLimit,
+  useVideoSource,
+} from "@/components/video-section";
+import { uploadImage } from "@/lib/client/api";
+import { EFFECTS, EFFECT_IDS, type EffectId, effectEstimateSeconds, effectMaxSeconds } from "@/lib/effects";
 import type { ScreenLimits } from "@/lib/screen-limits";
 import { cn } from "@/lib/utils";
 
@@ -35,38 +42,50 @@ const EFFECT_ICONS: Record<EffectId, typeof EraserIcon> = {
   character_swap: UsersRoundIcon,
 };
 
-const sendVideo = async (file: File) => uploadVideo(file, await captureFirstFrame(file));
-
 /** Video effects (spec §14, decision 31): pick an effect, send a video (and a photo), apply. */
 export function EffectsScreen({ limits }: { limits: ScreenLimits }) {
-  const { t, number } = useI18n();
+  const { t } = useI18n();
   const [effect, setEffect] = useState<EffectId>("remove_people");
   const [text, setText] = useState("");
   const [consent, setConsent] = useState(false);
+  const maxFor = (id: EffectId) => effectMaxSeconds(id, limits.effectSeconds.max);
+  const [range, setRange] = useState<[number, number]>([0, 0]);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const job = useJobRunner();
-  const video = useSingleUpload(sendVideo, {
-    maxBytes: limits.maxVideoUploadBytes,
-    tooLarge: "video_too_large",
-    failed: "video_upload_failed",
-  });
+  const source = useVideoSource(limits.restore.maxUploadBytes, (meta) =>
+    setRange([0, Math.min(meta.info.seconds, limits.effectSeconds.default, maxFor(effect))]),
+  );
   const photo = useSingleUpload(uploadImage, {
     maxBytes: limits.maxUploadBytes,
     tooLarge: "image_too_large",
     failed: "upload_failed",
   });
   const spec = EFFECTS[effect];
+  const tape = source.tape;
+  const max = maxFor(effect);
+  const seconds = Math.max(range[1] - range[0], 0);
+  const tooLong = seconds > max + 0.01;
+  const estimate = effectEstimateSeconds(effect, seconds);
 
   const photoReady = !spec.photo || photo.ready;
-  const canSubmit = video.ready && photoReady && (!spec.consent || consent) && !job.busy;
-  const uploading = video.item?.status === "uploading" || (spec.photo !== null && photo.item?.status === "uploading");
+  const canSubmit = tape !== null && !tooLong && seconds >= MIN_SECTION && photoReady && (!spec.consent || consent) && !job.busy;
+  const uploading = source.upload !== null || (spec.photo !== null && photo.item?.status === "uploading");
+
+  function changeEffect(next: EffectId) {
+    setEffect(next);
+    // Keep the start; shorten the end when the new effect allows less.
+    setRange(([start, end]) => [start, Math.min(end, start + maxFor(next))]);
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!canSubmit || !video.id) return;
+    if (!canSubmit || !tape) return;
     void job.submit({
       screen: "effects",
       effect,
-      video: video.id,
+      video: tape.id,
+      start: range[0],
+      end: range[1],
       images: spec.photo && photo.id ? [photo.id] : [],
       prompt: text,
       consent,
@@ -76,33 +95,32 @@ export function EffectsScreen({ limits }: { limits: ScreenLimits }) {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
       <form onSubmit={submit} className="flex flex-col gap-6">
-        <EffectPicker value={effect} onChange={setEffect} disabled={job.busy} />
+        <EffectPicker value={effect} onChange={changeEffect} disabled={job.busy} defaultSeconds={limits.effectSeconds.default} />
 
-        <Field label={t("effects.videoLabel")} hint={t("effects.videoHint", { seconds: limits.effectMaxSeconds })}>
-          <FilePicker
-            upload={video}
-            accept={ACCEPTED_VIDEO_TYPES}
-            disabled={job.busy}
-            icon={<FilmIcon className="size-5 shrink-0 text-primary" aria-hidden />}
-            emptyText={t("effects.videoEmpty")}
-            chooseText={video.item ? t("effects.videoReplace") : t("effects.videoChoose")}
-            removeText={t("effects.videoRemove")}
-            uploadingText={t("effects.videoUploading")}
-            preview={(url) => (
-              <video src={url} controls muted playsInline preload="metadata" className="max-h-64 w-full bg-black object-contain" />
-            )}
-            info={
-              video.item?.upload
-                ? t("effects.videoInfo", {
-                    seconds: number(video.item.upload.seconds, 1),
-                    width: video.item.upload.width,
-                    height: video.item.upload.height,
-                  })
-                : null
-            }
-            warnings={video.item?.upload?.warnings}
-          />
-        </Field>
+        <VideoSourcePicker source={source} label={t("effects.videoLabel")} hint={t("effects.videoHint")} disabled={job.busy} />
+
+        {tape && (
+          <>
+            <TrimEditor
+              tape={tape}
+              range={range}
+              onChange={setRange}
+              max={max}
+              videoRef={videoRef}
+              label={t("effects.trimLabel")}
+              hint={t("effects.trimHint", { max })}
+              disabled={job.busy}
+            />
+            <SectionSummary
+              seconds={seconds}
+              estimateText={t("effects.estimate", { estimate: formatEstimate(estimate, t) })}
+              estimateSeconds={estimate}
+              warnMinutes={limits.restore.warnMinutes}
+              note={t(tooLong ? "effects.tooLong" : "effects.limit", { max: formatLimit(max, t) })}
+              tooLong={tooLong}
+            />
+          </>
+        )}
 
         {spec.photo && (
           <Field label={t(`effects.photo.${spec.photo}`)} hint={t(`effects.photoHint.${effect}`)}>
@@ -175,7 +193,7 @@ export function EffectsScreen({ limits }: { limits: ScreenLimits }) {
         cancelling={job.cancelling}
         emptyTitle={t("effects.emptyTitle")}
         emptyHint={t("effects.emptyHint")}
-        runningHint={t("effects.runningHint", { minutes: spec.minutes, seconds: limits.effectMaxSeconds })}
+        runningHint={t("effects.runningHint", { estimate: formatEstimate(estimate, t) })}
       />
     </div>
   );
@@ -186,10 +204,12 @@ function EffectPicker({
   value,
   onChange,
   disabled,
+  defaultSeconds,
 }: {
   value: EffectId;
   onChange: (next: EffectId) => void;
   disabled?: boolean;
+  defaultSeconds: number;
 }) {
   const { t } = useI18n();
   return (
@@ -215,7 +235,7 @@ function EffectPicker({
               <span className="text-sm font-medium">{t(`effects.names.${id}`)}</span>
               <span className="text-xs leading-snug text-muted-foreground">{t(`effects.descriptions.${id}`)}</span>
               <span className="mt-auto pt-1 text-[11px] text-muted-foreground">
-                {t("effects.time", { minutes: EFFECTS[id].minutes })}
+                {t("effects.time", { minutes: Math.max(1, Math.round(effectEstimateSeconds(id, defaultSeconds) / 60)), seconds: defaultSeconds })}
               </span>
             </button>
           );

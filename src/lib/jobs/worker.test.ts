@@ -68,7 +68,7 @@ describe("resolvePrompt", () => {
 
 describe("resolveEffectText (spec §14, decision 31)", () => {
   const llm = { url: "https://llm.test", apiKey: "k", model: "m", maxOutputTokens: 800, maxInputChars: 4000, disableThinking: false };
-  const effect = (id: "remove_people" | "animate") => ({ id, video: "v1", width: 1280, height: 736, seconds: 5, hasFrame: true });
+  const effect = (id: "remove_people" | "animate") => ({ id, video: "v1", start: 0, seconds: 5 });
   const images = { frame: "data:frame", photo: "data:photo" };
 
   it("uses the vision pass when the LLM and the frame are there", async () => {

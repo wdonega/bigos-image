@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { mkdir, readFile, stat } from "node:fs/promises";
+import path from "node:path";
 import { type Job, UnrecoverableError, Worker } from "bullmq";
 import sharp from "sharp";
 import { ComfyClient, ComfyError } from "../comfy/client.ts";
@@ -11,17 +13,9 @@ import { buildMusicCaption } from "../music.ts";
 import { AppError, type Detail, type ErrorCode } from "../errors.ts";
 import { buildPrompt } from "../prompt.ts";
 import { removeExpired, storageFile, writeStored } from "../storage.ts";
-import {
-  type SentImage,
-  type VideoUploadMeta,
-  fitToBudget,
-  readUploadFrame,
-  readUploadImage,
-  readUploadMeta,
-  readUploadVideo,
-} from "../uploads.ts";
+import { type SentImage, fitToBudget, readUploadImage, readUploadMeta } from "../uploads.ts";
 import { buildVideoPrompt, tokensToSubjects } from "../video.ts";
-import { FfmpegError, probe } from "../ffmpeg.ts";
+import { FfmpegError, cutSection, frameAt, probe } from "../ffmpeg.ts";
 import { readTapeMeta, tapeFile } from "../tapes.ts";
 import { buildEdit, buildEffect, buildMusic, buildT2I, buildVideo } from "../workflow/build.ts";
 import { removeWork, runRestore } from "./restore.ts";
@@ -143,7 +137,7 @@ export async function resolveMusicPrompt(
 }
 
 /**
- * Effects' vision pass (spec §14, decision 31): the LLM sees the first frame and the photo and
+ * Effects' vision pass (spec §14, decision 31): the LLM sees the section's first frame and the photo and
  * writes the English texts of the effect's graph. Without the LLM, the frame (remove/face swap)
  * or a usable reply, the generic texts of fallbackEffectText are used.
  */
@@ -172,8 +166,32 @@ async function toDataUrl(png: Buffer | null): Promise<string | null> {
   return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
 }
 
-async function effectImages(data: JobData, config: Config): Promise<EffectImages> {
-  const frame = data.effect?.hasFrame ? await readUploadFrame(config, data.effect.video) : null;
+/** The chosen section as a plain MP4 and its first frame, in the work area (kept for a retried job). */
+const sectionFile = (config: Config, jobId: string) => storageFile(config, "work", `${jobId}-section.mp4`);
+const sectionFrame = (config: Config, jobId: string) => storageFile(config, "work", `${jobId}-frame.png`);
+const exists = (file: string) => stat(file).then(
+  () => true,
+  () => false,
+);
+
+/**
+ * Cuts the effect's section out of the uploaded video (H.264, constant frame rate, rotation
+ * applied, an audio track even when the source has none) and grabs its first frame (spec §14, decision 31).
+ */
+async function prepareSection(jobId: string, data: JobData, config: Config): Promise<void> {
+  const effect = data.effect;
+  const tape = effect ? await readTapeMeta(config, effect.video) : null;
+  if (!effect || !tape) throw new AppError("upload_not_found", 400);
+  const file = sectionFile(config, jobId);
+  await mkdir(path.dirname(file), { recursive: true });
+  if (!(await exists(file))) {
+    await cutSection(tapeFile(config, tape), { start: effect.start, seconds: effect.seconds }, tape.info.hasAudio, file);
+  }
+  if (!(await exists(sectionFrame(config, jobId)))) await frameAt(file, 0.1, sectionFrame(config, jobId));
+}
+
+async function effectImages(jobId: string, data: JobData, config: Config): Promise<EffectImages> {
+  const frame = await readFile(sectionFrame(config, jobId)).catch(() => null);
   const photo = data.images[0] ? await readUploadImage(config, data.images[0]) : null;
   return { frame: await toDataUrl(frame), photo: await toDataUrl(photo) };
 }
@@ -241,16 +259,14 @@ async function processRestore(
   };
 }
 
-const VIDEO_TYPES: Record<VideoUploadMeta["ext"], string> = { mp4: "video/mp4", mov: "video/quicktime" };
-
-/** Sends the effect's files to ComfyUI and fills its graph. */
-async function buildEffectGraph(data: JobData, client: ComfyClient, config: Config): Promise<ApiGraph> {
+/** Sends the effect's section and photo to ComfyUI and fills its graph. */
+async function buildEffectGraph(jobId: string, data: JobData, client: ComfyClient, config: Config): Promise<ApiGraph> {
   const effect = data.effect;
-  const meta = effect ? await readUploadMeta(config, effect.video) : null;
-  if (!effect || !data.effectText || meta?.kind !== "video") throw new AppError("upload_not_found", 400);
-  const video = await readUploadVideo(config, meta);
-  if (!video) throw new AppError("upload_not_found", 400);
-  const videoName = await client.uploadImage(video, `bigos-${meta.id}.${meta.ext}`, VIDEO_TYPES[meta.ext]);
+  if (!effect || !data.effectText) throw new AppError("upload_not_found", 400);
+  const file = sectionFile(config, jobId);
+  const info = await probe(file);
+  if (!info) throw new FfmpegError("section unreadable", "");
+  const videoName = await client.uploadImage(await readFile(file), `bigos-fx-${jobId}.mp4`, "video/mp4");
 
   let photo: string | null = null;
   if (EFFECTS[effect.id].photo) {
@@ -260,18 +276,16 @@ async function buildEffectGraph(data: JobData, client: ComfyClient, config: Conf
   }
   let frame: string | null = null;
   if (EFFECTS[effect.id].workflow === "fx_clean_plate") {
-    // Its first-frame branch is bypassed, but LoadImage needs a file: the frame or a blank image.
-    const png =
-      (effect.hasFrame ? await readUploadFrame(config, meta.id) : null) ??
-      (await sharp({ create: { width: 64, height: 64, channels: 3, background: "#000000" } }).png().toBuffer());
-    frame = await client.uploadImage(png, `bigos-${meta.id}_frame.png`);
+    // Its first-frame branch is bypassed, but LoadImage needs a file: the section's first frame.
+    frame = await client.uploadImage(await readFile(sectionFrame(config, jobId)), `bigos-fx-${jobId}_frame.png`);
   }
   return buildEffect(loadTemplate(EFFECTS[effect.id].workflow), {
     workflow: EFFECTS[effect.id].workflow,
     video: videoName,
     photo,
     frame,
-    videoSize: { width: effect.width, height: effect.height },
+    videoSize: { width: info.width, height: info.height },
+    fps: info.fps,
     seconds: effect.seconds,
     text: data.effectText,
     seed: data.seed,
@@ -279,12 +293,13 @@ async function buildEffectGraph(data: JobData, client: ComfyClient, config: Conf
 }
 
 async function buildGraph(
+  jobId: string,
   data: JobData,
   client: ComfyClient,
   config: Config,
   warnings: Detail[],
 ): Promise<ApiGraph> {
-  if (isEffect(data)) return buildEffectGraph(data, client, config);
+  if (isEffect(data)) return buildEffectGraph(jobId, data, client, config);
   if (data.workflow === "music") {
     if (!data.music) throw new AppError("invalid_request", 400);
     return buildMusic(loadTemplate("music"), {
@@ -319,7 +334,7 @@ async function buildGraph(
   for (const id of data.images) {
     const png = await readUploadImage(config, id);
     const meta = await readUploadMeta(config, id);
-    if (!png || !meta || meta.kind === "video") throw new AppError("upload_not_found", 400);
+    if (!png || !meta || meta.kind === "tape") throw new AppError("upload_not_found", 400);
     stored.push({ png, width: meta.sentWidth, height: meta.sentHeight });
   }
   const { images, reduced } = await fitToBudget(stored, config.maxRefsTotalPixels);
@@ -362,8 +377,9 @@ async function processJob(
       throw new ComfyError("unavailable", `ComfyUI did not wake up within ${config.comfyWakeMs / 1000}s`);
     }
     const warnings: Detail[] = [];
+    if (isEffect(job.data)) await prepareSection(id, job.data, config);
     if (isEffect(job.data) && job.data.effectText === undefined) {
-      const effectText = await resolveEffectText(job.data, config.llm, await effectImages(job.data, config));
+      const effectText = await resolveEffectText(job.data, config.llm, await effectImages(id, job.data, config));
       console.log(`[worker] job ${id} effect texts: ${JSON.stringify(effectText)}`);
       await job.updateData({ ...job.data, effectText });
     } else if (!isEffect(job.data) && job.data.finalPrompt === undefined) {
@@ -376,7 +392,7 @@ async function processJob(
       console.log(`[worker] job ${id} prompt: ${finalPrompt}`);
       await job.updateData({ ...job.data, finalPrompt });
     }
-    const graph = await buildGraph(job.data, client, config, warnings);
+    const graph = await buildGraph(id, job.data, client, config, warnings);
     let bestShare = 0;
     const { entry } = await runPrompt(client, graph, {
       timeoutMs: isEffect(job.data)
@@ -410,8 +426,9 @@ async function processJob(
     if (isEffect(job.data)) {
       const output = outputVideo(entry, findNodeId(graph, "@save"));
       await writeStored(config, "results", resultName(id, "video"), await client.view(output));
-      const width = output.metadata?.width ?? job.data.effect?.width ?? 0;
-      const height = output.metadata?.height ?? job.data.effect?.height ?? 0;
+      await removeWork(config, id);
+      const width = output.metadata?.width ?? 0;
+      const height = output.metadata?.height ?? 0;
       const seconds = output.metadata?.duration ? Math.round(output.metadata.duration * 10) / 10 : undefined;
       return { width, height, transparent: false, warnings, media: "video", seconds };
     }
@@ -438,7 +455,7 @@ async function processJob(
   } catch (err) {
     const code = toErrorCode(err, controller.signal.aborted || (await isCancelled().catch(() => false)));
     if (code !== "cancelled") console.error(`[worker] job ${id} failed (${code})`, err);
-    if (job.data.restore) await removeWork(config, id).catch(() => {});
+    if (job.data.restore || job.data.effect) await removeWork(config, id).catch(() => {});
     throw new UnrecoverableError(code);
   } finally {
     clearInterval(watcher);

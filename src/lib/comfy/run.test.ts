@@ -121,6 +121,19 @@ describe("runPrompt — ComfyUI briefly unreachable", () => {
   });
 });
 
+describe("runPrompt — prompt dropped by a ComfyUI restart", () => {
+  it("fails once the prompt is neither queued nor in history for a few polls", async () => {
+    const client = fakeClient([null], [0, null, null, null]);
+    await expect(runPrompt(client, {}, base)).rejects.toMatchObject({ kind: "failed", message: /prompt lost/ });
+  });
+
+  it("keeps waiting while the prompt is still queued or running", async () => {
+    const client = fakeClient([null, null, null, null, success], [2, 1, 0, 0]);
+    const result = await runPrompt(client, {}, base);
+    expect(result.entry).toBe(success);
+  });
+});
+
 describe("outputImage", () => {
   it("fails clearly when the save node produced nothing", () => {
     expect(() => outputImage({ outputs: {} }, "461")).toThrow(/No image/);

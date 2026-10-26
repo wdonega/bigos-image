@@ -6,7 +6,7 @@ import { mentionsToTokens } from "../mentions.ts";
 import { STYLE_IDS, type StyleId, applyStyle, findStyle } from "../styles.ts";
 import { MUSIC_DURATIONS, MUSIC_GENRE_IDS, type MusicGenreId, fallbackMusicCaption, genrePhrase, normalizeLyrics } from "../music.ts";
 import { VIDEO_DURATIONS, VIDEO_RATIOS, buildVideoPrompt, tokensToSubjects, videoFrames, videoSize } from "../video.ts";
-import { EFFECTS, EFFECT_IDS, type EffectId, type EffectText, type EffectWorkflow } from "../effects.ts";
+import { EFFECTS, EFFECT_IDS, type EffectId, type EffectText, type EffectWorkflow, effectMaxSeconds } from "../effects.ts";
 import { COLOR_IDS, RESTORE_MODES, type ColorId, type RestoreMode } from "../restore.ts";
 import { randomSeed } from "../workflow/build.ts";
 
@@ -58,12 +58,15 @@ const musicRequestSchema = z.object({
   duration: z.literal(MUSIC_DURATIONS),
 });
 
-// Video effects (spec §14, decision 31): an uploaded video, a photo when the effect needs one,
-// one optional short text and, for effects that put someone's identity in the video, consent.
+// Video effects (spec §14, decision 31): an uploaded video (PUT /api/restore/uploads) and the section
+// chosen in the trim editor, a photo when the effect needs one, one optional short text and, for
+// effects that put someone's identity in the video, consent.
 const effectsRequestSchema = z.object({
   screen: z.literal("effects"),
   effect: z.enum(EFFECT_IDS),
   video: z.string().min(1),
+  start: z.number().min(0).default(0),
+  end: z.number().positive(),
   images: z.array(z.string().min(1)).max(1).default([]),
   prompt: z.string().max(4000).default(""),
   consent: z.boolean().default(false),
@@ -122,11 +125,8 @@ export type JobPlan = {
   video?: { frames: number; seconds: number };
   /** Music only: the lyrics as sung (never translated), instrumental flag and max seconds. */
   music?: { lyrics: string; instrumental: boolean; seconds: number };
-  /**
-   * Effects only: the uploaded video (id, displayed size, whether its first frame was stored) and
-   * the seconds kept from its start. `images` holds the face/character photo, if any.
-   */
-  effect?: { id: EffectId; video: string; width: number; height: number; seconds: number; hasFrame: boolean };
+  /** Effects only: the uploaded video and the section to change. `images` holds the face/character photo, if any. */
+  effect?: { id: EffectId; video: string; start: number; seconds: number };
   /** Effects only: the vision pass's English texts once the worker computed them (kept for retries). */
   effectText?: EffectText;
   /** Restoration only: the tape, the section and the choices; `state` tracks the chunks already upscaled. */
@@ -146,13 +146,9 @@ export type UploadLookup = (id: string) => Promise<UploadFacts | null>;
 /** What planning needs to know about an upload; images stored before videos existed have no kind. */
 export type UploadFacts = {
   id: string;
-  kind?: "image" | "video" | "tape";
-  /** Tapes: the probed facts. */
+  kind?: "image" | "tape";
+  /** Videos (restoration and effects): the probed facts. */
   info?: { seconds: number };
-  width?: number;
-  height?: number;
-  seconds?: number;
-  hasFrame?: boolean;
 };
 
 /**
@@ -174,25 +170,30 @@ export async function planJob(
 async function checkUploads(ids: string[], findUpload: UploadLookup) {
   for (const id of ids) {
     const upload = await findUpload(id);
-    if (!upload || upload.kind === "video") throw new AppError("upload_not_found", 400);
+    if (!upload || upload.kind === "tape") throw new AppError("upload_not_found", 400);
   }
 }
 
-/** Shortest section worth a job (the script's chunks need frames to work with). */
-const MIN_RESTORE_SECONDS = 1;
+/** A section [start, end] of an uploaded video, checked against its length and `max` seconds. */
+async function planSection(id: string, start: number, endAsked: number, max: number, findUpload: UploadLookup) {
+  const video = await findUpload(id);
+  if (!video || video.kind !== "tape" || !video.info) throw new AppError("upload_not_found", 400);
+  const end = Math.min(endAsked, video.info.seconds);
+  const seconds = Math.round((end - start) * 1000) / 1000;
+  if (endAsked > video.info.seconds + END_SLACK_SECONDS || seconds < MIN_SECTION_SECONDS) {
+    throw new AppError("invalid_request", 400, [{ code: "section_invalid", params: { min: MIN_SECTION_SECONDS } }]);
+  }
+  if (seconds > max + 0.01) throw new AppError("invalid_request", 400, [{ code: "section_too_long", params: { max } }]);
+  return { id: video.id, start, seconds };
+}
+
+/** Shortest section worth a job (restoration and effects). */
+const MIN_SECTION_SECONDS = 1;
 /** Slack for an end handle on the last frame (durations are rounded differently by the browser). */
 const END_SLACK_SECONDS = 0.25;
 
 async function planRestore(req: RestoreRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {
-  const tape = await findUpload(req.upload);
-  if (!tape || tape.kind !== "tape" || !tape.info) throw new AppError("upload_not_found", 400);
-  const end = Math.min(req.end, tape.info.seconds);
-  const seconds = Math.round((end - req.start) * 1000) / 1000;
-  if (req.end > tape.info.seconds + END_SLACK_SECONDS || seconds < MIN_RESTORE_SECONDS) {
-    throw new AppError("invalid_request", 400, [{ code: "section_invalid", params: { min: MIN_RESTORE_SECONDS } }]);
-  }
-  const max = config.restore.maxSeconds[req.mode];
-  if (seconds > max) throw new AppError("invalid_request", 400, [{ code: "section_too_long", params: { max } }]);
+  const section = await planSection(req.upload, req.start, req.end, config.restore.maxSeconds[req.mode], findUpload);
   return {
     workflow: "restore",
     text: "",
@@ -203,14 +204,13 @@ async function planRestore(req: RestoreRequest, config: Config, findUpload: Uplo
     images: [],
     steps: 0,
     seed: randomSeed(),
-    restore: { upload: tape.id, start: req.start, seconds, color: req.color, mode: req.mode, state: { chunksDone: 0 } },
+    restore: { upload: section.id, start: section.start, seconds: section.seconds, color: req.color, mode: req.mode, state: { chunksDone: 0 } },
   };
 }
 
 async function planEffect(req: EffectsRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {
   const spec = EFFECTS[req.effect];
-  const video = await findUpload(req.video);
-  if (!video || video.kind !== "video") throw new AppError("upload_not_found", 400);
+  const section = await planSection(req.video, req.start, req.end, effectMaxSeconds(req.effect, config.effects.maxSeconds), findUpload);
   if (spec.photo && req.images.length !== 1) {
     throw new AppError("invalid_request", 400, [{ code: "effect_needs_photo", params: { photo: spec.photo } }]);
   }
@@ -227,15 +227,7 @@ async function planEffect(req: EffectsRequest, config: Config, findUpload: Uploa
     images,
     steps: 0,
     seed: randomSeed(),
-    effect: {
-      id: req.effect,
-      video: video.id,
-      width: video.width ?? 0,
-      height: video.height ?? 0,
-      // Longer videos are cut to their start (the upload already warned about it).
-      seconds: Math.min(video.seconds ?? config.effects.maxSeconds, config.effects.maxSeconds),
-      hasFrame: video.hasFrame ?? false,
-    },
+    effect: { id: req.effect, video: section.id, start: section.start, seconds: section.seconds },
   };
 }
 

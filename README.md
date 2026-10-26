@@ -69,7 +69,7 @@ The PWA needs the app served over **HTTPS** (a reverse proxy in front of the Doc
 - The result is an **MP3** with its real length.
 
 ### Effects
-- Send a short video (MP4 or MOV, straight from the phone; the first 5 s are used) and pick an effect:
+- Send a video (MP4, MOV and more, straight from the phone) and **pick the section** on a filmstrip with two handles: 5 s by default, up to 10 s, with a live time estimate. Then pick an effect:
   - **Remove people**: erases people and moving things, keeping the empty scene (LTX 2.3 Clean Plate, ~5 min);
   - **Swap face**: another face on the person, same body, clothes and sound (LTX 2.3 head swap, ~8 min);
   - **Animate character**: the character in a photo moves like the person in the video (Wan Animate 2, ~8 min, 3.4 s result);

@@ -63,26 +63,6 @@ export async function uploadImage(file: File): Promise<UploadedImage> {
   return send<UploadedImage>("/api/uploads", { method: "POST", body: form });
 }
 
-/** A video upload for the effects (spec §14, decision 31): header facts and warnings. */
-export type UploadedVideo = {
-  id: string;
-  kind: "video";
-  width: number;
-  height: number;
-  seconds: number;
-  hasAudio: boolean;
-  hasFrame: boolean;
-  warnings: Detail[];
-};
-
-/** Sends the video and, when the browser could capture it, its first frame. */
-export async function uploadVideo(file: File, frame: Blob | null): Promise<UploadedVideo> {
-  const form = new FormData();
-  form.append("file", file);
-  if (frame) form.append("frame", frame, "frame.png");
-  return send<UploadedVideo>("/api/uploads", { method: "POST", body: form });
-}
-
 /**
  * Sends an old video for restoration (spec §14, decision 32) as the raw request body. XHR rather
  * than fetch: it reports upload progress, which matters for captures of hundreds of MB.

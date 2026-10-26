@@ -28,9 +28,10 @@ describe("parseConfig", () => {
   });
 
   it("reads the video effect limits (spec §14, decision 31)", () => {
-    expect(parseConfig(env).effects).toEqual({ maxUploadBytes: 100 * 1024 * 1024, maxSeconds: 5, timeoutMs: 40 * 60_000 });
-    const custom = parseConfig({ ...env, MAX_VIDEO_UPLOAD_MB: "50", EFFECT_MAX_SECONDS: "8", EFFECT_JOB_TIMEOUT_MINUTES: "60" });
-    expect(custom.effects).toEqual({ maxUploadBytes: 50 * 1024 * 1024, maxSeconds: 8, timeoutMs: 60 * 60_000 });
+    expect(parseConfig(env).effects).toEqual({ defaultSeconds: 5, maxSeconds: 10, timeoutMs: 40 * 60_000 });
+    const custom = parseConfig({ ...env, EFFECT_DEFAULT_SECONDS: "8", EFFECT_MAX_SECONDS: "6", EFFECT_JOB_TIMEOUT_MINUTES: "60" });
+    // The default never passes the maximum.
+    expect(custom.effects).toEqual({ defaultSeconds: 6, maxSeconds: 6, timeoutMs: 60 * 60_000 });
   });
 
   it("reads LLM_DISABLE_THINKING as a boolean, off by default", () => {

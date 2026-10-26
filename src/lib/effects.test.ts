@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { EFFECTS, EFFECT_IDS, animateSize, characterPrompt, fallbackEffectText, loadSize } from "./effects";
+import {
+  EFFECTS,
+  EFFECT_IDS,
+  animateFrames,
+  animateSize,
+  characterPrompt,
+  effectEstimateSeconds,
+  effectMaxSeconds,
+  fallbackEffectText,
+  loadSize,
+} from "./effects";
 
 describe("EFFECTS", () => {
   it("maps each effect to its graph, photo and consent rule", () => {
@@ -71,5 +81,24 @@ describe("loadSize", () => {
 
   it("scales bigger videos down to the limit, multiples of 8", () => {
     expect(loadSize({ width: 2160, height: 3840 }, 1280)).toEqual({ width: 720, height: 1280 });
+  });
+});
+
+describe("section helpers", () => {
+  it("puts Wan Animate frames on its 4n+1 grid at the video's frame rate", () => {
+    expect(animateFrames(3.375, 24)).toBe(81);
+    expect(animateFrames(10, 24)).toBe(241);
+    expect(animateFrames(5, 30) % 4).toBe(1);
+  });
+
+  it("estimates Wan Animate cheaper within the template's 81 frames", () => {
+    expect(effectEstimateSeconds("animate", 3)).toBe(3 * EFFECTS.animate.factorShort!);
+    expect(effectEstimateSeconds("animate", 10)).toBe(10 * EFFECTS.animate.factor);
+    expect(effectEstimateSeconds("remove_people", 10)).toBe(10 * EFFECTS.remove_people.factor);
+  });
+
+  it("caps each effect by its own limit and EFFECT_MAX_SECONDS", () => {
+    expect(effectMaxSeconds("remove_people", 10)).toBe(Math.min(EFFECTS.remove_people.maxSeconds, 10));
+    expect(effectMaxSeconds("remove_people", 3)).toBe(3);
   });
 });

@@ -35,7 +35,7 @@ const DEVELOPER_MESSAGES: Record<ErrorCode, string> = {
   invalid_image: "Unsupported or unreadable image",
   image_too_large: "Image exceeds MAX_UPLOAD_MB",
   invalid_video: "Unsupported or unreadable video",
-  video_too_large: "Video exceeds MAX_VIDEO_UPLOAD_MB",
+  video_too_large: "Video exceeds RESTORE_MAX_UPLOAD_MB",
   too_many_images: "Too many reference images",
   upload_not_found: "Upload not found or expired",
   not_supported_yet: "Not supported yet",

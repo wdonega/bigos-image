@@ -182,3 +182,23 @@ export function join(list: string, audioFrom: string, out: string, crf: number) 
     "-c:v", "libx264", "-crf", String(crf), "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out,
   ]);
 }
+
+/**
+ * A section of an uploaded video as the plain MP4 the effect graphs expect (spec §14, decision 31):
+ * H.264 + AAC at a constant frame rate, rotation applied (phone videos), and always with an audio
+ * track (silence when the source has none: the LTX graphs encode the audio).
+ */
+export function cutSection(file: string, section: { start: number; seconds: number }, hasAudio: boolean, out: string) {
+  const silence = hasAudio ? [] : ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"];
+  const audio = hasAudio ? ["-map", "0:a:0"] : ["-map", "1:a", "-shortest"];
+  return ffmpeg([
+    "-ss", section.start.toFixed(3), "-t", section.seconds.toFixed(3), "-i", file, ...silence,
+    "-map", "0:v:0", ...audio, "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+    "-fps_mode", "cfr", "-c:v", "libx264", "-crf", "16", "-preset", "fast", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out,
+  ]);
+}
+
+/** One frame of a video as PNG (the effects' vision pass looks at the section's start). */
+export function frameAt(file: string, seconds: number, out: string) {
+  return ffmpeg(["-ss", seconds.toFixed(3), "-i", file, "-map", "0:v:0", "-frames:v", "1", out]);
+}

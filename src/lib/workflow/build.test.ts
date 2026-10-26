@@ -134,6 +134,7 @@ describe("buildEffect (spec §14, decision 31)", () => {
     photo: "bigos-p.png",
     frame: "bigos-v_frame.png",
     videoSize: { width: 1280, height: 736 },
+    fps: 24,
     seconds: 4.5,
     seed: 7,
   };
@@ -165,6 +166,15 @@ describe("buildEffect (spec §14, decision 31)", () => {
     expect(node(g, "@image_1")).toMatchObject({ image: "bigos-p.png" });
     expect(node(g, "@prompt")).toMatchObject({ value: "An old woman boxing." });
     expect(node(g, "@seed")).toMatchObject({ noise_seed: 7 });
+  });
+
+  it("animate: frames follow the section; context windows only past the template's 81 frames", () => {
+    const short = buildEffect(loadTemplate("fx_animate"), { ...base, workflow: "fx_animate", seconds: 3, text: { character: "a", action: "b" } });
+    expect(node(short, "@frames")).toMatchObject({ length: 73 });
+    expect(node(short, "@windows")).toMatchObject({ switch: false });
+    const long = buildEffect(loadTemplate("fx_animate"), { ...base, workflow: "fx_animate", seconds: 10, text: { character: "a", action: "b" } });
+    expect(node(long, "@frames")).toMatchObject({ length: 241 });
+    expect(node(long, "@windows")).toMatchObject({ switch: true });
   });
 
   it("animate: output follows the video's orientation with the template's pixels", () => {

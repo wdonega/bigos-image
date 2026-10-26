@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import sharp, { type OutputInfo } from "sharp";
 import type { Config } from "./config.ts";
 import { AppError, type Detail } from "./errors.ts";
-import { readVideoInfo } from "./mp4.ts";
 import { SIZE_MULTIPLE, floor32 } from "./size.ts";
 import { readStored, writeStored } from "./storage.ts";
 
@@ -105,83 +104,14 @@ export async function saveUpload(config: Config, data: Buffer): Promise<UploadMe
   return meta;
 }
 
-export async function readUploadMeta(config: Config, id: string): Promise<UploadMeta | VideoUploadMeta | null> {
+/** Any stored upload's JSON: an image (UploadMeta) or a video for restoration/effects (`kind: "tape"`, src/lib/tapes.ts). */
+export async function readUploadMeta(config: Config, id: string): Promise<(UploadMeta | { id: string; kind: "tape" }) | null> {
   if (!UUID.test(id)) return null;
   const raw = await readStored(config, "uploads", `${id}.json`);
-  return raw ? (JSON.parse(raw.toString("utf8")) as UploadMeta | VideoUploadMeta) : null;
+  return raw ? (JSON.parse(raw.toString("utf8")) as UploadMeta | { id: string; kind: "tape" }) : null;
 }
 
 export async function readUploadImage(config: Config, id: string): Promise<Buffer | null> {
   if (!UUID.test(id)) return null;
   return readStored(config, "uploads", `${id}.png`);
-}
-
-// Uploaded videos (spec §14, decision 31): stored as received (ComfyUI decodes them); only the
-// header is read here, for the duration, size and audio track. The browser sends the first frame
-// along (no ffmpeg on the server), used by the worker's vision pass.
-
-export type VideoUploadMeta = {
-  id: string;
-  kind: "video";
-  /** Container as received: QuickTime (`qt  ` brand) or MP4. */
-  ext: "mp4" | "mov";
-  /** Displayed size (rotation applied) and length of the whole file. */
-  width: number;
-  height: number;
-  seconds: number;
-  hasAudio: boolean;
-  /** Whether the first frame was stored next to it (`<id>_frame.png`). */
-  hasFrame: boolean;
-  warnings: Detail[];
-};
-
-/** Shortest video an effect accepts: below it the models have too few frames to work with. */
-const MIN_VIDEO_SECONDS = 1;
-
-/** Stores a video upload; `frame` is the browser's capture of its first frame (optional). */
-export async function saveVideoUpload(config: Config, data: Buffer, frame: Buffer | null): Promise<VideoUploadMeta> {
-  if (data.length > config.effects.maxUploadBytes) throw new AppError("video_too_large", 413);
-  const info = readVideoInfo(data);
-  if (!info || !info.hasVideo || info.width === 0 || info.seconds < MIN_VIDEO_SECONDS) {
-    throw new AppError("invalid_video", 400, info && info.seconds < MIN_VIDEO_SECONDS ? [{ code: "video_too_short", params: { min: MIN_VIDEO_SECONDS } }] : []);
-  }
-  const warnings: Detail[] = [];
-  if (info.seconds > config.effects.maxSeconds) {
-    warnings.push({ code: "video_trimmed", params: { seconds: config.effects.maxSeconds } });
-  }
-  const id = randomUUID();
-  let hasFrame = false;
-  if (frame) {
-    // A bad frame only costs the vision pass (the worker falls back), never the upload.
-    const prepared = await prepareImage(frame, config).catch(() => null);
-    if (prepared) {
-      await writeStored(config, "uploads", `${id}_frame.png`, prepared.png);
-      hasFrame = true;
-    }
-  }
-  const brand = String.fromCharCode(...data.subarray(8, 12));
-  const meta: VideoUploadMeta = {
-    id,
-    kind: "video",
-    ext: brand === "qt  " ? "mov" : "mp4",
-    width: info.width,
-    height: info.height,
-    seconds: Math.round(info.seconds * 1000) / 1000,
-    hasAudio: info.hasAudio,
-    hasFrame,
-    warnings,
-  };
-  await writeStored(config, "uploads", `${id}.${meta.ext}`, data);
-  await writeStored(config, "uploads", `${id}.json`, Buffer.from(JSON.stringify(meta)));
-  return meta;
-}
-
-export async function readUploadVideo(config: Config, meta: VideoUploadMeta): Promise<Buffer | null> {
-  if (!UUID.test(meta.id)) return null;
-  return readStored(config, "uploads", `${meta.id}.${meta.ext}`);
-}
-
-export async function readUploadFrame(config: Config, id: string): Promise<Buffer | null> {
-  if (!UUID.test(id)) return null;
-  return readStored(config, "uploads", `${id}_frame.png`);
 }

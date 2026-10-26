@@ -52,6 +52,8 @@ type ProbeStream = {
   sample_aspect_ratio?: string;
   avg_frame_rate?: string;
   r_frame_rate?: string;
+  /** Phones store portrait video as landscape plus a rotation (ffmpeg applies it when decoding). */
+  side_data_list?: { rotation?: number }[];
 };
 
 /** "8:9" or "30000/1001" → number; 0 when missing, malformed or zero. */
@@ -66,9 +68,10 @@ const ratio = (text: string | undefined) => {
 export function parseProbe(json: { streams?: ProbeStream[]; format?: { duration?: string } }): MediaInfo | null {
   const video = json.streams?.find((s) => s.codec_type === "video" && (s.width ?? 0) > 0);
   if (!video?.width || !video.height) return null;
+  const rotation = Math.abs(video.side_data_list?.find((d) => typeof d.rotation === "number")?.rotation ?? 0) % 180;
   return {
-    width: video.width,
-    height: video.height,
+    width: rotation === 90 ? video.height : video.width,
+    height: rotation === 90 ? video.width : video.height,
     sar: ratio(video.sample_aspect_ratio) || 1,
     codec: video.codec_name ?? "",
     seconds: Number(json.format?.duration ?? 0) || 0,

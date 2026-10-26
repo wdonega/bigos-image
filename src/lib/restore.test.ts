@@ -30,6 +30,11 @@ describe("parseProbe", () => {
     expect(info).toEqual({ width: 720, height: 480, sar: 8 / 9, codec: "mpeg2video", seconds: 9.064489, fps: 30000 / 1001, hasAudio: true });
   });
 
+  it("applies a phone's 90° rotation to the size (ffmpeg decodes it upright)", () => {
+    const phone = parseProbe({ streams: [{ codec_type: "video", width: 1920, height: 1080, side_data_list: [{ rotation: -90 }] }] });
+    expect(phone).toMatchObject({ width: 1080, height: 1920 });
+  });
+
   it("treats a missing or zero pixel aspect ratio as square, and returns null without video", () => {
     const square = parseProbe({ streams: [{ codec_type: "video", width: 640, height: 480, sample_aspect_ratio: "0:1" }] });
     expect(square).toMatchObject({ sar: 1, fps: 30, hasAudio: false, seconds: 0 });

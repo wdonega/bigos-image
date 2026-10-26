@@ -1,12 +1,7 @@
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { AppError } from "./errors";
-import { testConfig } from "./test-config";
-import { mp4 } from "./test-mp4";
-import { fitToBudget, prepareImage, readUploadFrame, readUploadMeta, readUploadVideo, saveVideoUpload } from "./uploads";
+import { fitToBudget, prepareImage } from "./uploads";
 
 const limits = { maxInputPixels: 4_194_304, minSide: 512 };
 
@@ -68,53 +63,5 @@ describe("fitToBudget", () => {
       expect([meta.width, meta.height]).toEqual([i.width, i.height]);
     }
     expect(out.images[0].width / out.images[1].width).toBeCloseTo(1, 1);
-  });
-});
-
-describe("saveVideoUpload (spec §14, decision 31)", () => {
-  const withDir = async () => ({ ...testConfig, storageDir: await mkdtemp(path.join(tmpdir(), "bigos-uploads-")) });
-
-  it("stores the video as received with its header facts", async () => {
-    const config = await withDir();
-    const meta = await saveVideoUpload(config, mp4(4, 1280, 736, { audio: true }), null);
-    expect(meta).toMatchObject({ kind: "video", ext: "mp4", width: 1280, height: 736, seconds: 4, hasAudio: true, hasFrame: false, warnings: [] });
-    expect((await readUploadVideo(config, meta))?.length).toBe(mp4(4, 1280, 736, { audio: true }).length);
-    expect(await readUploadMeta(config, meta.id)).toEqual(meta);
-  });
-
-  it("keeps MOV files as .mov and applies the rotation", async () => {
-    const config = await withDir();
-    const meta = await saveVideoUpload(config, mp4(3, 1920, 1080, { mov: true, rotation: 90 }), null);
-    expect(meta).toMatchObject({ ext: "mov", width: 1080, height: 1920, hasAudio: false });
-    expect(await readUploadVideo(config, meta)).not.toBeNull();
-  });
-
-  it("warns that a long video will be trimmed to EFFECT_MAX_SECONDS", async () => {
-    const meta = await saveVideoUpload(await withDir(), mp4(12, 640, 480), null);
-    expect(meta.warnings).toEqual([{ code: "video_trimmed", params: { seconds: 5 } }]);
-  });
-
-  it("stores the first frame normalized like an image upload", async () => {
-    const config = await withDir();
-    const meta = await saveVideoUpload(config, mp4(4, 1280, 736), await image(1280, 736));
-    expect(meta.hasFrame).toBe(true);
-    const frame = await readUploadFrame(config, meta.id);
-    expect((await sharp(frame!).metadata()).format).toBe("png");
-  });
-
-  it("ignores an unreadable frame instead of refusing the video", async () => {
-    const meta = await saveVideoUpload(await withDir(), mp4(4, 640, 480), Buffer.from("nope"));
-    expect(meta.hasFrame).toBe(false);
-  });
-
-  it("refuses files that are not videos, too short or too large", async () => {
-    const config = await withDir();
-    await expect(saveVideoUpload(config, Buffer.from("not a video at all"), null)).rejects.toMatchObject({ code: "invalid_video" });
-    await expect(saveVideoUpload(config, mp4(0.5, 640, 480), null)).rejects.toMatchObject({
-      code: "invalid_video",
-      details: [{ code: "video_too_short", params: { min: 1 } }],
-    });
-    const small = { ...config, effects: { ...config.effects, maxUploadBytes: 10 } };
-    await expect(saveVideoUpload(small, mp4(4, 640, 480), null)).rejects.toBeInstanceOf(AppError);
   });
 });

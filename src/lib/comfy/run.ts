@@ -38,6 +38,9 @@ export type RunOptions = {
   outageMs?: number;
 };
 
+/** Polls in a row that must find the prompt neither queued nor finished before it counts as lost. */
+const LOST_CHECKS = 3;
+
 /** Opens the progress WebSocket; returns null if it fails (polling still finishes the job). */
 export const connectWebSocket: ConnectSocket = (url, onMessage) =>
   new Promise((resolve) => {
@@ -130,6 +133,7 @@ export async function runPrompt(
     };
 
     let failingSince: number | null = null;
+    let missing = 0;
     /** One poll call; an "unavailable" error within the outage window counts as "no news yet". */
     const poll = async <T>(call: () => Promise<T>): Promise<T | undefined> => {
       try {
@@ -158,10 +162,14 @@ export async function runPrompt(
       if (socketFailure) throw socketFailure;
       if (Date.now() > deadline) throw await stop(new ComfyError("timeout", "timed out"));
 
-      if (!started && failingSince === null) {
+      if (failingSince === null && entry === null) {
         const position = await poll(() => client.queuePosition(id));
         if (position === 0) started = true;
-        else if (position !== undefined) options.onProgress?.({ phase: "waiting", position });
+        else if (position !== undefined && position !== null && !started) options.onProgress?.({ phase: "waiting", position });
+        // Neither queued nor in history while ComfyUI answers: it restarted and dropped the prompt.
+        // Twice in a row, because a prompt that just finished is briefly in neither.
+        missing = position === null ? missing + 1 : 0;
+        if (missing >= LOST_CHECKS) throw new ComfyError("failed", "prompt lost: ComfyUI dropped it (restart?)");
       }
 
       await new Promise<void>((resolve) => {

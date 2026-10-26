@@ -6,9 +6,8 @@ export type ScreenLimits = SizeLimits & {
   maxUploadBytes: number;
   canEnhance: boolean;
   maxVideoRefs: number;
-  /** Video effects (spec §14, decision 31). */
-  maxVideoUploadBytes: number;
-  effectMaxSeconds: number;
+  /** Video effects (spec §14, decision 31): section length in the trim editor. */
+  effectSeconds: { default: number; max: number };
   /** Old video restoration (spec §14, decision 32). */
   restore: {
     maxUploadBytes: number;
@@ -29,8 +28,7 @@ export function screenLimits(): ScreenLimits {
     maxUploadBytes: c.maxUploadBytes,
     canEnhance: c.llm !== null,
     maxVideoRefs: c.video.maxRefs,
-    maxVideoUploadBytes: c.effects.maxUploadBytes,
-    effectMaxSeconds: c.effects.maxSeconds,
+    effectSeconds: { default: c.effects.defaultSeconds, max: c.effects.maxSeconds },
     restore: {
       maxUploadBytes: c.restore.maxUploadBytes,
       maxSeconds: c.restore.maxSeconds,

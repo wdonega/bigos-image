@@ -1,8 +1,8 @@
 // End-to-end video effect check through the app's HTTP API (needs the app running and ComfyUI).
-// Usage: pnpm smoke:effects [effect] [base-url] [--video file.mp4] [--frame frame.png] [--photo photo.png]
+// Usage: pnpm smoke:effects [effect] [base-url] [--video file.mp4] [--start s] [--seconds s] [--photo photo.png]
 //   effect: remove_people (default) | face_swap | animate | character_swap
-// Uploads the video (with its first frame, as the browser does) and the photo when the effect
-// needs one, runs the effect and checks the MP4 result (H.264 video, audio track, size).
+// Uploads the video (streamed, like the screen) and the photo when the effect needs one, runs the
+// effect on a section and checks the MP4 result (H.264 video, audio track, size, length).
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { readVideoInfo } from "../src/lib/mp4.ts";
@@ -17,14 +17,16 @@ const positional = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.st
 const effect = positional.find((a) => EFFECTS.includes(a)) ?? "remove_people";
 const base = positional.find((a) => a.startsWith("http")) ?? "http://localhost:3000";
 const videoFile = option("video", "storage/spikes/effects/inputs/boxer.mp4");
-const frameFile = option("frame", "storage/spikes/effects/inputs/boxer-frame.png");
+const start = Number(option("start", "0"));
+const seconds = Number(option("seconds", "5"));
 const photoFile = option("photo", "storage/spikes/effects/inputs/face.png");
 
-async function upload(file: string, frame?: string): Promise<Record<string, unknown>> {
+async function upload(file: string, video = false): Promise<Record<string, unknown>> {
   const form = new FormData();
   form.append("file", new Blob([readFileSync(file)]), path.basename(file));
-  if (frame) form.append("frame", new Blob([readFileSync(frame)], { type: "image/png" }), "frame.png");
-  const res = await fetch(`${base}/api/uploads`, { method: "POST", body: form });
+  const res = video
+    ? await fetch(`${base}/api/restore/uploads`, { method: "PUT", headers: { "x-filename": path.basename(file) }, body: readFileSync(file) })
+    : await fetch(`${base}/api/uploads`, { method: "POST", body: form });
   const body = (await res.json()) as Record<string, unknown>;
   if (!res.ok) {
     console.error(`upload of ${file} failed`, res.status, body);
@@ -33,7 +35,7 @@ async function upload(file: string, frame?: string): Promise<Record<string, unkn
   return body;
 }
 
-const video = await upload(videoFile, frameFile || undefined);
+const video = await upload(videoFile, true);
 console.log("video", JSON.stringify(video));
 const photo = effect === "remove_people" ? null : await upload(photoFile);
 
@@ -50,6 +52,8 @@ const res = await fetch(`${base}/api/jobs`, {
     screen: "effects",
     effect,
     video: video.id,
+    start,
+    end: start + seconds,
     images: photo ? [photo.id] : [],
     prompt: prompts[effect],
     consent: true,
@@ -83,7 +87,7 @@ for (;;) {
       h264: full.includes("avc1"),
       audio: info?.hasAudio === true,
       size: !!info && info.width === view.width && info.height === view.height,
-      seconds: !!info && info.seconds > 1,
+      seconds: !!info && Math.abs(info.seconds - seconds) < 0.5,
     };
     const ok = Object.values(checks).every(Boolean);
     console.log(ok ? "OK" : "FAIL", JSON.stringify(checks), JSON.stringify(info), `${(full.length / 1e6).toFixed(1)} MB`);

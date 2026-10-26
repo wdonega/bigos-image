@@ -56,7 +56,7 @@ save(prune(g, ["341"]), "fx_face_swap_api.json")
 g = load("15-wan-animate-2")
 add_trim(g, "240")
 for nid, t in {"240": "@video_in", "189": "@image_1", "604": "@prompt", "605": "@character",
-               "261:19": "@seed", "261:243": "@size", "246": "@save"}.items(): title(g, nid, t)
+               "261:19": "@seed", "261:243": "@size", "261:258": "@windows", "261:247": "@frames", "246": "@save"}.items(): title(g, nid, t)
 save(prune(g, ["246"]), "fx_animate_api.json")
 
 # Character Swap (#14): duration lives in the Relay prepare node; seed in the window plan.
