@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { UPSCALERS, type Upscaler } from "./restore.ts";
 
 const positiveInt = z.coerce.number().int().positive();
 
@@ -38,14 +39,16 @@ const envSchema = z.object({
   EFFECT_JOB_TIMEOUT_MINUTES: positiveInt.default(40),
   // Old video restoration (spec §14, decision 32): upload size, longest section per job with and
   // without the upscale, frames per SeedVR2 chunk (4n+1, RAM of the ComfyUI machine) and its time
-  // limit, the time factors of the estimate (seconds of work per second of video: GPU measured at
-  // 110 for SeedVR2 3B 720p, CPU ~1.7 for the cleanup) and the estimate's warning steps in minutes.
+  // limit, which SeedVR2 graph upscales (gguf = v2, ~3x faster; native = v1, no custom node), the
+  // time factors of the estimate (seconds of work per second of video: the GPU one defaults to the
+  // upscaler's measurement, 50 or 110 at 720p; CPU ~1.7 for the cleanup) and the warning steps in minutes.
   RESTORE_MAX_UPLOAD_MB: positiveInt.default(2048),
   RESTORE_MAX_UPSCALE_SECONDS: positiveInt.default(60),
   RESTORE_MAX_CLEAN_SECONDS: positiveInt.default(1800),
   RESTORE_CHUNK_FRAMES: positiveInt.refine((n) => n % 4 === 1, "must be 4n+1").default(601),
   RESTORE_CHUNK_TIMEOUT_MINUTES: positiveInt.default(90),
-  RESTORE_UPSCALE_FACTOR: z.coerce.number().positive().default(110),
+  RESTORE_UPSCALER: z.enum(["gguf", "native"]).default("gguf"),
+  RESTORE_UPSCALE_FACTOR: z.coerce.number().positive().optional(),
   RESTORE_CLEAN_FACTOR: z.coerce.number().positive().default(1.7),
   RESTORE_WARN_MINUTES: z
     .string()
@@ -105,6 +108,7 @@ export type Config = {
     maxSeconds: { upscale: number; clean: number };
     chunkFrames: number;
     chunkTimeoutMs: number;
+    upscaler: Upscaler;
     factors: { upscale: number; clean: number };
     warnMinutes: number[];
   };
@@ -151,7 +155,8 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
       maxSeconds: { upscale: e.RESTORE_MAX_UPSCALE_SECONDS, clean: e.RESTORE_MAX_CLEAN_SECONDS },
       chunkFrames: e.RESTORE_CHUNK_FRAMES,
       chunkTimeoutMs: e.RESTORE_CHUNK_TIMEOUT_MINUTES * 60_000,
-      factors: { upscale: e.RESTORE_UPSCALE_FACTOR, clean: e.RESTORE_CLEAN_FACTOR },
+      upscaler: e.RESTORE_UPSCALER,
+      factors: { upscale: e.RESTORE_UPSCALE_FACTOR ?? UPSCALERS[e.RESTORE_UPSCALER].factor, clean: e.RESTORE_CLEAN_FACTOR },
       warnMinutes: e.RESTORE_WARN_MINUTES,
     },
     llm: e.LLM_URL

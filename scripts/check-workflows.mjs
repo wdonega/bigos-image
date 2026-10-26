@@ -83,6 +83,13 @@ const EXPECTED = {
     "@seed": ["KSampler", ["seed"]],
     "@save": ["SaveVideo", []],
   },
+  // v2 (usecases/vhs-upscale-v2): numz's SeedVR2 custom node, GGUF; size and seed in the upscaler.
+  "restore_seedvr2_v2_api.json": {
+    "@video_in": ["LoadVideo", ["file"]],
+    "@model": ["SeedVR2LoadDiTModel", ["model"]],
+    "@upscale": ["SeedVR2VideoUpscaler", ["resolution", "seed"]],
+    "@save": ["SaveVideo", []],
+  },
   "fx_character_swap_api.json": {
     "@video_in": ["LoadVideo", ["file"]],
     "@prepare": ["H3RelayPrepareSource", ["duration_seconds"]],

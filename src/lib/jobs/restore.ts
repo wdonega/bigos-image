@@ -7,7 +7,7 @@ import { type ComfyClient, ComfyError } from "../comfy/client.ts";
 import { outputVideo, runPrompt } from "../comfy/run.ts";
 import type { Config } from "../config.ts";
 import { FfmpegError, chunk, clean, frameCount, join, probe, trimFrames } from "../ffmpeg.ts";
-import { type ColorId, type MediaInfo, type Measurements, type RestoreMode, chunkPlan, upscaleSize } from "../restore.ts";
+import { type ColorId, type MediaInfo, type Measurements, type RestoreMode, chunkPlan, upscaleTarget } from "../restore.ts";
 import { storageFile } from "../storage.ts";
 import { type ApiGraph, findNodeId, setInputs } from "../workflow/graph.ts";
 
@@ -71,7 +71,7 @@ export async function runRestore(input: RestoreInput, deps: RestoreDeps, out: st
 
   const cleaned = await probe(cleanTo);
   if (!cleaned) throw new FfmpegError("cleaned video unreadable", "");
-  const size = upscaleSize(cleaned, UPSCALE_HEIGHT);
+  const target = upscaleTarget(config.restore.upscaler, cleaned, UPSCALE_HEIGHT);
   const total = await frameCount(cleanTo);
   const chunks = chunkPlan(total, config.restore.chunkFrames);
   let state = input.state;
@@ -90,8 +90,9 @@ export async function runRestore(input: RestoreInput, deps: RestoreDeps, out: st
         const name = await deps.client.uploadImage(await readFile(segment), `bigos-restore-${input.jobId}-${i}.mp4`, "video/mp4");
         setInputs(graph, "@video_in", { file: name });
       }
-      setInputs(graph, "@size", { "resize_type.width": size.width, "resize_type.height": size.height });
-      setInputs(graph, "@seed", { seed: (Number.parseInt(input.jobId, 10) || 0) + i });
+      setInputs(graph, target.node, target.inputs);
+      // v2 keeps the seed in the upscaler node, v1 in its KSampler.
+      setInputs(graph, config.restore.upscaler === "gguf" ? "@upscale" : "@seed", { seed: (Number.parseInt(input.jobId, 10) || 0) + i });
       const { entry } = await runPrompt(deps.client, graph, {
         timeoutMs: config.restore.chunkTimeoutMs,
         outageMs: config.comfyWakeMs,

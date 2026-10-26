@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Derives workflows/api/fx_*.json (video effects, spec §14 decision 31) and restore_seedvr2_api.json
+# Derives workflows/api/fx_*.json (video effects, spec §14 decision 31) and restore_seedvr2*_api.json
 # (old video restoration, decision 32) from the tested workflows in ../comfyui-workflows: adds the
 # @ titles the backend looks for, inserts the 5 s trim, drops the comparison outputs, applies the
 # restoration script's settings and prunes nodes that feed no output. Run again when they change:
@@ -79,3 +79,11 @@ g["66:99"]["inputs"]["temporal_overlap"] = 1
 g["66:59"]["inputs"]["color_correction_method"] = "lab"
 g["76"]["inputs"]["filename_prefix"] = "bigos/restore"
 save(prune(g, ["76"]), "restore_seedvr2_api.json")
+
+# SeedVR2 v2 of the restoration (usecases/vhs-upscale-v2): numz's custom node with the 3B GGUF Q8_0,
+# ~3x faster. The use case's settings stay (batches of 21, "lab", 512 px VAE tiles); the backend
+# writes the file, the shortest edge (`resolution`) and the seed. The upscaler node holds both.
+g = json.load(open(os.path.join(REPO, "usecases", "vhs-upscale-v2", "seedvr2_v2.api.json")))
+for nid, t in {"1": "@video_in", "3": "@model", "5": "@upscale", "7": "@save"}.items(): title(g, nid, t)
+g["7"]["inputs"]["filename_prefix"] = "bigos/restore"
+save(prune(g, ["7"]), "restore_seedvr2_v2_api.json")

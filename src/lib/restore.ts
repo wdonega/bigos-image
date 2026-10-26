@@ -21,6 +21,17 @@ export const AUDIO_FILTER = "highpass=f=60,afftdn=nf=-30,loudnorm=I=-18:TP=-1.5"
 export const RESTORE_MODES = ["clean", "upscale"] as const;
 export type RestoreMode = (typeof RESTORE_MODES)[number];
 
+/**
+ * SeedVR2 graphs: "gguf" is usecases/vhs-upscale-v2 (numz's custom node, 3B GGUF Q8_0, ~3x faster),
+ * "native" is v1 (ComfyUI's own SeedVR2, no custom node). `factor` is the measured GPU seconds per
+ * second of video at 720p (RTX 5060 Ti), the estimate's default when RESTORE_UPSCALE_FACTOR is unset.
+ */
+export const UPSCALERS = {
+  gguf: { workflow: "restore_seedvr2_v2", factor: 50 },
+  native: { workflow: "restore_seedvr2", factor: 110 },
+} as const;
+export type Upscaler = keyof typeof UPSCALERS;
+
 /** Codecs whose compression blocks the deblock filter smooths (MPEG-1/2/4, WMV). */
 const BLOCKY_CODECS = new Set(["mpeg2video", "mpeg1video", "mpeg4", "msmpeg4v3", "wmv2", "wmv3"]);
 
@@ -145,6 +156,16 @@ export function previewFilters(info: MediaInfo, m: Measurements, color: ColorId,
 /** Upscale size: the target height, width from the cleaned aspect on multiples of 16 (script). */
 export function upscaleSize(cleaned: { width: number; height: number }, height: number) {
   return { width: Math.round((height * (cleaned.width / cleaned.height)) / 16) * 16, height };
+}
+
+/**
+ * What each graph needs to reach `height`: v1 resizes to width × height before SeedVR2; the v2 node
+ * takes the shortest edge and keeps the aspect itself (a portrait video comes out `height` wide).
+ */
+export function upscaleTarget(upscaler: Upscaler, cleaned: { width: number; height: number }, height: number) {
+  if (upscaler === "gguf") return { node: "@upscale", inputs: { resolution: height } };
+  const size = upscaleSize(cleaned, height);
+  return { node: "@size", inputs: { "resize_type.width": size.width, "resize_type.height": size.height } };
 }
 
 /**

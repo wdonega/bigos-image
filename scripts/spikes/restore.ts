@@ -7,7 +7,7 @@ import { ComfyClient } from "../../src/lib/comfy/client.ts";
 import { getConfig } from "../../src/lib/config.ts";
 import { frameCount, measure, probe } from "../../src/lib/ffmpeg.ts";
 import { runRestore } from "../../src/lib/jobs/restore.ts";
-import type { RestoreMode } from "../../src/lib/restore.ts";
+import { type RestoreMode, UPSCALERS } from "../../src/lib/restore.ts";
 import { loadTemplate } from "../../src/lib/workflow/templates.ts";
 
 const [file = "storage/spikes/restore/a.mpg", start = "3", seconds = "2", chunkFrames = "33", mode = "upscale"] = process.argv.slice(2);
@@ -34,7 +34,7 @@ await runRestore(
   {
     client,
     config,
-    template: () => loadTemplate("restore_seedvr2"),
+    template: () => loadTemplate(UPSCALERS[config.restore.upscaler].workflow),
     signal: new AbortController().signal,
     onProgress: (share) => {
       const pct = Math.floor(share * 100);

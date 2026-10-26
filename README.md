@@ -81,7 +81,7 @@ The PWA needs the app served over **HTTPS** (a reverse proxy in front of the Doc
 - Old videos from VHS, DVD and old cameras (MPG, VOB, AVI, DV, MOV, MP4…), uploaded as they came from the capture; the original is never changed.
 - **Pick the section** on a filmstrip with two handles (the app makes a light copy the browser can play), and see a live estimate that turns yellow, orange and red as the job gets longer.
 - **Pick the color** from previews of the paused frame: original, balanced (default), less yellow, much less yellow, automatic, automatic soft, neutral, unchanged.
-- **Clean only** (fast: noise, black borders, color cast, sound) or **clean + sharpen to 720p** with SeedVR2 (slow: ~2 h of GPU per minute of tape).
+- **Clean only** (fast: noise, black borders, color cast, sound) or **clean + sharpen to 720p** with SeedVR2 (slow: ~50 min of GPU per minute of tape).
 
 ### Everywhere
 - **Improve text:** an LLM expands your idea in your own language, with undo; it can be used again.
@@ -156,7 +156,7 @@ The four effects use the workflows tested in the companion [comfyui-workflows](h
 
 ### Restore tab
 
-The cleanup runs with ffmpeg in the app (the Docker image ships a static ffmpeg 7.1; for development, ffmpeg 6+ on the PATH). The sharpening uses the SeedVR2 3B model of the [SeedVR2 workflow](https://github.com/wdonega/comfyui-workflows/tree/main/workflows/42-seedvr2-upscale) (its `install.sh` installs it) through the official SeedVR2 video template, derived into `workflows/api/restore_seedvr2_api.json`. It is the [VHS restoration script](https://github.com/wdonega/comfyui-workflows/tree/main/usecases/vhs-upscale) of the same repository, inside the app.
+The cleanup runs with ffmpeg in the app (the Docker image ships a static ffmpeg 7.1; for development, ffmpeg 6+ on the PATH). The sharpening uses SeedVR2 3B in GGUF Q8_0 through numz's custom node, as in the [SeedVR2 v2 workflow](https://github.com/wdonega/comfyui-workflows/tree/main/workflows/42-seedvr2-upscale-v2) (its `install.sh` installs the node and the model; then `pip install rotary-embedding-torch==0.9.1` in ComfyUI's Python), derived into `workflows/api/restore_seedvr2_v2_api.json`. It is the [VHS restoration script v2](https://github.com/wdonega/comfyui-workflows/tree/main/usecases/vhs-upscale-v2) of the same repository, inside the app. For a ComfyUI without that custom node, `RESTORE_UPSCALER=native` uses v1 instead: ComfyUI's own SeedVR2 support with the 3B INT8 of the [SeedVR2 workflow](https://github.com/wdonega/comfyui-workflows/tree/main/workflows/42-seedvr2-upscale) (`restore_seedvr2_api.json`, ~2x slower).
 
 ### Less VRAM?
 
@@ -201,7 +201,8 @@ The variables can also live in a `.env` file next to `docker-compose.yml`.
 | `LLM_URL` | no | empty | OpenAI-compatible API for "Improve text", lyrics and the final step |
 | `LLM_API_KEY` | no | empty | Key for that API |
 | `LLM_MODEL` | no | `prompt-enhancer` | Model name in that API |
-| `RESTORE_MAX_UPSCALE_SECONDS` | no | `60` | Longest section per restoration with sharpening (~110 s of GPU per second) |
+| `RESTORE_MAX_UPSCALE_SECONDS` | no | `60` | Longest section per restoration with sharpening (~50 s of GPU per second) |
+| `RESTORE_UPSCALER` | no | `gguf` | SeedVR2 graph for the sharpening: `gguf` (v2, numz's custom node) or `native` (v1, ComfyUI's own SeedVR2) |
 | `LLM_DISABLE_THINKING` | no | `false` | `true` for reasoning models on llama.cpp: answer without thinking first (faster; without it long replies like lyrics run out of tokens) |
 | `PORT` | no | `3000` | Port published on the host |
 | `BIGOS_IMAGE` | no | `ghcr.io/wdonega/bigos-image:latest` | Image to run (e.g. a specific version `1.0.N`) |

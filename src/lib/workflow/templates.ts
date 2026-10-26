@@ -3,7 +3,7 @@ import path from "node:path";
 import type { EffectWorkflow } from "../effects.ts";
 import type { ApiGraph } from "./graph.ts";
 
-export type WorkflowName = "t2i" | "edit" | "video_fl2va" | "video_ref2va" | "music" | EffectWorkflow | "restore_seedvr2";
+export type WorkflowName = "t2i" | "edit" | "video_fl2va" | "video_ref2va" | "music" | EffectWorkflow | "restore_seedvr2" | "restore_seedvr2_v2";
 
 /** File names that don't follow `<name>_api.json` (the music export kept its original name). */
 const FILES: Partial<Record<WorkflowName, string>> = { music: "audio_minimax_music_3.json" };

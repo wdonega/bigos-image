@@ -34,6 +34,13 @@ describe("parseConfig", () => {
     expect(custom.effects).toEqual({ defaultSeconds: 6, maxSeconds: 6, timeoutMs: 60 * 60_000 });
   });
 
+  it("upscales old videos with SeedVR2 v2 by default, its estimate following the upscaler", () => {
+    expect(parseConfig(env).restore).toMatchObject({ upscaler: "gguf", factors: { upscale: 50 } });
+    expect(parseConfig({ ...env, RESTORE_UPSCALER: "native" }).restore).toMatchObject({ upscaler: "native", factors: { upscale: 110 } });
+    expect(parseConfig({ ...env, RESTORE_UPSCALE_FACTOR: "70" }).restore.factors.upscale).toBe(70);
+    expect(() => parseConfig({ ...env, RESTORE_UPSCALER: "fast" })).toThrow();
+  });
+
   it("reads LLM_DISABLE_THINKING as a boolean, off by default", () => {
     const withLlm = { ...env, LLM_URL: "https://llm.example" };
     expect(parseConfig(withLlm).llm?.disableThinking).toBe(false);

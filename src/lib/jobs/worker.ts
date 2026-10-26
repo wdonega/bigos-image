@@ -18,6 +18,7 @@ import { buildVideoPrompt, tokensToSubjects } from "../video.ts";
 import { FfmpegError, cutSection, frameAt, probe } from "../ffmpeg.ts";
 import { readTapeMeta, tapeFile } from "../tapes.ts";
 import { buildEdit, buildEffect, buildMusic, buildT2I, buildVideo } from "../workflow/build.ts";
+import { UPSCALERS } from "../restore.ts";
 import { removeWork, runRestore } from "./restore.ts";
 import { type ApiGraph, findNodeId } from "../workflow/graph.ts";
 import { loadTemplate } from "../workflow/templates.ts";
@@ -233,7 +234,7 @@ async function processRestore(
     {
       client,
       config,
-      template: () => loadTemplate("restore_seedvr2"),
+      template: () => loadTemplate(UPSCALERS[config.restore.upscaler].workflow),
       signal,
       onProgress: (share) => {
         if (share <= bestShare) return;

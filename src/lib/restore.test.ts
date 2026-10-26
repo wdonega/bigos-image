@@ -12,6 +12,7 @@ import {
   parseProbe,
   previewFilters,
   upscaleSize,
+  upscaleTarget,
 } from "./restore";
 
 // A DVD capture as ffprobe reports it (a.mpg of the tests: NTSC, 4:3, a DVD navigation stream first).
@@ -104,6 +105,21 @@ describe("sizes", () => {
     const size = cleanSize(info, { width: 712, height: 468, x: 6, y: 0 });
     expect(size).toEqual({ width: 632, height: 468 });
     expect(upscaleSize(size, 720)).toEqual({ width: 976, height: 720 });
+  });
+});
+
+describe("upscaleTarget", () => {
+  const cleaned = { width: 1328, height: 980 };
+
+  it("gives v2 the shortest edge (the node keeps the aspect)", () => {
+    expect(upscaleTarget("gguf", cleaned, 720)).toEqual({ node: "@upscale", inputs: { resolution: 720 } });
+  });
+
+  it("gives v1 width × height on multiples of 16", () => {
+    expect(upscaleTarget("native", cleaned, 720)).toEqual({
+      node: "@size",
+      inputs: { "resize_type.width": 976, "resize_type.height": 720 },
+    });
   });
 });
 
