@@ -9,6 +9,7 @@ import { VIDEO_DURATIONS, VIDEO_RATIOS, buildVideoPrompt, tokensToSubjects, vide
 import { EFFECTS, EFFECT_IDS, type EffectId, type EffectText, type EffectWorkflow, effectMaxSeconds } from "../effects.ts";
 import { COLOR_IDS, RESTORE_MODES, type ColorId, type RestoreMode } from "../restore.ts";
 import { randomSeed } from "../workflow/build.ts";
+import type { ImageWorkflow } from "../workflow/templates.ts";
 
 // Request contract of POST /api/jobs (spec §10).
 const sizeSchema = z.union([
@@ -101,7 +102,7 @@ type RestoreRequest = z.infer<typeof restoreRequestSchema>;
 /** What the worker needs to build and run the graph; stored as the queue job's data. */
 export type JobPlan = {
   /** The graph: images by number of images (spec §3); video with references uses Ref2VA. */
-  workflow: "t2i" | "edit" | "video_fl2va" | "video_ref2va" | "music" | EffectWorkflow | "restore";
+  workflow: ImageWorkflow | "video_fl2va" | "video_ref2va" | "music" | EffectWorkflow | "restore";
   /**
    * Source of the worker's final LLM pass (English, <imageN> references, style up front): the
    * user's text with mentions already as <imageN>.
@@ -278,6 +279,17 @@ async function planVideo(req: VideoRequest, config: Config, findUpload: UploadLo
   };
 }
 
+/**
+ * The image model (spec §14, decision 34): Qwen-Image 2.1 only for a transparent background (the
+ * only family that returns real alpha); otherwise Flux 3 Klein with images, and without images
+ * Krea 2 Turbo for quality Normal or Flux 3 Klein for High.
+ */
+export function imageWorkflow(withImages: boolean, quality: "normal" | "high", transparent: boolean): ImageWorkflow {
+  if (transparent) return withImages ? "edit" : "t2i";
+  if (withImages) return "edit_flux";
+  return quality === "high" ? "t2i_flux" : "t2i_krea";
+}
+
 async function planImage(req: ImageRequest, config: Config, findUpload: UploadLookup): Promise<JobPlan> {
   if (req.screen === "edit" && req.images.length !== 1) {
     throw new AppError("invalid_request", 400, [{ code: "edit_needs_one_image" }]);
@@ -306,7 +318,7 @@ async function planImage(req: ImageRequest, config: Config, findUpload: UploadLo
   const withImages = req.images.length > 0;
   const text = withImages ? mentionsToTokens(req.prompt) : req.prompt;
   return {
-    workflow: withImages ? "edit" : "t2i",
+    workflow: imageWorkflow(withImages, req.quality, req.transparent_background),
     text,
     style: req.style ? (findStyle(req.style)?.prompt ?? null) : null,
     fallbackPrompt: applyStyle(text, req.style),

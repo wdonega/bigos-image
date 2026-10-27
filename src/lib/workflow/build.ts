@@ -75,6 +75,66 @@ export function buildEdit(template: ApiGraph, p: EditParams): ApiGraph {
   return graph;
 }
 
+// Krea 2 Turbo and Flux 3 Klein (spec §14, decision 34): CLIPTextEncode takes the prompt, and steps,
+// cfg and sampler stay as the template has them (distilled models with a fixed schedule).
+export type ModelT2IParams = { prompt: string; width: number; height: number; seed: number };
+
+export function buildModelT2I(template: ApiGraph, p: ModelT2IParams): ApiGraph {
+  const graph = structuredClone(template);
+  setInputs(graph, "@prompt", { text: p.prompt });
+  setInputs(graph, "@latent_size", { width: p.width, height: p.height });
+  setInputs(graph, "@sampler", { seed: p.seed });
+  return graph;
+}
+
+/** The nodes of one reference image in the Flux graph, image_1's titles; cloned per extra image. */
+const FLUX_REF_CHAIN = ["@image_1", "@ref_scale_1", "@ref_encode_1", "@ref_pos_1", "@ref_neg_1"] as const;
+
+export type FluxEditParams = ModelT2IParams & {
+  /** ComfyUI file names (from /upload/image), image_1 first. */
+  images: string[];
+};
+
+/**
+ * Flux 3 Klein with images: each one goes through its own @ref_* chain, and the ReferenceLatent
+ * nodes are chained on both conditionings (image_2 after image_1, and so on) before the sampler.
+ */
+export function buildFluxEdit(template: ApiGraph, p: FluxEditParams): ApiGraph {
+  if (p.images.length < 1 || p.images.length > MAX_ENCODER_IMAGES) {
+    throw new WorkflowError(`Flux edit needs 1 to ${MAX_ENCODER_IMAGES} images, got ${p.images.length}`);
+  }
+  const graph = buildModelT2I(template, p);
+  setInputs(graph, "@image_1", { image: p.images[0] });
+  const ids = Object.fromEntries(FLUX_REF_CHAIN.map((t) => [t, findNodeId(graph, t)]));
+  const sampler = graph[findNodeId(graph, "@sampler")];
+  if (!isLinkTo(sampler.inputs.positive, ids["@ref_pos_1"]) || !isLinkTo(sampler.inputs.negative, ids["@ref_neg_1"])) {
+    throw new WorkflowError("@sampler is not fed by @ref_pos_1/@ref_neg_1");
+  }
+  let pos = ids["@ref_pos_1"];
+  let neg = ids["@ref_neg_1"];
+  p.images.slice(1).forEach((name, i) => {
+    const n = i + 2;
+    const id = (title: string) => `${ids[title]}_${n}`;
+    for (const title of FLUX_REF_CHAIN) {
+      const clone = structuredClone(graph[ids[title]]);
+      clone._meta = { title: title.replace(/_1$/, `_${n}`) };
+      graph[id(title)] = clone;
+    }
+    graph[id("@image_1")].inputs.image = name;
+    graph[id("@ref_scale_1")].inputs.image = [id("@image_1"), 0];
+    graph[id("@ref_encode_1")].inputs.pixels = [id("@ref_scale_1"), 0];
+    Object.assign(graph[id("@ref_pos_1")].inputs, { conditioning: [pos, 0], latent: [id("@ref_encode_1"), 0] });
+    Object.assign(graph[id("@ref_neg_1")].inputs, { conditioning: [neg, 0], latent: [id("@ref_encode_1"), 0] });
+    pos = id("@ref_pos_1");
+    neg = id("@ref_neg_1");
+  });
+  sampler.inputs.positive = [pos, 0];
+  sampler.inputs.negative = [neg, 0];
+  return graph;
+}
+
+const isLinkTo = (value: unknown, id: string) => Array.isArray(value) && value[0] === id;
+
 // Video (spec §14, decision 28). MiniMaxH3ReferenceToVideo's `ref_images` is an autogrow group
 // with prefix "ref_image_" and at most 9 entries (GET /object_info); in API format each one is
 // "ref_images.ref_image_N" (checked against ComfyUI in the m5 spike).

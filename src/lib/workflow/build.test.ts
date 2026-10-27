@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEdit, buildEffect, buildT2I, randomSeed, buildVideo, MAX_VIDEO_REFS } from "./build";
+import { buildEdit, buildEffect, buildFluxEdit, buildModelT2I, buildT2I, randomSeed, buildVideo, MAX_VIDEO_REFS } from "./build";
 import { type ApiGraph, WorkflowError, findNodeId, setInputs } from "./graph";
 import { loadTemplate } from "./templates";
 
@@ -66,6 +66,55 @@ describe("buildEdit", () => {
     expect(() => buildEdit(loadTemplate("edit"), { ...edit, images: [], size: null })).toThrow(WorkflowError);
     const many = Array.from({ length: 17 }, (_, i) => `${i}.png`);
     expect(() => buildEdit(loadTemplate("edit"), { ...edit, images: many, size: null })).toThrow(WorkflowError);
+  });
+});
+
+describe("buildModelT2I (spec §14, decision 34)", () => {
+  it.each(["t2i_krea", "t2i_flux"] as const)("%s: prompt, size and seed; the template keeps its steps", (name) => {
+    const template = loadTemplate(name);
+    const steps = node(template, "@sampler").steps;
+    const graph = buildModelT2I(template, { prompt: "a cat", width: 1376, height: 768, seed: 7 });
+    expect(node(graph, "@prompt")).toMatchObject({ text: "a cat" });
+    expect(node(graph, "@latent_size")).toMatchObject({ width: 1376, height: 768 });
+    expect(node(graph, "@sampler")).toMatchObject({ seed: 7, steps });
+  });
+
+  it("leaves out the template's prompt LLM", () => {
+    for (const name of ["t2i_krea", "t2i_flux", "edit_flux"] as const) {
+      const classes = Object.values(loadTemplate(name)).map((n) => n.class_type);
+      expect(classes).not.toContain("TextGenerate");
+    }
+  });
+});
+
+describe("buildFluxEdit (spec §14, decision 34)", () => {
+  const p = { prompt: "the woman from <image1> in the jacket from <image2>", width: 1024, height: 1024, seed: 3 };
+
+  it("one image: the template's chain feeds the sampler", () => {
+    const graph = buildFluxEdit(loadTemplate("edit_flux"), { ...p, images: ["a.png"] });
+    expect(node(graph, "@image_1").image).toBe("a.png");
+    expect(node(graph, "@sampler").positive).toEqual([findNodeId(graph, "@ref_pos_1"), 0]);
+    expect(node(graph, "@sampler").negative).toEqual([findNodeId(graph, "@ref_neg_1"), 0]);
+  });
+
+  it("chains one ReferenceLatent per image on both conditionings, in order", () => {
+    const graph = buildFluxEdit(loadTemplate("edit_flux"), { ...p, images: ["a.png", "b.png", "c.png"] });
+    expect(node(graph, "@image_3").image).toBe("c.png");
+    for (const side of ["pos", "neg"]) {
+      const n2 = node(graph, `@ref_${side}_2`);
+      const n3 = node(graph, `@ref_${side}_3`);
+      expect(n2.conditioning).toEqual([findNodeId(graph, `@ref_${side}_1`), 0]);
+      expect(n3.conditioning).toEqual([findNodeId(graph, `@ref_${side}_2`), 0]);
+      expect(n3.latent).toEqual([findNodeId(graph, "@ref_encode_3"), 0]);
+    }
+    expect(node(graph, "@ref_encode_3").pixels).toEqual([findNodeId(graph, "@ref_scale_3"), 0]);
+    expect(node(graph, "@ref_scale_3").image).toEqual([findNodeId(graph, "@image_3"), 0]);
+    expect(node(graph, "@sampler").positive).toEqual([findNodeId(graph, "@ref_pos_3"), 0]);
+    expect(node(graph, "@sampler").negative).toEqual([findNodeId(graph, "@ref_neg_3"), 0]);
+  });
+
+  it("refuses zero images", () => {
+    expect(() => buildFluxEdit(loadTemplate("edit_flux"), { ...p, images: [] })).toThrow(WorkflowError);
   });
 });
 

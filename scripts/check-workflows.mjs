@@ -28,6 +28,31 @@ const EXPECTED = {
     "@image_1": ["LoadImage", ["image"]],
     "@save": ["SaveImageAdvanced", []],
   },
+  // Images without transparency (spec §14, decision 34): Krea 2 Turbo, Flux 3 Klein; derived from
+  // ../comfyui-workflows by scripts/derive-effect-workflows.py. Steps stay as the template has them.
+  "t2i_krea_api.json": {
+    "@prompt": ["CLIPTextEncode", ["text"]],
+    "@latent_size": ["EmptyLatentImage", LATENT],
+    "@sampler": ["KSampler", ["seed"]],
+    "@save": ["SaveImage", []],
+  },
+  "t2i_flux_api.json": {
+    "@prompt": ["CLIPTextEncode", ["text"]],
+    "@latent_size": ["EmptyFlux2LatentImage", LATENT],
+    "@sampler": ["KSampler", ["seed"]],
+    "@save": ["SaveImage", []],
+  },
+  "edit_flux_api.json": {
+    "@prompt": ["CLIPTextEncode", ["text"]],
+    "@latent_size": ["EmptyFlux2LatentImage", LATENT],
+    "@sampler": ["KSampler", ["seed"]],
+    "@image_1": ["LoadImage", ["image"]],
+    "@ref_scale_1": ["ImageScaleToTotalPixels", []],
+    "@ref_encode_1": ["VAEEncode", []],
+    "@ref_pos_1": ["ReferenceLatent", []],
+    "@ref_neg_1": ["ReferenceLatent", []],
+    "@save": ["SaveImage", []],
+  },
   // Video (spec §14, decision 28): the Director node replaced by ComfyUI's native MiniMax H3 nodes.
   "video_fl2va_api.json": {
     "@video": ["MiniMaxH3ImageToVideo", VIDEO],

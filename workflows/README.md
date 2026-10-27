@@ -36,6 +36,17 @@ node scripts/check-workflows.mjs
 | `@image_1` | `LoadImage` | `image` (o backend clona este nó para `image_2` a `image_10`) | | ✓ |
 | `@save` | `SaveImageAdvanced` | — (formato PNG fixo) | ✓ | ✓ |
 
+Imagem sem Fundo transparente (spec §14, decisão 34): `t2i_krea_api.json`, `t2i_flux_api.json` e `edit_flux_api.json`, gerados por `python3 scripts/derive-effect-workflows.py` a partir de `38-krea2-turbo` e `39-flux3-klein` do `../comfyui-workflows` (sem o LLM de reescrita e sem `ResolutionSelector`). O `edit_flux` não vem de um workflow testado: é a receita do Flux 2 Klein montada pelo script.
+
+| Título | `class_type` | Inputs que o backend escreve | krea | flux | edit_flux |
+|--------|--------------|------------------------------|:----:|:----:|:---------:|
+| `@prompt` | `CLIPTextEncode` | `text` | ✓ | ✓ | ✓ |
+| `@latent_size` | `EmptyLatentImage` (Krea) / `EmptyFlux2LatentImage` | `width`, `height` | ✓ | ✓ | ✓ |
+| `@sampler` | `KSampler` | `seed` (passos, cfg e sampler ficam os do template) | ✓ | ✓ | ✓ |
+| `@image_1` | `LoadImage` | `image` | | | ✓ |
+| `@ref_scale_1`, `@ref_encode_1`, `@ref_pos_1`, `@ref_neg_1` | `ImageScaleToTotalPixels`, `VAEEncode`, `ReferenceLatent` ×2 | — (o backend clona a cadeia para `_2` … `_N` e encadeia os `ReferenceLatent`) | | | ✓ |
+| `@save` | `SaveImage` | — | ✓ | ✓ | ✓ |
+
 Vídeo:
 
 | Título | `class_type` | Inputs que o backend escreve | fl2va | ref2va |

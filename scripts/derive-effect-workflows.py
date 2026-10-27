@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-# Derives workflows/api/fx_*.json (video effects, spec §14 decision 31) and restore_seedvr2*_api.json
-# (old video restoration, decision 32) from the tested workflows in ../comfyui-workflows: adds the
-# @ titles the backend looks for, inserts the 5 s trim, drops the comparison outputs, applies the
-# restoration script's settings and prunes nodes that feed no output. Run again when they change:
+# Derives workflows/api/fx_*.json (video effects, spec §14 decision 31), restore_seedvr2*_api.json
+# (old video restoration, decision 32) and the Krea/Flux image graphs (decision 34) from the tested
+# workflows in ../comfyui-workflows: adds the @ titles the backend looks for, inserts the 5 s trim,
+# drops the comparison outputs, applies the restoration script's settings and prunes nodes that
+# feed no output. Run again when they change:
 #   python3 scripts/derive-effect-workflows.py [path/to/comfyui-workflows]
 import json, os, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -87,3 +88,30 @@ g = json.load(open(os.path.join(REPO, "usecases", "vhs-upscale-v2", "seedvr2_v2.
 for nid, t in {"1": "@video_in", "3": "@model", "5": "@upscale", "7": "@save"}.items(): title(g, nid, t)
 g["7"]["inputs"]["filename_prefix"] = "bigos/restore"
 save(prune(g, ["7"]), "restore_seedvr2_v2_api.json")
+
+# Images (spec §14, decision 34): Krea 2 Turbo (quality Normal) and Flux 3 Klein (quality High and
+# every request with images). The templates' prompt LLM is dropped (the worker's final pass already
+# writes the English prompt) and so is the ResolutionSelector: the backend writes the text, the size
+# and the seed. Flux with images has no tested workflow upstream: it takes the Flux 2 Klein recipe
+# (each image scaled to 1 MP, VAE-encoded and chained into ReferenceLatent on both conditionings),
+# validated in scripts/spikes/models.ts. The backend clones the @ref_* chain per extra image.
+def image_t2i(folder, prompt, latent, sampler, save_id, prefix):
+    g = load(folder)
+    g[prompt]["inputs"]["text"] = ""
+    g[latent]["inputs"].update({"width": 1024, "height": 1024})
+    g[save_id]["inputs"]["filename_prefix"] = prefix
+    for nid, t in {prompt: "@prompt", latent: "@latent_size", sampler: "@sampler", save_id: "@save"}.items(): title(g, nid, t)
+    return prune(g, [save_id])
+
+save(image_t2i("38-krea2-turbo", "30:6", "30:5", "30:3", "29", "bigos/krea2"), "t2i_krea_api.json")
+g = image_t2i("39-flux3-klein", "18:4", "18:6", "18:7", "9", "bigos/flux3")
+save(g, "t2i_flux_api.json")
+g["9"]["inputs"]["filename_prefix"] = "bigos/flux3_edit"
+g["ref_image_1"] = {"class_type": "LoadImage", "_meta": {"title": "@image_1"}, "inputs": {"image": "example.png"}}
+g["ref_scale_1"] = {"class_type": "ImageScaleToTotalPixels", "_meta": {"title": "@ref_scale_1"},
+                    "inputs": {"upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 16, "image": ["ref_image_1", 0]}}
+g["ref_encode_1"] = {"class_type": "VAEEncode", "_meta": {"title": "@ref_encode_1"}, "inputs": {"pixels": ["ref_scale_1", 0], "vae": ["18:3", 0]}}
+g["ref_pos_1"] = {"class_type": "ReferenceLatent", "_meta": {"title": "@ref_pos_1"}, "inputs": {"conditioning": ["18:4", 0], "latent": ["ref_encode_1", 0]}}
+g["ref_neg_1"] = {"class_type": "ReferenceLatent", "_meta": {"title": "@ref_neg_1"}, "inputs": {"conditioning": ["18:5", 0], "latent": ["ref_encode_1", 0]}}
+g["18:7"]["inputs"].update({"positive": ["ref_pos_1", 0], "negative": ["ref_neg_1", 0]})
+save(prune(g, ["9"]), "edit_flux_api.json")

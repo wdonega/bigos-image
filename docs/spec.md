@@ -24,7 +24,7 @@ Interface web simples para que pessoas leigas gerem e editem imagens com workflo
 - Seletor de tamanho por proporção e resolução, com opção **Manual** (Gerar e Editar) e **Original** (só Editar). Na Editar o usuário pode **trocar a proporção** da imagem (§7).
 - Seletor de qualidade (passos de amostragem).
 - Checkbox **Fundo transparente** em todas as telas (§8.2).
-- Um único modelo (Qwen Image 2.1, variante int8) nos dois workflows.
+- Um único modelo (Qwen Image 2.1, variante int8) nos dois workflows. **Mudou na decisão 34 (§14):** Krea 2 Turbo (Normal), Flux 3 Klein (Alta e com referências) e Qwen só com Fundo transparente.
 - Fila de execução com progresso.
 
 **Fora (por enquanto)**
@@ -41,6 +41,8 @@ Interface web simples para que pessoas leigas gerem e editem imagens com workflo
 | **Gerar**, sem referências | prompt, tamanho, qualidade | `image_qwen_image_2_1_t2i` |
 | **Gerar**, com 1 a 10 referências | prompt, referências, tamanho, qualidade | `image_qwen_image_2_1_image_edit` |
 | **Editar** | 1 imagem, instrução, tamanho (padrão: Original), qualidade | `image_qwen_image_2_1_image_edit` |
+
+> **Decisão 34 (§14):** a tabela acima é a do MVP. Hoje o backend escolhe o modelo pela quantidade de imagens, pela Qualidade e pelo Fundo transparente: sem imagens, `t2i_krea` (Normal) ou `t2i_flux` (Alta); com imagens, `edit_flux`; com Fundo transparente, os dois do Qwen abaixo.
 
 O usuário vê só duas telas. **O backend escolhe o workflow pela quantidade de imagens**: zero referências usa o t2i; uma ou mais usa o de edição. No workflow de edição, `image_1` é o alvo/base e as demais são referências (o template aceita até 10 imagens). Na tela Gerar, o tamanho vem sempre do seletor (§5), nunca da imagem.
 
@@ -146,6 +148,8 @@ Seletor de **Qualidade** com duas opções, mapeado para `steps` do KSampler:
 
 Os valores ficam em configuração. Fixos e invisíveis ao usuário: `cfg = 1`, `sampler = euler`, `scheduler = simple`.
 
+**Decisão 34 (§14):** fora do Fundo transparente, Qualidade escolhe o **modelo**, não os passos: Normal = Krea 2 Turbo (8 passos), Alta = Flux 3 Klein (16 passos), ambos com os passos fixos do template. Com imagens é sempre Flux 3 Klein (a Qualidade não muda nada). `STEPS_NORMAL`/`STEPS_HIGH` valem só para o Qwen (Fundo transparente).
+
 ### 8.2 Fundo transparente
 
 Checkbox **Fundo transparente**, desligado por padrão, presente nas telas Gerar e Editar.
@@ -199,6 +203,15 @@ No workflow de edição, as imagens entram no `TextEncodeQwenImage21` como entra
 | Diffusion | `qwen_image_2.1_int8_convrot.safetensors` | `models/diffusion_models/` |
 | Text encoder | `qwen3vl_8b_int8_convrot.safetensors` (`CLIPLoader`, type `qwen_image`) | `models/text_encoders/` |
 | VAE | `qwen_image_2.1_vae_bf16.safetensors` | `models/vae/` |
+
+Decisão 34 (§14) — imagens sem Fundo transparente:
+
+| Modelo | Arquivo | Pasta |
+|--------|---------|-------|
+| Krea 2 Turbo | `krea2_turbo_int8_convrot.safetensors` + `qwen3vl_4b_int8_convrot.safetensors` (type `krea2`) + `qwen_image_vae.safetensors` | `diffusion_models/`, `text_encoders/`, `vae/` |
+| Flux 3 Klein | `flux3-image-klein-int8-convrot.safetensors` + `qwen3vl_4b_int8_convrot.safetensors` (type `flux3`) + `flux2-vae.safetensors` | `diffusion_models/`, `text_encoders/`, `vae/` |
+
+Instalados pelos `install.sh` de `../comfyui-workflows` (`38-krea2-turbo`, `39-flux3-klein`); o prompt upsampler de 9B do Flux não é usado.
 
 Fonte: Hugging Face `Comfy-Org/Qwen-Image-2.1`. O workflow de edição também usa `QwenImage21Cache` (`device=auto`, `dtype=default`), mantidos nos valores do template. Os workflows usam nós novos (`TextEncodeQwenImage21`, `QwenImage21Cache`, `SaveImageAdvanced`, `ComfySwitchNode`); as notas dos templates pedem ComfyUI atualizado, e versões estáveis/Desktop podem não ter nós de nightly.
 
@@ -358,6 +371,17 @@ Uploads são enviados antes por `POST /api/uploads` (retorna `upload_id`). O bac
     - **Aviso e título:** um aviso no canto quando um trabalho termina fora da tela que o mostra (some em 8 s, com "Abrir"), e o título da aba ganha "(N)" com os terminados ainda não vistos.
     - **Reabrir:** cada envio põe `?job=<id>` no endereço (sem recarregar a tela); "Abrir", recarregar ou um link mostram o resultado na tela certa. O formulário não volta preenchido, só o resultado.
     - **Diferença do protótipo:** no celular a lista abre como menu suspenso de largura cheia, não como folha de baixo; o tempo restante só existe na estimativa da Restauração e não aparece na lista.
+
+34. **Modelos de imagem: Krea 2 Turbo e Flux 3 Klein** (2026-10-26, a pedido do dono, depois do spike de modelos `scripts/spikes/models.ts`, relatório publicado com saídas e tempos):
+    - **Escolha do dono:** Krea 2 Turbo para Qualidade **Normal**, Flux 3 Klein para **Alta** e para **todo pedido com imagens** (edição e referências). Vídeo continua no MiniMax H3 TaoMate: no spike ele ganhou do H3 Turbo v4, do LTX 2.3 e do Wan 2.2 5B em todos os casos e no tempo.
+    - **Fundo transparente continua no Qwen-Image 2.1** (escolha do dono): Krea, Flux e MOSS não geram canal alfa — pintam um xadrez falso ou fundo branco. Com a caixa marcada o backend usa os grafos antigos (`t2i`/`edit`, com `STEPS_NORMAL`/`STEPS_HIGH`); sem ela, os novos. Função pura `imageWorkflow` em `src/lib/jobs/request.ts`.
+    - **Grafos** `t2i_krea_api.json`, `t2i_flux_api.json` e `edit_flux_api.json`, gerados por `scripts/derive-effect-workflows.py` a partir de `../comfyui-workflows` (#38, #39). O LLM de reescrita que vem nos templates foi **tirado** (escolha do dono): a etapa final do app (decisão 24) já manda o prompt em inglês, e o do Flux não vê as fotos. Steps, cfg e sampler ficam os do template; o backend escreve `@prompt.text`, `@latent_size` e `@sampler.seed`.
+    - **Flux com imagens não tem workflow testado no repositório de workflows:** usa a receita do Flux 2 Klein — cada imagem reduzida/ampliada para 1 MP (`ImageScaleToTotalPixels`), `VAEEncode` e um `ReferenceLatent` encadeado no positivo e no negativo. O backend clona a cadeia `@image_1`/`@ref_scale_1`/`@ref_encode_1`/`@ref_pos_1`/`@ref_neg_1` para cada imagem (`buildFluxEdit`). As menções `<imageN>` seguem no texto; o Flux não tem índice de imagem, mas acertou "a mulher da imagem 1 com a jaqueta da imagem 2" e 3 fotos ao mesmo tempo no spike.
+    - **"Original" no Flux:** não há `switch`; o backend escreve o tamanho da `image_1` como foi enviada (já em múltiplos de 32, §7). Critério do §13 verificado: 1000×750 → 992×736.
+    - **Medido (RTX 5060 Ti 16 GB):** no spike, com o LLM do template ainda ligado, Krea 1 MP 14–22 s e 4 MP 84 s; Flux 1 MP 13–22 s e 4 MP 48 s; Flux com 1–3 fotos 20–39 s. Pelo app (sem o LLM do template, mas com o LLM do app fora do ar): Flux Alta 1 MP 42 s; Krea 16:9 2 MP 60 s; **10 fotos** (o máximo do app) 1 MP: 207 s pelo app, sem estourar a VRAM; 3 fotos a 4 MP 16:9: 106 s. Os tempos pelo app incluem a espera do LLM indisponível. Aceite (§13) 17/17 com os modelos novos.
+    - **RAM do host (descoberta do spike):** pico do processo do ComfyUI — Flux 6,8 GB, Krea 8,7 GB, Qwen 12,2 GB, H3 17,6 GB, H3 Turbo v4 20,5 GB, LTX 22,1 GB. O LLM no mesmo host (strata, ~51 GB de 61 GB) deixa ~8 GB: o ComfyUI **travou** no 1º vídeo do H3 e precisou ser reiniciado. Requisito do ambiente: deixar livres para o ComfyUI ~11 GB (Flux), ~13 GB (Krea), ~16 GB (Qwen) e **~22 GB para vídeo (H3)**.
+    - **A validar:** qualidade do Krea com prompt em português quando o LLM está fora do ar (o texto vai como digitado; no teste saiu a cena certa); Flux com 10 fotos de assuntos diferentes (só um teste, colagem); se a Qualidade deve sumir da tela quando há imagens.
+    - **Visto no spike, sem mudança agora:** o H3 escreve a fala pedida como **legenda queimada** no vídeo ("Bom dia!").
 
 **Descobertas (v0.4)**
 - **Exports de API corrigidos à mão (2026-09-25):** os JSONs em `workflows/api/` vieram sem os títulos `@…` e, no edit, com `ResolutionSelector`, `ImageCompare` e um 2º `LoadImage`. Com autorização do dono, os títulos foram adicionados e esses nós removidos direto no JSON (sem reexportar); `width`/`height` do edit ficaram como valores (1024 × 1024). `check-workflows.mjs` passa.

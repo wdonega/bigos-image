@@ -17,7 +17,7 @@ import { type SentImage, fitToBudget, readUploadImage, readUploadMeta } from "..
 import { buildVideoPrompt, tokensToSubjects } from "../video.ts";
 import { FfmpegError, cutSection, frameAt, probe } from "../ffmpeg.ts";
 import { readTapeMeta, tapeFile } from "../tapes.ts";
-import { buildEdit, buildEffect, buildMusic, buildT2I, buildVideo } from "../workflow/build.ts";
+import { buildEdit, buildEffect, buildFluxEdit, buildModelT2I, buildMusic, buildT2I, buildVideo } from "../workflow/build.ts";
 import { UPSCALERS } from "../restore.ts";
 import { removeWork, runRestore } from "./restore.ts";
 import { type ApiGraph, findNodeId } from "../workflow/graph.ts";
@@ -331,6 +331,10 @@ async function buildGraph(
     if (!data.size) throw new AppError("invalid_request", 400);
     return buildT2I(loadTemplate("t2i"), { prompt, ...data.size, seed: data.seed, steps: data.steps });
   }
+  if (data.workflow === "t2i_krea" || data.workflow === "t2i_flux") {
+    if (!data.size) throw new AppError("invalid_request", 400);
+    return buildModelT2I(loadTemplate(data.workflow), { prompt, ...data.size, seed: data.seed });
+  }
   const stored: SentImage[] = [];
   for (const id of data.images) {
     const png = await readUploadImage(config, id);
@@ -345,6 +349,11 @@ async function buildGraph(
   const names: string[] = [];
   for (const [i, image] of images.entries()) {
     names.push(await client.uploadImage(image.png, `bigos-${data.images[i]}.png`));
+  }
+  if (data.workflow === "edit_flux") {
+    // "Original" follows image_1 as sent (spec §7): Flux has no switch for it, so the size is explicit.
+    const size = data.size ?? { width: images[0].width, height: images[0].height };
+    return buildFluxEdit(loadTemplate("edit_flux"), { prompt, ...size, seed: data.seed, images: names });
   }
   return buildEdit(loadTemplate("edit"), {
     prompt,

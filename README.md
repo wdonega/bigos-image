@@ -1,6 +1,6 @@
 # Bigos Image
 
-A simple image, video and music generator for people who know nothing about AI, built on **ComfyUI** with **Qwen Image 2.1** (images), **MiniMax H3** (video with sound) and **MiniMax Music 3** (songs). You describe what you want in any language, pick a few friendly options, and the app does the rest: it builds the ComfyUI graph, queues the job, shows progress and hands you a PNG, MP4 or MP3.
+A simple image, video and music generator for people who know nothing about AI, built on **ComfyUI** with **Krea 2 Turbo** and **Flux 3 Klein** (images; **Qwen Image 2.1** for transparent backgrounds), **MiniMax H3** (video with sound) and **MiniMax Music 3** (songs). You describe what you want in any language, pick a few friendly options, and the app does the rest: it builds the ComfyUI graph, queues the job, shows progress and hands you a PNG, MP4 or MP3.
 
 📱 **Made for your phone.** It installs as an app (PWA) and runs great on mobile — tested on Android, on a Samsung Galaxy S24+. See [Made for your phone](#made-for-your-phone).
 
@@ -19,7 +19,7 @@ A simple image, video and music generator for people who know nothing about AI, 
 - [How it works](#how-it-works)
 - [Requirements](#requirements)
 - [ComfyUI components](#comfyui-components)
-  - [Image tab — Qwen Image 2.1](#image-tab--qwen-image-21)
+  - [Image tab — Krea 2, Flux 3 Klein and Qwen Image 2.1](#image-tab--krea-2-flux-3-klein-and-qwen-image-21)
   - [Video tab — MiniMax H3](#video-tab--minimax-h3)
   - [Music tab — MiniMax Music 3](#music-tab--minimax-music-3)
   - [Less VRAM?](#less-vram)
@@ -111,9 +111,21 @@ Approximate times on an RTX 5060 Ti 16 GB: an image in ~20 s, a 5 s video at 720
 
 Tested with **[ComfyUI](https://github.com/Comfy-Org/ComfyUI) 0.37.0**. The graphs live in [`workflows/api/`](workflows/api/); nodes are found by title (`@…`, see [`workflows/README.md`](workflows/README.md)). Save each model in the folder shown, inside `ComfyUI/models/`.
 
-### Image tab — Qwen Image 2.1
+### Image tab — Krea 2, Flux 3 Klein and Qwen Image 2.1
 
-Nodes: all built into ComfyUI (`TextEncodeQwenImage21`, `QwenImage21Cache`, `SaveImageAdvanced`, `ComfySwitchNode`…).
+The backend picks the model (spec §14, decision 34): **Krea 2 Turbo** for quality Normal, **Flux 3 Klein** for High and for every request with images, and **Qwen Image 2.1** only when *Transparent background* is on (the only one that returns real alpha). All nodes are built into ComfyUI (Flux 3 needs ComfyUI ≥ 0.42). The two first are installed by the `install.sh` of [comfyui-workflows](https://github.com/wdonega/comfyui-workflows) (`38-krea2-turbo`, `39-flux3-klein`); the Flux prompt upsampler is not used.
+
+| Model | Type | File | Folder | Download |
+|-------|------|------|--------|----------|
+| Krea 2 Turbo | Diffusion | `krea2_turbo_int8_convrot.safetensors` | `diffusion_models/` | [Comfy-Org/Krea-2](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_int8_convrot.safetensors) |
+| Krea 2 / Flux 3 | Text encoder | `qwen3vl_4b_int8_convrot.safetensors` | `text_encoders/` | [black-forest-labs/flux-3-image-klein-comfy](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/text_encoders/qwen3vl_4b_int8_convrot.safetensors) (gated) |
+| Krea 2 Turbo | VAE | `qwen_image_vae.safetensors` | `vae/` | [Comfy-Org/Krea-2](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors) |
+| Flux 3 Klein | Diffusion | `flux3-image-klein-int8-convrot.safetensors` | `diffusion_models/` | [black-forest-labs/flux-3-image-klein-comfy](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3-image-klein-int8-convrot.safetensors) (gated) |
+| Flux 3 Klein | VAE | `flux2-vae.safetensors` | `vae/` | [black-forest-labs/flux-3-image-klein-comfy](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/vae/flux2-vae.safetensors) (gated) |
+
+Licenses: Krea 2 Community (free under US$ 1M revenue), FLUX Kommunity (free under US$ 5M), Qwen Research (research and evaluation only).
+
+Qwen Image 2.1 (transparent background) — nodes `TextEncodeQwenImage21`, `QwenImage21Cache`, `SaveImageAdvanced`, `ComfySwitchNode`:
 
 | Type | File | Folder | Download |
 |------|------|--------|----------|

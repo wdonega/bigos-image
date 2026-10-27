@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { testConfig } from "../test-config";
-import { type UploadLookup, jobRequestSchema, planJob } from "./request";
+import { type UploadLookup, imageWorkflow, jobRequestSchema, planJob } from "./request";
 
 const parse = (body: unknown) => jobRequestSchema.parse(body);
 const base = { screen: "generate", prompt: "um gato", size: { ratio: "1:1", megapixels: 1 } };
@@ -12,7 +12,7 @@ describe("planJob — Generate without references", () => {
   it("defaults to 1:1 · 1 MP, normal quality, random seed, t2i", async () => {
     const p = await plan(base);
     expect(p).toMatchObject({
-      workflow: "t2i",
+      workflow: "t2i_krea",
       text: "um gato",
       size: { width: 1024, height: 1024 },
       steps: 25,
@@ -54,7 +54,7 @@ describe("planJob — Generate without references", () => {
 
   it("accepts Original on the Generate screen with references: the size follows image_1", async () => {
     const p = await plan({ ...base, size: { ratio: "original" }, images: ["u1", "u2"] });
-    expect(p).toMatchObject({ workflow: "edit", size: null, images: ["u1", "u2"] });
+    expect(p).toMatchObject({ workflow: "edit_flux", size: null, images: ["u1", "u2"] });
   });
 
   it("keeps the prompt exactly as typed", async () => {
@@ -90,7 +90,7 @@ describe("planJob — references and Edit", () => {
   it("switches to the edit workflow with the first reference", async () => {
     const p = await plan({ ...base, prompt: "o gato da [Imagem 1] com a [Imagem 2]", images: ids(2) });
     expect(p).toMatchObject({
-      workflow: "edit",
+      workflow: "edit_flux",
       images: ["u1", "u2"],
       size: { width: 1024, height: 1024 },
       text: "o gato da <image1> com a <image2>",
@@ -98,13 +98,13 @@ describe("planJob — references and Edit", () => {
   });
 
   it("accepts MAX_REFS references and rejects one more", async () => {
-    await expect(plan({ ...base, images: ids(10) })).resolves.toMatchObject({ workflow: "edit" });
+    await expect(plan({ ...base, images: ids(10) })).resolves.toMatchObject({ workflow: "edit_flux" });
     await expect(plan({ ...base, images: ids(11) })).rejects.toMatchObject({ code: "too_many_images" });
   });
 
   it("Edit needs exactly one image and allows Original (size null)", async () => {
     const edit = { ...base, screen: "edit", size: { ratio: "original" } };
-    await expect(plan({ ...edit, images: ids(1) })).resolves.toMatchObject({ workflow: "edit", size: null });
+    await expect(plan({ ...edit, images: ids(1) })).resolves.toMatchObject({ workflow: "edit_flux", size: null });
     await expect(plan({ ...edit, images: [] })).rejects.toMatchObject({ code: "invalid_request" });
     await expect(plan({ ...edit, images: ids(2) })).rejects.toMatchObject({ code: "invalid_request" });
   });
@@ -244,5 +244,16 @@ describe("planJob — old video restoration (spec §14, decision 32)", () => {
 
   it("accepts an end handle a hair past the last frame", async () => {
     expect((await restore({ start: 570, end: 600.2 })).restore?.seconds).toBe(30);
+  });
+});
+
+describe("imageWorkflow (spec §14, decision 34)", () => {
+  it("Krea for Normal, Flux for High and for images, Qwen only with a transparent background", () => {
+    expect(imageWorkflow(false, "normal", false)).toBe("t2i_krea");
+    expect(imageWorkflow(false, "high", false)).toBe("t2i_flux");
+    expect(imageWorkflow(true, "normal", false)).toBe("edit_flux");
+    expect(imageWorkflow(true, "high", false)).toBe("edit_flux");
+    expect(imageWorkflow(false, "high", true)).toBe("t2i");
+    expect(imageWorkflow(true, "normal", true)).toBe("edit");
   });
 });
